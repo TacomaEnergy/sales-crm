@@ -1391,21 +1391,35 @@ async function onStateSelected(st) {
   renderDashboard();
 }
 
+// ---- Load contacts from SharePoint on startup ----
+async function loadContactsFromSharePoint() {
+  if (!POWER_AUTOMATE.readContacts) return;
+  try {
+    const resp = await fetch(POWER_AUTOMATE.readContacts);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const rows = await resp.json();
+    const contacts = rows.filter(r => r['Contact ID']).map(mapContact);
+    if (contacts.length > 0) saveContacts(contacts);
+  } catch(e) {
+    console.warn('SharePoint load failed:', e.message);
+  }
+}
+
 // ---- Startup ----
 async function init() {
-  // Do NOT seed fake data — contacts load on demand by state from SharePoint
-  // Clear any old seed data that may have been cached
-  const loaded = JSON.parse(store.get('crm_loaded_states') || '[]');
-  if (loaded.length === 0 && store.get('crm_contacts')) {
-    // If we have contacts but no record of loading any state, it's seed data — clear it
-    const contacts = getContacts();
-    const hasSeedData = contacts.some(c => c.contactId === 'C-10001');
-    if (hasSeedData) {
-      store.set('crm_contacts', JSON.stringify([]));
-    }
+  // Clear seed data if present
+  const existing = getContacts();
+  if (existing.some(c => c.contactId === 'C-10001')) {
+    store.set('crm_contacts', JSON.stringify([]));
+    store.set('crm_loaded_states', JSON.stringify([]));
   }
   populateRepDropdowns();
   renderDashboard();
+  // Load real contacts from SharePoint
+  await loadContactsFromSharePoint();
+  populateRepDropdowns();
+  if (state.view === 'dashboard') renderDashboard();
+  if (state.view === 'contacts') renderContacts();
 }
 
 init();
