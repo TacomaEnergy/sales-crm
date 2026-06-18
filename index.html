@@ -609,7 +609,12 @@ function seed() {
 
 function getContacts() { try { return JSON.parse(store.get('crm_contacts')) || []; } catch(e) { return []; } }
 function getTouches() { try { return JSON.parse(store.get('crm_touches')) || []; } catch(e) { return []; } }
-function saveContacts(c) { store.set('crm_contacts', JSON.stringify(c)); }
+function saveContacts(c) {
+  // Deduplicate by contactId — last write wins
+  const seen = new Set();
+  const deduped = c.filter(x => { if (seen.has(x.contactId)) return false; seen.add(x.contactId); return true; });
+  store.set('crm_contacts', JSON.stringify(deduped));
+}
 function saveTouches(t) { store.set('crm_touches', JSON.stringify(t)); }
 
 // ---- helpers ----
