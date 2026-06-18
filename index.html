@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tacoma Energy — Sales CRM</title>
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --panel: #ffffff;
+    --text: #15212e;
+    --muted: #6b7a8d;
+    --border: #dce5ee;
+    --navy: #0c2d47;
+    --navy-2: #155a8a;
+    --accent: #1572a8;
+    --accent-mid: #2094cc;
+    --accent-light: #e8f4fb;
+    --green: #2ea843;
+    --green-light: #e9f7ed;
+    --amber: #e0a020;
+    --amber-light: #fdf6e7;
+    --red: #d8443a;
+    --red-light: #fdecea;
+    --radius: 10px;
+    --radius-sm: 7px;
+    --shadow-sm: 0 1px 3px rgba(13,34,64,.07);
+    --shadow-md: 0 4px 16px rgba(13,34,64,.10);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; }
+
+  /* ---- Top nav (matches main app) ---- */
+  .nav {
+    height: 68px; background: linear-gradient(100deg, var(--navy) 0%, var(--navy-2) 100%);
+    display: flex; align-items: center; padding: 0 24px; gap: 28px; position: sticky; top: 0; z-index: 30;
+    box-shadow: 0 2px 10px rgba(13,34,64,.18);
+  }
+  .nav-brand { display: flex; align-items: center; gap: 12px; }
+  .nav-logo { width: 40px; height: 40px; flex-shrink: 0; }
+  .nav-title { color: #fff; line-height: 1.1; }
+  .nav-title b { font-size: 16px; font-weight: 700; display: block; letter-spacing: .2px; }
+  .nav-title span { font-size: 11px; color: #9fc4dd; text-transform: uppercase; letter-spacing: .09em; }
+  .nav-tabs { display: flex; gap: 4px; margin-left: 8px; flex: 1; }
+  .nav-tab {
+    color: #c5dcec; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px;
+    cursor: pointer; border: none; background: none; transition: .15s; white-space: nowrap;
+  }
+  .nav-tab:hover { color: #fff; background: rgba(255,255,255,.08); }
+  .nav-tab.active { color: #fff; background: rgba(255,255,255,.16); }
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+  .rep-switch {
+    background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.22);
+    border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; font-family: var(--font); cursor: pointer;
+  }
+  .rep-switch option { color: #15212e; }
+
+  /* ---- Layout ---- */
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+  .page-head h2 { font-size: 22px; font-weight: 700; }
+  .page-head p { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .btn {
+    border: none; border-radius: 8px; background: var(--accent); color: #fff; padding: 10px 15px;
+    font-size: 14px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: .15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: var(--navy-2); }
+  .btn.green { background: var(--green); }
+  .btn.green:hover { background: #25923a; }
+  .btn.ghost { background: #fff; color: var(--accent); border: 1px solid var(--border); }
+  .btn.ghost:hover { background: var(--accent-light); }
+  .btn.sm { padding: 6px 11px; font-size: 13px; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ---- Stat cards ---- */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow-sm); }
+  .stat label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .stat .num { font-size: 28px; font-weight: 800; margin-top: 6px; color: var(--navy); }
+  .stat .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stat.alert .num { color: var(--red); }
+  .stat.good .num { color: var(--green); }
+
+  /* ---- Dashboard controls ---- */
+  .dash-controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+  .seg { display: inline-flex; background: #fff; border: 1px solid var(--border); border-radius: 9px; padding: 3px; gap: 2px; box-shadow: var(--shadow-sm); }
+  .seg-btn { border: none; background: none; padding: 7px 13px; font-size: 13px; font-weight: 600; font-family: var(--font); color: var(--muted); border-radius: 6px; cursor: pointer; white-space: nowrap; transition: .12s; }
+  .seg-btn:hover { color: var(--navy); }
+  .seg-btn.active { background: var(--accent); color: #fff; }
+
+  /* ---- Breakdown bars ---- */
+  .bd-row { display: grid; grid-template-columns: 120px 1fr 44px; align-items: center; gap: 10px; padding: 6px 0; }
+  .bd-label { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bd-track { background: #eef2f6; border-radius: 6px; height: 22px; overflow: hidden; }
+  .bd-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), var(--accent-mid)); min-width: 2px; transition: width .3s; }
+  .bd-val { font-size: 13px; font-weight: 700; color: var(--navy); text-align: right; }
+  .bd-empty { text-align: center; color: var(--muted); font-style: italic; font-size: 13px; padding: 20px; }
+
+  /* ---- Panels ---- */
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+  .panel-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .panel-head h3 { font-size: 15px; font-weight: 700; }
+  .panel-head .hint { font-size: 12px; color: var(--muted); }
+  .panel-body { padding: 16px 18px; }
+
+  .cols { display: grid; grid-template-columns: 1.3fr .85fr; gap: 18px; align-items: start; }
+
+  /* ---- Search / filters ---- */
+  .filters { display: grid; grid-template-columns: 1fr 180px 160px 130px; gap: 10px; margin-bottom: 16px; }
+  .filters-2row { grid-template-columns: 2fr 1.4fr 1fr 1fr 1.2fr 1.2fr; }
+  input, select, textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+    font-size: 14px; font-family: var(--font); background: #fff; color: var(--text);
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-mid); box-shadow: 0 0 0 3px rgba(32,148,204,.14); }
+  textarea { min-height: 84px; resize: vertical; }
+  label.fld { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+
+  /* ---- Table ---- */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; padding: 10px 12px; border-bottom: 1px solid var(--border); background: #f7fafc; }
+  td { padding: 11px 12px; border-bottom: 1px solid #eef2f6; vertical-align: top; font-size: 13px; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover td { background: #f8fbfe; }
+  tbody tr.selected td { background: var(--accent-light); }
+  .company { font-weight: 700; color: var(--navy); }
+  .sub { color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+  /* ---- Chips ---- */
+  .chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .chip.blue { background: var(--accent-light); color: var(--accent); }
+  .chip.green { background: var(--green-light); color: #1c7a2e; }
+  .chip.amber { background: var(--amber-light); color: #8a6212; }
+  .chip.red { background: var(--red-light); color: #a8322a; }
+  .chip.gray { background: #eef2f6; color: #5a6b7d; }
+  .rep-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; }
+  .rep-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ---- Contact detail ---- */
+  .contact-detail h3 { font-size: 20px; font-weight: 800; }
+  .contact-detail .role { color: var(--muted); font-size: 13px; margin-top: 2px; line-height: 1.5; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+  .info-box { background: #f7fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .info-box label { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; font-weight: 600; }
+  .info-box strong { font-size: 13px; word-break: break-word; }
+  .info-box a { color: var(--accent); text-decoration: none; }
+  .info-box a:hover { text-decoration: underline; }
+
+  /* ---- Timeline ---- */
+  .timeline { display: grid; gap: 10px; }
+  .touch { border-left: 3px solid var(--accent-mid); background: #f7fafc; border-radius: 0 8px 8px 0; padding: 11px 14px; }
+  .touch.method-call { border-left-color: var(--accent); }
+  .touch.method-email { border-left-color: var(--accent-mid); }
+  .touch.method-linkedin { border-left-color: #0a66c2; }
+  .touch.method-text { border-left-color: var(--green); }
+  .touch.method-inperson { border-left-color: var(--amber); }
+  .touch-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 5px; }
+  .touch-meta { font-size: 12px; font-weight: 700; color: var(--navy); }
+  .touch-notes { font-size: 13px; color: #44515f; line-height: 1.5; }
+  .touch-followup { font-size: 11px; color: var(--amber); font-weight: 700; margin-top: 5px; }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-style: italic; font-size: 13px; }
+
+  /* ---- Follow-up groups ---- */
+  .fu-group { margin-bottom: 18px; }
+  .fu-group-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; padding-left: 2px; }
+  .fu-group-label.overdue { color: var(--red); }
+  .fu-group-label.today { color: var(--amber); }
+  .fu-group-label.week { color: var(--accent); }
+  .fu-group-label.later { color: var(--muted); }
+
+  /* ---- Modal ---- */
+  .modal-bg { position: fixed; inset: 0; background: rgba(12,34,64,.55); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 50; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #fff; width: min(640px, 100%); border-radius: 14px; box-shadow: 0 30px 70px rgba(0,0,0,.3); overflow: hidden; max-height: 92vh; display: flex; flex-direction: column; }
+  .modal-head { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .modal-head h3 { font-size: 18px; font-weight: 700; }
+  .modal-x { background: none; border: none; font-size: 22px; color: var(--muted); cursor: pointer; line-height: 1; }
+  .modal-body { padding: 20px 22px; display: grid; gap: 14px; overflow-y: auto; }
+  .modal-foot { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; background: #f7fafc; }
+  .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .context-note { background: var(--accent-light); border: 1px solid #b9ddf2; border-radius: 8px; padding: 11px 14px; font-size: 13px; color: var(--navy); line-height: 1.5; }
+  .dup-warn { background: var(--amber-light); border: 1px solid #f0d28a; border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #7a5200; line-height: 1.5; display: none; }
+  .dup-warn.show { display: block; }
+  .dup-warn b { color: #5a3d00; }
+  .dup-hit { background: #fff; border: 1px solid #e6c88a; border-radius: 6px; padding: 8px 10px; margin-top: 8px; font-size: 12px; }
+  .new-hint { font-size: 11px; color: #1c7a2e; margin-top: 4px; display: none; }
+  .new-hint.show { display: block; }
+
+  /* ---- Activity log ---- */
+  .activity-filters { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .activity-filters select, .activity-filters input { width: auto; min-width: 150px; }
+
+  /* ---- toast ---- */
+  /* ---- Builder cards (grouped directory) ---- */
+  .builder-card { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; background: #fff; }
+  .builder-card:last-child { margin-bottom: 0; }
+  .builder-head { display: grid; grid-template-columns: 1fr 130px 90px 28px; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; transition: background .12s; }
+  .builder-head:hover { background: #f7fafc; }
+  .builder-name { font-weight: 700; color: var(--navy); font-size: 14px; }
+  .builder-loc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .builder-stat { text-align: center; }
+  .builder-stat .n { font-size: 14px; font-weight: 700; color: var(--navy); }
+  .builder-stat .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .builder-chev { color: var(--muted); font-size: 11px; transition: transform .2s; text-align: center; }
+  .builder-card.open .builder-chev { transform: rotate(180deg); }
+  .builder-body { display: none; border-top: 1px solid var(--border); background: #fafcfe; padding: 10px 12px; }
+  .builder-card.open .builder-body { display: block; }
+  .builder-body-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .builder-body-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .crow { display: grid; grid-template-columns: 1fr 120px 70px; align-items: center; gap: 10px; padding: 9px 11px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 5px; cursor: pointer; transition: box-shadow .12s; }
+  .crow:last-child { margin-bottom: 0; }
+  .crow:hover { box-shadow: var(--shadow-sm); }
+  .crow.selected { border-color: var(--accent-mid); background: var(--accent-light); }
+  .crow.touched { border-left: 3px solid var(--accent-mid); }
+  .crow.never { border-left: 3px solid var(--red); }
+  .crow.won { border-left: 3px solid var(--green); }
+  .crow-name { font-weight: 700; font-size: 13px; color: var(--navy); }
+  .crow-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--navy); color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; box-shadow: var(--shadow-md); opacity: 0; pointer-events: none; transition: .25s; z-index: 100; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 1100px) {
+    .filters-2row { grid-template-columns: 1fr 1fr 1fr; }
+  }
+  @media (max-width: 960px) {
+    .nav-tabs { display: none; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .cols { grid-template-columns: 1fr; }
+    .filters { grid-template-columns: 1fr; }
+    .filters-2row { grid-template-columns: 1fr 1fr; }
+    .frow { grid-template-columns: 1fr; }
+    .dash-controls { flex-direction: column; align-items: stretch; }
+    .seg { flex-wrap: wrap; }
+  }
+  @media (max-width: 560px) {
+    .stats { grid-template-columns: 1fr; }
+    .filters-2row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 60 Q35 35 55 48 Q72 58 88 40" stroke="#5bc8f5" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M18 72 Q40 50 60 62 Q76 72 90 56" stroke="#4dd47a" stroke-width="7" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="nav-title"><b>Tacoma Energy</b><span>Sales CRM</span></div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
+    <button class="nav-tab" data-view="contacts" onclick="switchView('contacts')">Contacts</button>
+    <button class="nav-tab" data-view="followups" onclick="switchView('followups')">Follow-Ups</button>
+    <button class="nav-tab" data-view="activity" onclick="switchView('activity')">Activity</button>
+  </div>
+  <div class="nav-right">
+    <span style="color:#9fc4dd;font-size:12px;font-weight:600">Logging as</span>
+    <select class="rep-switch" id="repSwitch" onchange="onRepSwitch()" title="Who you are — sets the rep on touches you log">
+    </select>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <div class="page-head">
+      <div><h2>Sales Dashboard</h2><p>Outreach overview. Filter by rep and time frame; everything below updates live.</p></div>
+      <div class="btn-row">
+        <button class="btn green" onclick="openContactModal()">+ Add Contact</button>
+        <button class="btn" onclick="openTouchModal()">+ Add Touch</button>
+      </div>
+    </div>
+
+    <div class="dash-controls">
+      <div class="seg" id="dashRepSeg"></div>
+      <div class="seg" id="dashRangeSeg">
+        <button class="seg-btn active" data-range="7" onclick="setDashRange(7)">7 days</button>
+        <button class="seg-btn" data-range="30" onclick="setDashRange(30)">30 days</button>
+        <button class="seg-btn" data-range="90" onclick="setDashRange(90)">90 days</button>
+        <button class="seg-btn" data-range="0" onclick="setDashRange(0)">All time</button>
+      </div>
+    </div>
+
+    <div class="stats" id="dashStats"></div>
+
+    <div class="cols">
+      <div class="panel">
+        <div class="panel-head"><h3>Reach-Outs by Rep</h3><span class="hint" id="dashRepHint"></span></div>
+        <div class="panel-body" id="dashByRep"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>By Method</h3></div>
+        <div class="panel-body" id="dashByMethod"></div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="panel">
+        <div class="panel-head"><h3>By Location</h3>
+          <select id="dashLocMode" onchange="renderDashboard()" style="width:auto;padding:6px 10px;font-size:13px">
+            <option value="state">By State</option>
+            <option value="city">By City</option>
+          </select>
+        </div>
+        <div class="panel-body" id="dashByLocation"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Follow-Ups Due</h3><span class="hint" id="dashFuHint"></span></div>
+        <div class="panel-body" id="dashFollowups"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Recent Activity</h3></div>
+      <div class="panel-body" id="dashActivity"></div>
+    </div>
+  </section>
+
+  <!-- CONTACTS -->
+  <section class="view" id="view-contacts">
+    <div class="page-head">
+      <div><h2>Contacts</h2><p>Builders with their contacts grouped underneath. Expand a builder to log, add, or edit contacts.</p></div>
+      <div class="btn-row"><button class="btn green" onclick="openContactModal()">+ Add Contact</button></div>
+    </div>
+    <div class="filters filters-2row">
+      <input type="text" id="contactSearch" placeholder="Search name, company, email, city, title..." oninput="renderContacts()" />
+      <select id="contactCompanyFilter" onchange="renderContacts()"><option value="">All builders</option></select>
+      <select id="contactStateFilter" onchange="onContactStateChange()"><option value="">All states</option></select>
+      <select id="contactCityFilter" onchange="renderContacts()"><option value="">All cities</option></select>
+      <select id="contactRepFilter" onchange="renderContacts()"><option value="">Any rep activity</option></select>
+      <select id="contactStatusFilter" onchange="renderContacts()">
+        <option value="">Any status</option>
+        <option value="never">Needs first touch</option>
+        <option value="due">Follow-up due</option>
+        <option value="active">Recently touched</option>
+        <option value="stale">Stale — verify info</option>
+      </select>
+    </div>
+    <div class="cols">
+      <div class="panel">
+        <div class="panel-head"><h3>Leads Directory</h3><span class="hint" id="contactCount"></span></div>
+        <div style="overflow:auto; max-height: 640px; padding: 12px;" id="builderList"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Selected Contact</h3><span id="contactDetailActions"></span></div>
+        <div class="panel-body" id="contactDetail"><div class="empty">Select a contact to see details and touch history.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOLLOW-UPS -->
+  <section class="view" id="view-followups">
+    <div class="page-head">
+      <div><h2>Follow-Ups</h2><p>Everything with a scheduled next step, grouped by when it's due.</p></div>
+    </div>
+    <div class="panel"><div class="panel-body" id="followupList"></div></div>
+  </section>
+
+  <!-- ACTIVITY -->
+  <section class="view" id="view-activity">
+    <div class="page-head">
+      <div><h2>Activity Log</h2><p>Every touch logged across the team. This is the SalesTouches table.</p></div>
+    </div>
+    <div class="activity-filters">
+      <select id="actRepFilter" onchange="renderActivity()"><option value="">All reps</option></select>
+      <select id="actMethodFilter" onchange="renderActivity()">
+        <option value="">All methods</option>
+        <option>Call</option><option>Email</option><option>LinkedIn</option><option>Text</option><option>In Person</option><option>Other</option>
+      </select>
+      <input type="text" id="actSearch" placeholder="Search contact or notes..." oninput="renderActivity()" />
+    </div>
+    <div class="panel">
+      <div style="overflow:auto;">
+        <table>
+          <thead><tr><th>Date</th><th>Rep</th><th>Contact</th><th>Method</th><th>Result</th><th>Notes</th></tr></thead>
+          <tbody id="activityRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ADD TOUCH MODAL -->
+<div class="modal-bg" id="touchModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Add Sales Touch</h3><button class="modal-x" onclick="closeTouchModal()">×</button></div>
+    <div class="modal-body">
+      <div class="context-note" id="touchContext">No contact selected — pick one from Contacts first, or this touch won't be linked.</div>
+      <div class="frow">
+        <div><label class="fld">Rep</label><select id="tmRep"></select></div>
+        <div><label class="fld">Method</label><select id="tmMethod">
+          <option>Call</option><option>Email</option><option>LinkedIn</option><option>Text</option><option>In Person</option><option>Other</option>
+        </select></div>
+      </div>
+      <div class="frow">
+        <div><label class="fld">Result</label><select id="tmResult" onchange="onResultChange()">
+          <option>Left voicemail</option>
+          <option>Sent info</option>
+          <option>Spoke with contact</option>
+          <option>Not interested</option>
+          <option>Bad contact info</option>
+        </select></div>
+        <div><label class="fld">Date</label><input type="date" id="tmDate" /></div>
+      </div>
+      <div><label class="fld">Next Follow-Up Date <span style="font-weight:400;color:var(--muted)">(auto-set: 6 weeks, or 1 year if Not interested — change or clear as needed)</span></label><input type="date" id="tmFollowup" /></div>
+      <div><label class="fld">Notes</label><textarea id="tmNotes" placeholder="Response, follow-up details, pricing questions, etc."></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeTouchModal()">Cancel</button>
+      <button class="btn green" onclick="saveTouch()">Save Touch</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT CONTACT MODAL -->
+<div class="modal-bg" id="contactModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="cmTitle">Add Contact</h3><button class="modal-x" onclick="closeContactModal()">×</button></div>
+    <div class="modal-body">
+      <div class="dup-warn" id="cmDupWarn"></div>
+      <div class="frow">
+        <div><label class="fld">First Name</label><input type="text" id="cmFirst" oninput="checkDup()" /></div>
+        <div><label class="fld">Last Name</label><input type="text" id="cmLast" oninput="checkDup()" /></div>
+      </div>
+      <div>
+        <label class="fld">Company / Builder</label>
+        <input type="text" id="cmCompany" list="cmCompanyList" oninput="checkDup()" placeholder="Search or type a new builder" />
+        <datalist id="cmCompanyList"></datalist>
+        <div class="new-hint" id="cmNewHint">✓ New builder — will be added to the directory</div>
+      </div>
+      <div>
+        <label class="fld">Title / Position</label><input type="text" id="cmTitleField" placeholder="e.g. Purchasing Manager" />
+      </div>
+      <div class="frow">
+        <div><label class="fld">Email</label><input type="email" id="cmEmail" oninput="checkDup()" placeholder="name@builder.com" /></div>
+        <div><label class="fld">Phone</label><input type="tel" id="cmPhone" placeholder="555-555-0000" /></div>
+      </div>
+      <div><label class="fld">LinkedIn URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="url" id="cmLinkedin" placeholder="https://www.linkedin.com/in/..." /></div>
+      <div class="frow">
+        <div>
+          <label class="fld">State</label>
+          <select id="cmState" onchange="onModalStateChange()"></select>
+        </div>
+        <div>
+          <label class="fld">City</label>
+          <select id="cmCity"></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="cmDeleteBtn" style="display:none;margin-right:auto" onclick="markInactive()">Mark Inactive</button>
+      <button class="btn ghost" onclick="closeContactModal()">Cancel</button>
+      <button class="btn green" id="cmSaveBtn" onclick="saveContact()">Save Contact</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+//  TACOMA ENERGY — SALES CRM (rough draft)
+//
+//  DATA MODEL
+//  ----------
+//  CONTACTS — one row per person. Keyed by stable contactId
+//             (e.g. "C-10001"). When someone changes jobs you
+//             EDIT the company on their row — contactId never
+//             changes, so all their touch history stays attached.
+//
+//  TOUCHES  — append-only log. Each touch references a contactId.
+//             Adding a touch never modifies the contact record.
+//
+//  BACKEND (when wired up)
+//  -----------------------
+//  Source of truth: Excel workbook on SharePoint with two sheets:
+//    • Contacts  (the leads directory)
+//    • SalesTouches (the activity log)
+//  READS  — Power Automate (scheduled) writes the sheet data into
+//           this file, or the page fetches it. For this draft the
+//           data lives in localStorage so it works offline.
+//  WRITES — Add Touch / Add Contact / Edit Contact POST to a
+//           Power Automate HTTP trigger, which appends/updates the
+//           matching SharePoint row. Paste the URLs below to wire
+//           it up. Until then writes save locally and log to console.
+// ============================================================
+
+const POWER_AUTOMATE = {
+  readContacts: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e9241447475d4deaa504d8d4bdf89ea5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VFLdkxCkdC3_5k9eDSyajDpxtw9y9YzPTDYtGjrOTlA',
+  addTouch:    '',   // TODO: paste Power Automate HTTP trigger URL — appends to SalesTouches
+  addContact:  '',   // TODO: paste Power Automate HTTP trigger URL — appends to Contacts
+  editContact: ''    // TODO: paste Power Automate HTTP trigger URL — updates Contacts by contactId
+};
+
+// Fixed location list — pick a state, then only that state's cities show.
+// Regional model: one anchor city per metro (e.g. Dallas covers the DFW area).
+// To add a market later, just add the city to the right state's array.
+const LOCATIONS = {
+  'AL': ['Birmingham','Huntsville','Mobile','Montgomery'],
+  'AK': ['Anchorage'],
+  'AZ': ['Phoenix','Tucson'],
+  'AR': ['Fayetteville','Little Rock'],
+  'CA': ['Los Angeles','Sacramento'],
+  'CO': ['Denver'],
+  'CT': ['Bridgeport'],
+  'DE': ['Dover'],
+  'DC': ['DC'],
+  'FL': ['Fort Myers','Jacksonville','Miami','Orlando','Pensacola','Tampa','West Palm Beach'],
+  'GA': ['Atlanta','Savannah'],
+  'HI': ['Honolulu'],
+  'ID': ['Boise'],
+  'IL': ['Chicago'],
+  'IN': ['Indianapolis'],
+  'IA': ['Des Moines'],
+  'KS': ['Wichita'],
+  'KY': ['Louisville'],
+  'LA': ['New Orleans'],
+  'ME': ['Bangor'],
+  'MD': ['Baltimore'],
+  'MA': ['Boston'],
+  'MI': ['Detroit','Grand Rapids'],
+  'MN': ['Minneapolis'],
+  'MS': ['Jackson'],
+  'MO': ['Kansas City','St. Louis'],
+  'MT': ['Billings'],
+  'NE': ['Omaha'],
+  'NV': ['Las Vegas'],
+  'NH': ['Manchester'],
+  'NJ': ['Newark'],
+  'NM': ['Albuquerque'],
+  'NY': ['Buffalo','New York','Rochester'],
+  'NC': ['Charlotte','Raleigh','Wilmington'],
+  'ND': ['Fargo'],
+  'OH': ['Cincinnati','Cleveland','Columbus'],
+  'OK': ['Oklahoma City'],
+  'OR': ['Portland'],
+  'PA': ['Philadelphia','Pittsburgh'],
+  'RI': ['Providence'],
+  'SC': ['Charleston','Columbia','Greenville','Myrtle Beach'],
+  'SD': ['Sioux Falls'],
+  'TN': ['Chattanooga','Knoxville','Memphis','Nashville'],
+  'TX': ['Austin','Dallas','El Paso','Houston','Lubbock','San Antonio'],
+  'UT': ['Salt Lake City'],
+  'VT': ['Burlington'],
+  'VA': ['Richmond','Virginia Beach'],
+  'WA': ['Seattle'],
+  'WV': ['Beckley'],
+  'WI': ['Milwaukee'],
+  'WY': ['Cheyenne'],
+  'CAN': ['Toronto']
+};
+const STATE_LIST = Object.keys(LOCATIONS);
+const REPS = ['N. Reynolds', 'C. Gaston', 'A. Palumbo', 'Unassigned'];
+const REP_COLOR = {
+  'N. Reynolds': '#1a5c3a', 'C. Gaston': '#1a4a8a',
+  'A. Palumbo': '#7a2a1a', 'Unassigned': '#5a6b7d'
+};
+function repColor(r) { return REP_COLOR[r] || '#5a6b7d'; }
+
+// ---- storage wrapper: localStorage with in-memory fallback ----
+const mem = {};
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch(e) { return mem[k] ?? null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch(e) { mem[k] = v; } }
+};
+
+// ---- seed sample data (only if empty) ----
+function seed() {
+  if (store.get('crm_contacts')) return;
+  const contacts = [
+    { contactId:'C-10001', company:'M/I Homes', city:'Columbus', state:'OH', first:'Sarah', last:'Jones', title:'Purchasing Manager', email:'sarah.jones@mihomes.com', phone:'614-555-1234', linkedin:'https://www.linkedin.com/in/sarah-jones-mih', active:true, dateAdded:'2026-05-02' },
+    { contactId:'C-10002', company:'M/I Homes', city:'Cincinnati', state:'OH', first:'Mike', last:'Reynolds', title:'Construction Manager', email:'mike.reynolds@mihomes.com', phone:'937-555-8755', linkedin:'https://www.linkedin.com/in/mike-reynolds-build', active:true, dateAdded:'2026-05-04' },
+    { contactId:'C-10003', company:'Fischer Homes', city:'Cincinnati', state:'OH', first:'Lindsey', last:'Miller', title:'Operations Coordinator', email:'lmiller@fischerhomes.com', phone:'513-555-8822', linkedin:'', active:true, dateAdded:'2026-05-09' },
+    { contactId:'C-10004', company:'Fischer Homes', city:'Cincinnati', state:'OH', first:'David', last:'Campbell', title:'Division VP', email:'dcampbell@fischerhomes.com', phone:'513-555-2001', linkedin:'https://www.linkedin.com/in/david-campbell-fischer', active:true, dateAdded:'2026-04-18' },
+    { contactId:'C-10005', company:'Pulte Homes', city:'Columbus', state:'OH', first:'Amanda', last:'Foster', title:'Purchasing Manager', email:'amanda.foster@pulte.com', phone:'614-555-3002', linkedin:'', active:true, dateAdded:'2026-03-22' },
+    { contactId:'C-10006', company:'Ryan Homes', city:'Columbus', state:'OH', first:'Jennifer', last:'Davis', title:'Sales Manager', email:'jdavis@nvrinc.com', phone:'614-555-4002', linkedin:'https://www.linkedin.com/in/jennifer-davis-nvr', active:true, dateAdded:'2026-05-12' },
+    { contactId:'C-10007', company:'Drees Homes', city:'Cincinnati', state:'OH', first:'Stephanie', last:'Baker', title:'Purchasing Manager', email:'sbaker@dreeshomes.com', phone:'513-555-1002', linkedin:'', active:true, dateAdded:'2026-05-19' },
+    { contactId:'C-10008', company:'Maronda Homes', city:'Columbus', state:'OH', first:'Thomas', last:'Greene', title:'Purchasing Director', email:'tgreene@marondahomes.com', phone:'614-555-5001', linkedin:'https://www.linkedin.com/in/thomas-greene-maronda', active:true, dateAdded:'2025-09-15', lastEdited:'2025-09-15' },
+    { contactId:'C-10009', company:'Epcon Communities', city:'Columbus', state:'OH', first:'Rachel', last:'Scott', title:'Division Manager', email:'rscott@epconcommunities.com', phone:'614-555-7001', linkedin:'', active:true, dateAdded:'2026-05-21' },
+    { contactId:'C-10010', company:'Rockford Homes', city:'Columbus', state:'OH', first:'Brian', last:'Walsh', title:'Owner', email:'bwalsh@rockfordhomes.com', phone:'614-555-9001', linkedin:'https://www.linkedin.com/in/brian-walsh-rockford', active:true, dateAdded:'2025-10-02', lastEdited:'2025-10-02' },
+    { contactId:'C-10011', company:'3 Pillar Homes', city:'Columbus', state:'OH', first:'Kevin', last:'Tran', title:'Project Manager', email:'kevin@3pillarhomes.com', phone:'614-555-1199', linkedin:'', active:true, dateAdded:'2026-05-25' },
+    { contactId:'C-10012', company:'Fischer Homes', city:'Columbus', state:'OH', first:'Nicole', last:'Young', title:'Purchasing Manager', email:'nyoung@fischerhomes.com', phone:'614-555-6002', linkedin:'https://www.linkedin.com/in/nicole-young-fischer', active:true, dateAdded:'2026-04-02' }
+  ];
+  const touches = [
+    { touchId:'T-1', contactId:'C-10001', date:'2026-05-26', rep:'N. Reynolds', method:'Email', result:'Sent info', notes:'Sent intro email with inspection + modeling overview. Follow up next week.', followUp:'2026-06-13' },
+    { touchId:'T-2', contactId:'C-10001', date:'2026-05-19', rep:'N. Reynolds', method:'Call', result:'Left voicemail', notes:'Left VM asking who handles rating/inspection coordination.', followUp:'' },
+    { touchId:'T-3', contactId:'C-10001', date:'2026-05-12', rep:'C. Gaston', method:'LinkedIn', result:'Spoke with contact', notes:'Connected on LinkedIn, she confirmed she is the right POC for Columbus.', followUp:'' },
+    { touchId:'T-4', contactId:'C-10002', date:'2026-06-04', rep:'C. Gaston', method:'Call', result:'Spoke with contact', notes:'Quick call, wants pricing for Cincinnati division. Sending proposal.', followUp:'2026-06-12' },
+    { touchId:'T-5', contactId:'C-10004', date:'2026-05-30', rep:'A. Palumbo', method:'In Person', result:'Spoke with contact', notes:'Met at the Cincinnati parade of homes. Very interested in AeroBarrier.', followUp:'2026-06-16' },
+    { touchId:'T-6', contactId:'C-10005', date:'2026-04-15', rep:'N. Reynolds', method:'Email', result:'Sent info', notes:'No response to last two emails. Trying a call next.', followUp:'2026-06-11' },
+    { touchId:'T-7', contactId:'C-10007', date:'2026-05-28', rep:'Unassigned', method:'Email', result:'Sent info', notes:'Sent pricing sheet for compliance + testing bundle.', followUp:'2026-06-18' },
+    { touchId:'T-8', contactId:'C-10008', date:'2026-02-20', rep:'N. Reynolds', method:'Call', result:'Not interested', notes:'Said they have an existing provider. Revisit in Q4.', followUp:'' },
+    { touchId:'T-9', contactId:'C-10010', date:'2026-06-09', rep:'C. Gaston', method:'Text', result:'Spoke with contact', notes:'Texted re: scheduling first inspection. Confirmed for next week.', followUp:'2026-06-12' }
+  ];
+  store.set('crm_contacts', JSON.stringify(contacts));
+  store.set('crm_touches', JSON.stringify(touches));
+}
+
+function getContacts() { try { return JSON.parse(store.get('crm_contacts')) || []; } catch(e) { return []; } }
+function getTouches() { try { return JSON.parse(store.get('crm_touches')) || []; } catch(e) { return []; } }
+function saveContacts(c) { store.set('crm_contacts', JSON.stringify(c)); }
+function saveTouches(t) { store.set('crm_touches', JSON.stringify(t)); }
+
+// ---- helpers ----
+function todayISO() { return new Date().toISOString().slice(0,10); }
+function plusWeeks(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n*7);
+  return d.toISOString().slice(0,10);
+}
+function plusYears(n) {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + n);
+  return d.toISOString().slice(0,10);
+}
+// Default follow-up date based on the result picked. 6 weeks for everything
+// except "Not interested" (1 year out). Rep can always override.
+function followUpDefault(result) {
+  if (result === 'Not interested') return plusYears(1);
+  return plusWeeks(6);
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const [y,m,d] = iso.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(m)-1]} ${parseInt(d)}, ${y}`;
+}
+function daysBetween(iso) {
+  if (!iso) return null;
+  const d = new Date(iso + 'T00:00:00');
+  return Math.floor((new Date(todayISO()+'T00:00:00') - d) / 86400000);
+}
+function touchesFor(cid) {
+  return getTouches().filter(t => t.contactId === cid)
+    .sort((a,b) => b.date.localeCompare(a.date));
+}
+function lastTouch(cid) { return touchesFor(cid)[0] || null; }
+function nextFollowUp(cid) {
+  const fus = getTouches().filter(t => t.contactId === cid && t.followUp)
+    .map(t => t.followUp).sort();
+  return fus.length ? fus[fus.length-1] : null;
+}
+function repChip(rep) {
+  return `<span class="rep-chip" style="color:${repColor(rep)}"><span class="rep-dot" style="background:${repColor(rep)}"></span>${rep||'—'}</span>`;
+}
+function contactStatus(cid) {
+  const lt = lastTouch(cid);
+  if (!lt) return { key:'never', chip:'<span class="chip red">Needs first touch</span>' };
+  const fu = nextFollowUp(cid);
+  if (fu && daysBetween(fu) >= 0) return { key:'due', chip:'<span class="chip amber">Follow-up due</span>' };
+  if (fu) return { key:'active', chip:'<span class="chip blue">Scheduled</span>' };
+  return { key:'active', chip:'<span class="chip green">Touched</span>' };
+}
+
+// When was this contact record last added/edited? Falls back to dateAdded for
+// older records that predate the lastEdited field. Used to flag stale contacts
+// whose employer/title may need verifying.
+function contactEdited(c) { return c.lastEdited || c.dateAdded || ''; }
+function contactFreshness(c) {
+  const d = contactEdited(c);
+  if (!d) return { label:'—', stale:false, days:null };
+  const days = daysBetween(d);
+  if (days === null) return { label:'—', stale:false, days:null };
+  // Stale if not touched/edited in 6+ months — worth re-checking their info.
+  const stale = days > 180;
+  let label;
+  if (days <= 30) label = 'Updated recently';
+  else if (days <= 180) label = `Updated ${Math.round(days/30)} mo ago`;
+  else label = `${Math.round(days/30)} mo old — verify info`;
+  return { label, stale, days };
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ---- Power Automate push (stubbed) ----
+async function pushPA(action, payload) {
+  const url = POWER_AUTOMATE[action];
+  if (!url) { console.log(`[Power Automate stub] ${action}:`, payload); return true; }
+  try {
+    await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    return true;
+  } catch(e) { console.error('Power Automate push failed:', e); return false; }
+}
+
+// ============================================================
+//  STATE + NAV
+// ============================================================
+let state = { view:'dashboard', selectedContact:null, actingRep:'', openBuilders:new Set(), dashRange:7, dashRep:'' };
+
+function switchView(v) {
+  state.view = v;
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.view===v));
+  if (v==='dashboard') renderDashboard();
+  if (v==='contacts') renderContacts();
+  if (v==='followups') renderFollowups();
+  if (v==='activity') renderActivity();
+}
+
+function onRepSwitch() {
+  // Identity only — sets who you are, which pre-fills the rep on touches you log.
+  // It does NOT filter the dashboard (use the dashboard's own rep control for that).
+  state.actingRep = document.getElementById('repSwitch').value;
+}
+
+// ============================================================
+//  DASHBOARD
+// ============================================================
+function setDashRange(days) {
+  state.dashRange = days;
+  document.querySelectorAll('#dashRangeSeg .seg-btn').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.range) === days));
+  renderDashboard();
+}
+function setDashRep(rep) {
+  state.dashRep = rep;
+  document.querySelectorAll('#dashRepSeg .seg-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.rep === rep));
+  renderDashboard();
+}
+
+// touches within the active timeframe + rep filter
+function dashTouches() {
+  const days = state.dashRange;
+  const rep = state.dashRep;
+  const cutoff = days ? (() => { const d = new Date(); d.setDate(d.getDate()-days); return d.toISOString().slice(0,10); })() : null;
+  return getTouches().filter(t => {
+    if (rep && t.rep !== rep) return false;
+    if (cutoff && t.date < cutoff) return false;
+    return true;
+  });
+}
+
+function barRows(counts, opts) {
+  opts = opts || {};
+  const entries = Object.entries(counts).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
+  if (!entries.length) return '<div class="bd-empty">No reach-outs in this window.</div>';
+  const max = Math.max(...entries.map(e => e[1]));
+  return entries.map(([label, val]) => {
+    const color = opts.repColor ? repColor(label) : null;
+    const fillStyle = color ? `background:${color}` : '';
+    return `<div class="bd-row">
+      <div class="bd-label">${opts.repColor ? `<span class="rep-dot" style="background:${color};display:inline-block;margin-right:6px"></span>` : ''}${label}</div>
+      <div class="bd-track"><div class="bd-fill" style="width:${Math.round(val/max*100)}%;${fillStyle}"></div></div>
+      <div class="bd-val">${val}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderDashboard() {
+  const allTouches = getTouches();
+  const contacts = getContacts().filter(c => c.active);
+  const tch = dashTouches();
+  const rangeLabel = state.dashRange ? `last ${state.dashRange} days` : 'all time';
+  const repLabel = state.dashRep || 'all reps';
+
+  // ---- top stat cards ----
+  const totalReachOuts = tch.length;
+  const contactsReached = new Set(tch.map(t => t.contactId)).size;
+  const fusDue = allTouches.filter(t => t.followUp && daysBetween(t.followUp) >= 0 && (!state.dashRep || t.rep === state.dashRep)).length;
+  const untouched = contacts.filter(c => !lastTouch(c.contactId)).length;
+
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat"><label>Reach-Outs</label><div class="num">${totalReachOuts}</div><div class="sub">${rangeLabel} · ${repLabel}</div></div>
+    <div class="stat good"><label>Contacts Reached</label><div class="num">${contactsReached}</div><div class="sub">unique people</div></div>
+    <div class="stat ${fusDue?'alert':''}"><label>Follow-Ups Due</label><div class="num">${fusDue}</div><div class="sub">${repLabel}</div></div>
+    <div class="stat ${untouched?'alert':''}"><label>Untouched Leads</label><div class="num">${untouched}</div><div class="sub">no touch ever</div></div>`;
+
+  // ---- by rep ---- (ignores rep filter so you can compare reps; respects timeframe)
+  const repCutoff = state.dashRange ? (() => { const d=new Date(); d.setDate(d.getDate()-state.dashRange); return d.toISOString().slice(0,10); })() : null;
+  const repCounts = {};
+  REPS.forEach(r => repCounts[r] = 0);
+  allTouches.forEach(t => { if (!repCutoff || t.date >= repCutoff) repCounts[t.rep] = (repCounts[t.rep]||0)+1; });
+  document.getElementById('dashRepHint').textContent = rangeLabel;
+  document.getElementById('dashByRep').innerHTML = barRows(repCounts, { repColor:true });
+
+  // ---- by method ---- (respects both filters)
+  const methodCounts = {};
+  tch.forEach(t => methodCounts[t.method] = (methodCounts[t.method]||0)+1);
+  document.getElementById('dashByMethod').innerHTML = barRows(methodCounts);
+
+  // ---- by location ---- (respects both filters)
+  const locMode = document.getElementById('dashLocMode') ? document.getElementById('dashLocMode').value : 'state';
+  const locCounts = {};
+  tch.forEach(t => {
+    const c = contacts.find(x => x.contactId === t.contactId) || getContacts().find(x => x.contactId === t.contactId);
+    if (!c) return;
+    const key = locMode === 'city' ? `${c.city}, ${c.state}` : (c.state || '—');
+    locCounts[key] = (locCounts[key]||0)+1;
+  });
+  document.getElementById('dashByLocation').innerHTML = barRows(locCounts);
+
+  // ---- follow-ups due ----
+  const rep = state.dashRep;
+  document.getElementById('dashFuHint').textContent = repLabel;
+  const dueTouches = allTouches
+    .filter(t => t.followUp && (!rep || t.rep === rep))
+    .sort((a,b) => a.followUp.localeCompare(b.followUp));
+  const seen = new Set();
+  const fuRows = [];
+  dueTouches.forEach(t => {
+    if (seen.has(t.contactId)) return; seen.add(t.contactId);
+    const c = getContacts().find(x => x.contactId === t.contactId);
+    if (!c) return;
+    const d = daysBetween(t.followUp);
+    const chip = d > 0 ? `<span class="chip red">${d}d overdue</span>`
+              : d === 0 ? '<span class="chip amber">Today</span>'
+              : `<span class="chip blue">${fmtDate(t.followUp)}</span>`;
+    fuRows.push(`<tr onclick="openContactFromDash('${c.contactId}')">
+      <td style="width:120px">${chip}</td>
+      <td><div class="company">${c.first} ${c.last}</div><div class="sub">${c.company} · ${c.city}, ${c.state}</div></td>
+      <td onclick="event.stopPropagation()" style="width:64px"><button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button></td>
+    </tr>`);
+  });
+  document.getElementById('dashFollowups').innerHTML = fuRows.length
+    ? `<div style="max-height:280px;overflow:auto"><table><tbody>${fuRows.slice(0,30).join('')}</tbody></table></div>`
+    : '<div class="empty">No follow-ups scheduled.</div>';
+
+  // ---- recent activity ----
+  const recent = [...tch].sort((a,b) => b.date.localeCompare(a.date)).slice(0,8);
+  document.getElementById('dashActivity').innerHTML = recent.length
+    ? `<div class="timeline">${recent.map(t => {
+        const c = getContacts().find(x => x.contactId === t.contactId);
+        const name = c ? `${c.first} ${c.last}` : '(unknown)';
+        return `<div class="touch method-${t.method.toLowerCase().replace(' ','')}">
+          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${t.method}</span>${repChip(t.rep)}</div>
+          <div class="touch-notes"><b>${name}</b> — ${t.result}</div>
+        </div>`;
+      }).join('')}</div>`
+    : '<div class="empty">No activity in this window.</div>';
+}
+
+function openContactFromDash(cid) { state.selectedContact = cid; switchView('contacts'); }
+function quickTouch(cid) { state.selectedContact = cid; openTouchModal(); }
+
+// ============================================================
+//  CONTACTS
+// ============================================================
+function renderContacts() {
+  const q = (document.getElementById('contactSearch').value || '').toLowerCase();
+  const companyF = document.getElementById('contactCompanyFilter').value;
+  const stateF = document.getElementById('contactStateFilter') ? document.getElementById('contactStateFilter').value : '';
+  const cityF = document.getElementById('contactCityFilter') ? document.getElementById('contactCityFilter').value : '';
+  const repF = document.getElementById('contactRepFilter').value;
+  const statusF = document.getElementById('contactStatusFilter').value;
+
+  let contacts = getContacts().filter(c => c.active);
+  contacts = contacts.filter(c => {
+    if (companyF && c.company !== companyF) return false;
+    if (stateF && c.state !== stateF) return false;
+    if (cityF && c.city !== cityF) return false;
+    if (repF && !getTouches().some(t => t.contactId === c.contactId && t.rep === repF)) return false;
+    if (statusF) {
+      if (statusF === 'stale') { if (!contactFreshness(c).stale) return false; }
+      else if (contactStatus(c.contactId).key !== statusF) return false;
+    }
+    if (q) {
+      const hay = `${c.first} ${c.last} ${c.company} ${c.email} ${c.city} ${c.state} ${c.title}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Group by builder + city + state
+  const groups = {};
+  contacts.forEach(c => {
+    const key = `${c.company}|||${c.city}|||${c.state}`;
+    if (!groups[key]) groups[key] = { company:c.company, city:c.city, state:c.state, contacts:[] };
+    groups[key].contacts.push(c);
+  });
+  const builders = Object.values(groups).sort((a,b) => a.company.localeCompare(b.company) || a.city.localeCompare(b.city));
+
+  document.getElementById('contactCount').textContent =
+    `${builders.length} builder${builders.length===1?'':'s'} · ${contacts.length} contact${contacts.length===1?'':'s'}`;
+
+  if (!builders.length) {
+    document.getElementById('builderList').innerHTML = '<div class="empty">No contacts match your filters.</div>';
+    return;
+  }
+
+  document.getElementById('builderList').innerHTML = builders.map((b, idx) => {
+    const cardId = `bc_${idx}`;
+    const open = state.openBuilders.has(`${b.company}|${b.city}|${b.state}`);
+    // most recent touch across this builder's contacts
+    let lastDate = '';
+    b.contacts.forEach(c => { const lt = lastTouch(c.contactId); if (lt && lt.date > lastDate) lastDate = lt.date; });
+
+    const rows = b.contacts.sort((a,c) => a.last.localeCompare(c.last)).map(c => {
+      const lt = lastTouch(c.contactId);
+      const st = contactStatus(c.contactId);
+      const cls = !lt ? 'never' : (st.key==='due' ? 'touched' : 'touched');
+      const ltText = lt ? `${fmtDate(lt.date)} · ${lt.rep}` : 'Not yet contacted';
+      const fresh = contactFreshness(c);
+      const staleFlag = fresh.stale ? ` <span title="Not updated in ${Math.round(fresh.days/30)} months — verify employer/title" style="color:var(--amber);font-size:11px;font-weight:700">⚠ verify</span>` : '';
+      return `<div class="crow ${cls} ${state.selectedContact===c.contactId?'selected':''}" onclick="selectContact('${c.contactId}')">
+        <div>
+          <div class="crow-name">${c.first} ${c.last}${staleFlag}</div>
+          <div class="crow-sub">${c.title||'—'} · ${ltText}</div>
+        </div>
+        <div>${st.chip}</div>
+        <div style="text-align:right" onclick="event.stopPropagation()">
+          <button class="btn ghost sm" onclick="openContactModal('${c.contactId}')">Edit</button>
+          <button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="builder-card ${open?'open':''}" id="${cardId}">
+      <div class="builder-head" onclick="toggleBuilder('${b.company}|${b.city}|${b.state}')">
+        <div>
+          <div class="builder-name">${b.company}</div>
+          <div class="builder-loc">${b.city}, ${b.state}</div>
+        </div>
+        <div class="builder-stat"><div class="n">${b.contacts.length}</div><div class="l">Contacts</div></div>
+        <div class="builder-stat"><div class="n" style="font-size:12px">${lastDate?fmtDate(lastDate):'—'}</div><div class="l">Last Touch</div></div>
+        <div class="builder-chev">▼</div>
+      </div>
+      <div class="builder-body">
+        <div class="builder-body-head">
+          <span class="builder-body-title">Contacts (${b.contacts.length})</span>
+          <button class="btn ghost sm" onclick="event.stopPropagation();addContactToBuilder('${b.company.replace(/'/g,"\\'")}','${b.city.replace(/'/g,"\\'")}','${b.state}')">+ Add Contact</button>
+        </div>
+        ${rows}
+      </div>
+    </div>`;
+  }).join('');
+
+  if (state.selectedContact) renderContactDetail(state.selectedContact);
+}
+
+function toggleBuilder(key) {
+  if (state.openBuilders.has(key)) state.openBuilders.delete(key);
+  else state.openBuilders.add(key);
+  renderContacts();
+}
+
+function addContactToBuilder(company, city, st) {
+  openContactModal();
+  document.getElementById('cmCompany').value = company;
+  document.getElementById('cmState').value = st;
+  rebuildModalCityList();
+  document.getElementById('cmCity').value = city;
+  checkDup();
+}
+
+function selectContact(cid) { state.selectedContact = cid; renderContacts(); renderContactDetail(cid); }
+
+function renderContactDetail(cid) {
+  const c = getContacts().find(x => x.contactId === cid);
+  const box = document.getElementById('contactDetail');
+  const actions = document.getElementById('contactDetailActions');
+  if (!c) { box.innerHTML = '<div class="empty">Select a contact.</div>'; actions.innerHTML=''; return; }
+
+  actions.innerHTML = `<div class="btn-row">
+    <button class="btn ghost sm" onclick="openContactModal('${c.contactId}')">Edit</button>
+    <button class="btn sm" onclick="openTouchModal()">+ Touch</button>
+  </div>`;
+
+  const history = touchesFor(cid);
+  const fu = nextFollowUp(cid);
+  box.innerHTML = `
+    <div class="contact-detail">
+      <h3>${c.first} ${c.last}</h3>
+      <div class="role">${c.company} · ${c.title}<br>${c.city}, ${c.state}</div>
+      <div class="info-grid">
+        <div class="info-box"><label>Email</label><strong><a href="mailto:${c.email}">${c.email||'—'}</a></strong></div>
+        <div class="info-box"><label>Phone</label><strong><a href="tel:${c.phone}">${c.phone||'—'}</a></strong></div>
+        <div class="info-box"><label>LinkedIn</label><strong>${c.linkedin?`<a href="${c.linkedin}" target="_blank" rel="noopener">View profile ↗</a>`:'—'}</strong></div>
+        <div class="info-box"><label>Last Rep</label><strong>${(() => { const lt = lastTouch(c.contactId); return lt ? repChip(lt.rep) : '<span style="color:var(--muted)">— none yet —</span>'; })()}</strong></div>
+        <div class="info-box"><label>Contact ID</label><strong>${c.contactId}</strong></div>
+        <div class="info-box"><label>Last Edited</label><strong>${contactEdited(c)?fmtDate(contactEdited(c)):'—'}</strong></div>
+      </div>
+      ${(() => { const f = contactFreshness(c); return f.stale ? `<div class="context-note" style="background:var(--amber-light);border-color:#f0d28a;color:#7a5200">⚠ This contact hasn't been updated in ${Math.round(f.days/30)} months — worth confirming their employer and title are still current.</div>` : ''; })()}
+      ${fu ? `<div class="context-note">Next follow-up: <b>${fmtDate(fu)}</b>${daysBetween(fu)>0?` · <span style="color:var(--red)">${daysBetween(fu)} days overdue</span>`:''}</div>` : ''}
+    </div>
+    <div style="margin-top:16px">
+      <div class="panel-head" style="padding:0 0 10px;border:none"><h3>Touch History</h3><span class="hint">${history.length} logged</span></div>
+      ${history.length ? `<div class="timeline">${history.map(t => `
+        <div class="touch method-${t.method.toLowerCase().replace(' ','')}">
+          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${t.method}</span>${repChip(t.rep)}</div>
+          <div class="touch-notes"><b>${t.result}.</b> ${t.notes||''}</div>
+          ${t.followUp ? `<div class="touch-followup">⏰ Follow up ${fmtDate(t.followUp)}</div>` : ''}
+        </div>`).join('')}</div>`
+        : '<div class="empty">No touches yet. Add the first one.</div>'}
+    </div>`;
+}
+
+// ============================================================
+//  FOLLOW-UPS
+// ============================================================
+function renderFollowups() {
+  const touches = getTouches().filter(t => t.followUp);
+  const byContact = {};
+  touches.forEach(t => {
+    if (!byContact[t.contactId] || t.followUp > byContact[t.contactId].followUp)
+      byContact[t.contactId] = t;
+  });
+  const items = Object.values(byContact).sort((a,b) => a.followUp.localeCompare(b.followUp));
+
+  const groups = { overdue:[], today:[], week:[], later:[] };
+  items.forEach(t => {
+    const d = daysBetween(t.followUp);
+    if (d > 0) groups.overdue.push(t);
+    else if (d === 0) groups.today.push(t);
+    else if (d >= -7) groups.week.push(t);
+    else groups.later.push(t);
+  });
+
+  const labels = { overdue:'Overdue', today:'Due Today', week:'This Week', later:'Later' };
+  let html = '';
+  ['overdue','today','week','later'].forEach(k => {
+    if (!groups[k].length) return;
+    html += `<div class="fu-group"><div class="fu-group-label ${k}">${labels[k]} (${groups[k].length})</div>
+      <table><tbody>${groups[k].map(t => {
+        const c = getContacts().find(x => x.contactId === t.contactId);
+        if (!c) return '';
+        return `<tr onclick="openContactFromDash('${c.contactId}')">
+          <td style="width:130px"><span class="chip ${k==='overdue'?'red':k==='today'?'amber':'blue'}">${fmtDate(t.followUp)}</span></td>
+          <td><div class="company">${c.first} ${c.last}</div><div class="sub">${c.company} · ${c.city}, ${c.state}</div></td>
+          <td>${repChip(t.rep)}</td>
+          <td class="sub">${t.notes||''}</td>
+          <td onclick="event.stopPropagation()" style="width:70px"><button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  });
+  document.getElementById('followupList').innerHTML = html || '<div class="empty">No follow-ups scheduled.</div>';
+}
+
+// ============================================================
+//  ACTIVITY
+// ============================================================
+function renderActivity() {
+  const repF = document.getElementById('actRepFilter').value;
+  const methodF = document.getElementById('actMethodFilter').value;
+  const q = (document.getElementById('actSearch').value || '').toLowerCase();
+
+  let touches = [...getTouches()].sort((a,b) => b.date.localeCompare(a.date));
+  touches = touches.filter(t => {
+    if (repF && t.rep !== repF) return false;
+    if (methodF && t.method !== methodF) return false;
+    if (q) {
+      const c = getContacts().find(x => x.contactId === t.contactId);
+      const name = c ? `${c.first} ${c.last} ${c.company}` : '';
+      if (!(`${name} ${t.notes}`.toLowerCase().includes(q))) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('activityRows').innerHTML = touches.length ? touches.map(t => {
+    const c = getContacts().find(x => x.contactId === t.contactId);
+    const name = c ? `${c.first} ${c.last}` : '(unknown)';
+    const co = c ? c.company : '';
+    return `<tr onclick="${c?`openContactFromDash('${t.contactId}')`:''}">
+      <td style="white-space:nowrap">${fmtDate(t.date)}</td>
+      <td>${repChip(t.rep)}</td>
+      <td><div class="company">${name}</div><div class="sub">${co}</div></td>
+      <td><span class="chip gray">${t.method}</span></td>
+      <td>${t.result}</td>
+      <td class="sub">${t.notes||''}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="6"><div class="empty">No activity matches your filters.</div></td></tr>';
+}
+
+// ============================================================
+//  ADD TOUCH MODAL
+// ============================================================
+function openTouchModal() {
+  const c = getContacts().find(x => x.contactId === state.selectedContact);
+  document.getElementById('touchContext').innerHTML = c
+    ? `<b>Selected contact:</b> ${c.first} ${c.last} · ${c.company} · ${c.contactId}<br>Saving appends a new row to SalesTouches — the contact record is untouched.`
+    : 'No contact selected — pick one from Contacts first, or this touch won\'t be linked.';
+  document.getElementById('tmDate').value = todayISO();
+  document.getElementById('tmRep').value = state.actingRep || REPS[0];
+  document.getElementById('tmMethod').value = 'Call';
+  document.getElementById('tmResult').value = 'Left voicemail';
+  document.getElementById('tmFollowup').value = followUpDefault('Left voicemail');
+  document.getElementById('tmNotes').value = '';
+  document.getElementById('touchModal').classList.add('open');
+}
+function closeTouchModal() { document.getElementById('touchModal').classList.remove('open'); }
+
+// When the result changes, re-apply the default follow-up date for that result.
+// (Only overwrites the date — if the rep already typed a custom one we still
+//  reset it to the new default, since the result is the stronger signal.)
+function onResultChange() {
+  const result = document.getElementById('tmResult').value;
+  document.getElementById('tmFollowup').value = followUpDefault(result);
+}
+
+async function saveTouch() {
+  const cid = state.selectedContact;
+  if (!cid) { toast('Select a contact first'); return; }
+  const touches = getTouches();
+  const entry = {
+    touchId: 'T-' + Date.now(),
+    contactId: cid,
+    date: document.getElementById('tmDate').value || todayISO(),
+    rep: document.getElementById('tmRep').value,
+    method: document.getElementById('tmMethod').value,
+    result: document.getElementById('tmResult').value,
+    notes: document.getElementById('tmNotes').value.trim(),
+    followUp: document.getElementById('tmFollowup').value || ''
+  };
+  touches.push(entry);
+  saveTouches(touches);
+
+  // Update the UI immediately — logged and visible right away.
+  closeTouchModal();
+  toast('Touch logged');
+  renderContacts(); renderContactDetail(cid);
+  if (state.view==='dashboard') renderDashboard();
+
+  // Background sync to SharePoint (does not block the UI).
+  pushPA('addTouch', entry);
+}
+
+// ============================================================
+//  ADD / EDIT CONTACT MODAL  (with duplicate detection)
+// ============================================================
+let editingContactId = null;
+
+function openContactModal(cid) {
+  editingContactId = cid || null;
+  document.getElementById('cmTitle').textContent = cid ? 'Edit Contact' : 'Add Contact';
+  document.getElementById('cmSaveBtn').textContent = cid ? 'Save Changes' : 'Save Contact';
+  document.getElementById('cmDeleteBtn').style.display = cid ? 'inline-flex' : 'none';
+  document.getElementById('cmDupWarn').classList.remove('show');
+  document.getElementById('cmNewHint').classList.remove('show');
+
+  // builder datalist
+  const builders = [...new Set(getContacts().map(c => c.company))].sort();
+  document.getElementById('cmCompanyList').innerHTML = builders.map(b => `<option value="${b}">`).join('');
+
+  // state dropdown — fixed list
+  document.getElementById('cmState').innerHTML =
+    '<option value="">— State —</option>' + STATE_LIST.map(s => `<option value="${s}">${s}</option>`).join('');
+
+  const c = cid ? getContacts().find(x => x.contactId === cid) : null;
+  document.getElementById('cmFirst').value = c?.first || '';
+  document.getElementById('cmLast').value = c?.last || '';
+  document.getElementById('cmCompany').value = c?.company || '';
+  document.getElementById('cmTitleField').value = c?.title || '';
+  document.getElementById('cmEmail').value = c?.email || '';
+  document.getElementById('cmPhone').value = c?.phone || '';
+  document.getElementById('cmLinkedin').value = c?.linkedin || '';
+  document.getElementById('cmState').value = c?.state || '';
+  rebuildModalCityList();                       // fill cities for the chosen state
+  document.getElementById('cmCity').value = c?.city || '';
+
+  document.getElementById('contactModal').classList.add('open');
+}
+function closeContactModal() { document.getElementById('contactModal').classList.remove('open'); editingContactId = null; }
+
+// City dropdown shows only the chosen state's cities (fixed list)
+function rebuildModalCityList() {
+  const st = document.getElementById('cmState').value;
+  const cities = LOCATIONS[st] || [];
+  const citySel = document.getElementById('cmCity');
+  citySel.innerHTML = st
+    ? '<option value="">— City —</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('')
+    : '<option value="">— Select a state first —</option>';
+}
+function onModalStateChange() {
+  document.getElementById('cmCity').value = '';   // clear city when state changes
+  rebuildModalCityList();
+}
+
+// Duplicate check: email match (strongest) OR first+last+company. Never title.
+function checkDup() {
+  const first = document.getElementById('cmFirst').value.trim().toLowerCase();
+  const last = document.getElementById('cmLast').value.trim().toLowerCase();
+  const email = document.getElementById('cmEmail').value.trim().toLowerCase();
+  const company = document.getElementById('cmCompany').value.trim();
+
+  // new-builder hint
+  const known = getContacts().some(c => c.company.toLowerCase() === company.toLowerCase());
+  document.getElementById('cmNewHint').classList.toggle('show', !!company && !known);
+
+  const hits = getContacts().filter(c => {
+    if (c.contactId === editingContactId) return false; // don't flag self when editing
+    if (!c.active) return false;
+    if (email && c.email && c.email.toLowerCase() === email) return true;
+    if (first && last && company &&
+        c.first.toLowerCase() === first && c.last.toLowerCase() === last &&
+        c.company.toLowerCase() === company.toLowerCase()) return true;
+    return false;
+  });
+
+  const warn = document.getElementById('cmDupWarn');
+  if (hits.length) {
+    warn.innerHTML = `<b>Possible duplicate.</b> This person may already be in the directory:` +
+      hits.map(h => `<div class="dup-hit"><b>${h.first} ${h.last}</b> · ${h.title} · ${h.company} (${h.contactId})<br>${h.email||''}</div>`).join('') +
+      `<div style="margin-top:8px">If it's the same person, cancel and open their record instead. If it's genuinely a different person, you can still save.</div>`;
+    warn.classList.add('show');
+  } else {
+    warn.classList.remove('show');
+  }
+}
+
+async function saveContact() {
+  const first = document.getElementById('cmFirst').value.trim();
+  const last = document.getElementById('cmLast').value.trim();
+  const company = document.getElementById('cmCompany').value.trim();
+  if (!first || !last || !company) { toast('Name and company are required'); return; }
+
+  const contacts = getContacts();
+  const payload = {
+    first, last, company,
+    title: document.getElementById('cmTitleField').value.trim(),
+    email: document.getElementById('cmEmail').value.trim().toLowerCase(),
+    phone: document.getElementById('cmPhone').value.trim(),
+    linkedin: document.getElementById('cmLinkedin').value.trim(),
+    city: document.getElementById('cmCity').value.trim(),
+    state: document.getElementById('cmState').value.trim().toUpperCase(),
+    lastEdited: todayISO()
+  };
+
+  let syncAction, syncPayload;
+
+  if (editingContactId) {
+    // EDIT IN PLACE — contactId stays the same, history stays attached
+    const c = contacts.find(x => x.contactId === editingContactId);
+    Object.assign(c, payload);
+    saveContacts(contacts);
+    state.selectedContact = editingContactId;
+    syncAction = 'editContact';
+    syncPayload = { contactId: editingContactId, ...payload };
+    toast('Contact updated');
+  } else {
+    const newId = 'C-' + (10000 + contacts.length + 1 + Math.floor(Math.random()*50));
+    const entry = { contactId:newId, active:true, dateAdded: todayISO(), ...payload };
+    contacts.push(entry);
+    saveContacts(contacts);
+    state.selectedContact = newId;
+    syncAction = 'addContact';
+    syncPayload = entry;
+    toast('Contact added');
+  }
+
+  // Update the UI immediately — the contact is usable for logging right now,
+  // regardless of whether/when the background sync to SharePoint completes.
+  closeContactModal();
+  if (state.view==='contacts') { renderContacts(); renderContactDetail(state.selectedContact); }
+  else switchView('contacts');
+
+  // Fire the sync in the background (does not block using the app).
+  pushPA(syncAction, syncPayload);
+}
+
+function markInactive() {
+  if (!editingContactId) return;
+  if (!confirm('Mark this contact inactive? They\'ll be hidden from the directory but their history is kept.')) return;
+  const contacts = getContacts();
+  const c = contacts.find(x => x.contactId === editingContactId);
+  c.active = false;
+  saveContacts(contacts);
+  pushPA('editContact', { contactId: editingContactId, active:false });
+  closeContactModal();
+  state.selectedContact = null;
+  toast('Contact marked inactive');
+  renderContacts();
+  document.getElementById('contactDetail').innerHTML = '<div class="empty">Select a contact to see details and touch history.</div>';
+  document.getElementById('contactDetailActions').innerHTML = '';
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+function populateRepDropdowns() {
+  const opts = REPS.map(r => `<option value="${r}">${r}</option>`).join('');
+  // "Logging as" identity picker — list reps only (no "All reps"); default to the first rep.
+  document.getElementById('repSwitch').innerHTML = opts;
+  if (!state.actingRep) state.actingRep = REPS[0];
+  document.getElementById('repSwitch').value = state.actingRep;
+  document.getElementById('tmRep').innerHTML = opts;
+  document.getElementById('contactRepFilter').innerHTML = '<option value="">Any rep activity</option>' + opts;
+  document.getElementById('actRepFilter').innerHTML = '<option value="">All reps</option>' + opts;
+
+  // Dashboard rep segmented control
+  document.getElementById('dashRepSeg').innerHTML =
+    `<button class="seg-btn active" data-rep="" onclick="setDashRep('')">All reps</button>` +
+    REPS.map(r => `<button class="seg-btn" data-rep="${r}" onclick="setDashRep('${r}')">${r}</button>`).join('');
+
+  rebuildLocationFilters();
+  const builders = [...new Set(getContacts().map(c => c.company))].sort();
+  document.getElementById('contactCompanyFilter').innerHTML =
+    '<option value="">All builders</option>' + builders.map(b => `<option value="${b}">${b}</option>`).join('');
+}
+
+// Build state + city filter options from the contact data
+function rebuildLocationFilters() {
+  const contacts = getContacts().filter(c => c.active);
+  const states = [...new Set(contacts.map(c => c.state).filter(Boolean))].sort();
+  const stateSel = document.getElementById('contactStateFilter');
+  if (stateSel) {
+    const cur = stateSel.value;
+    stateSel.innerHTML = '<option value="">All states</option>' + states.map(s => `<option value="${s}">${s}</option>`).join('');
+    stateSel.value = cur;
+  }
+  rebuildCityFilter();
+}
+
+function rebuildCityFilter() {
+  const contacts = getContacts().filter(c => c.active);
+  const stateSel = document.getElementById('contactStateFilter');
+  const citySel = document.getElementById('contactCityFilter');
+  if (!citySel) return;
+  const stateF = stateSel ? stateSel.value : '';
+  const cities = [...new Set(contacts.filter(c => !stateF || c.state === stateF).map(c => c.city).filter(Boolean))].sort();
+  const cur = citySel.value;
+  citySel.innerHTML = '<option value="">All cities</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('');
+  // keep current city only if still valid
+  citySel.value = cities.includes(cur) ? cur : '';
+}
+
+function onContactStateChange() { rebuildCityFilter(); renderContacts(); }
+
+// ---- Map Excel column names → app field names ----
+function mapContact(row) {
+  return {
+    contactId:   'C-' + String(row['Contact ID']).padStart(5, '0'),
+    company:     row['Company']      || '',
+    first:       row['First Name']   || '',
+    last:        row['Last Name']    || '',
+    title:       row['Title']        || '',
+    email:       row['Email']        || '',
+    phone:       row['Phone']        || '',
+    linkedin:    row['LinkedIn URL'] || '',
+    city:        row['City']         || '',
+    state:       row['State']        || '',
+    active:      (row['Active'] || 'Yes').toString().toLowerCase() !== 'no',
+    dateAdded:   row['Date Added']   || '',
+    lastEdited:  row['Last Edited']  || ''
+  };
+}
+
+// ---- Load contacts from SharePoint; fall back to local cache if offline ----
+async function loadContacts() {
+  if (!POWER_AUTOMATE.readContacts) { seed(); return; }
+  try {
+    const resp = await fetch(POWER_AUTOMATE.readContacts);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const rows = await resp.json();
+    const contacts = rows
+      .filter(r => r['Contact ID'])
+      .map(mapContact);
+    saveContacts(contacts);
+    store.set('crm_contacts_synced', new Date().toISOString());
+  } catch(e) {
+    console.warn('SharePoint load failed, using local cache:', e.message);
+    // If nothing in cache at all, load sample data so app isn't empty
+    if (!store.get('crm_contacts')) seed();
+  }
+}
+
+// ---- Startup ----
+async function init() {
+  // Show the app immediately with whatever is cached
+  if (!store.get('crm_contacts')) seed();
+  populateRepDropdowns();
+  renderDashboard();
+
+  // Then fetch fresh data from SharePoint in the background
+  await loadContacts();
+
+  // Re-render with fresh data
+  populateRepDropdowns();
+  if (state.view === 'dashboard') renderDashboard();
+  if (state.view === 'contacts')  renderContacts();
+}
+
+init();
+</script>
+</body>
+</html>
