@@ -1329,7 +1329,12 @@ function rebuildCityFilter() {
   citySel.value = cities.includes(cur) ? cur : '';
 }
 
-function onContactStateChange() { rebuildCityFilter(); renderContacts(); }
+function onContactStateChange() {
+  rebuildCityFilter();
+  const st = document.getElementById('contactStateFilter').value;
+  if (st) onStateSelected(st);
+  else renderContacts();
+}
 
 // ---- Map Excel column names → app field names ----
 function mapContact(row) {
@@ -1350,39 +1355,50 @@ function mapContact(row) {
   };
 }
 
-// ---- Load contacts from SharePoint; fall back to local cache if offline ----
-async function loadContacts() {
-  if (!POWER_AUTOMATE.readContacts) { seed(); return; }
+// ---- Load contacts for a specific state from SharePoint ----
+async function loadContactsByState(st) {
+  if (!POWER_AUTOMATE.readContacts) return false;
+  if (!st) return false;
   try {
-    const resp = await fetch(POWER_AUTOMATE.readContacts);
+    toast('Loading ' + st + ' contacts...');
+    const url = POWER_AUTOMATE.readContacts + '&state=' + encodeURIComponent(st);
+    const resp = await fetch(url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const rows = await resp.json();
-    const contacts = rows
-      .filter(r => r['Contact ID'])
-      .map(mapContact);
-    saveContacts(contacts);
-    store.set('crm_contacts_synced', new Date().toISOString());
+    const fresh = rows.filter(r => r['Contact ID']).map(mapContact);
+
+    // Merge into existing contacts — replace any for this state, keep others
+    const existing = getContacts().filter(c => c.state !== st);
+    saveContacts([...existing, ...fresh]);
+    store.set('crm_loaded_states', JSON.stringify(
+      [...new Set([...(JSON.parse(store.get('crm_loaded_states')||'[]')), st])]
+    ));
+    return true;
   } catch(e) {
-    console.warn('SharePoint load failed, using local cache:', e.message);
-    // If nothing in cache at all, load sample data so app isn't empty
-    if (!store.get('crm_contacts')) seed();
+    console.warn('SharePoint load failed for ' + st + ':', e.message);
+    toast('Could not load ' + st + ' — using cached data');
+    return false;
   }
+}
+
+// Called when rep selects a state filter — loads that state if not already loaded
+async function onStateSelected(st) {
+  if (!st) return;
+  const loaded = JSON.parse(store.get('crm_loaded_states') || '[]');
+  if (!loaded.includes(st)) {
+    await loadContactsByState(st);
+    populateRepDropdowns();
+  }
+  renderContacts();
+  renderDashboard();
 }
 
 // ---- Startup ----
 async function init() {
-  // Show the app immediately with whatever is cached
+  // Start with empty/cached data — contacts load on demand by state
   if (!store.get('crm_contacts')) seed();
   populateRepDropdowns();
   renderDashboard();
-
-  // Then fetch fresh data from SharePoint in the background
-  await loadContacts();
-
-  // Re-render with fresh data
-  populateRepDropdowns();
-  if (state.view === 'dashboard') renderDashboard();
-  if (state.view === 'contacts')  renderContacts();
 }
 
 init();
