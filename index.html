@@ -1303,14 +1303,12 @@ function populateRepDropdowns() {
     '<option value="">All builders</option>' + builders.map(b => `<option value="${b}">${b}</option>`).join('');
 }
 
-// Build state + city filter options from the contact data
+// Build state filter from fixed list so all states always show regardless of what is loaded
 function rebuildLocationFilters() {
-  const contacts = getContacts().filter(c => c.active);
-  const states = [...new Set(contacts.map(c => c.state).filter(Boolean))].sort();
   const stateSel = document.getElementById('contactStateFilter');
   if (stateSel) {
     const cur = stateSel.value;
-    stateSel.innerHTML = '<option value="">All states</option>' + states.map(s => `<option value="${s}">${s}</option>`).join('');
+    stateSel.innerHTML = '<option value="">All states</option>' + STATE_LIST.map(s => `<option value="${s}">${s}</option>`).join('');
     stateSel.value = cur;
   }
   rebuildCityFilter();
@@ -1395,8 +1393,17 @@ async function onStateSelected(st) {
 
 // ---- Startup ----
 async function init() {
-  // Start with empty/cached data — contacts load on demand by state
-  if (!store.get('crm_contacts')) seed();
+  // Do NOT seed fake data — contacts load on demand by state from SharePoint
+  // Clear any old seed data that may have been cached
+  const loaded = JSON.parse(store.get('crm_loaded_states') || '[]');
+  if (loaded.length === 0 && store.get('crm_contacts')) {
+    // If we have contacts but no record of loading any state, it's seed data — clear it
+    const contacts = getContacts();
+    const hasSeedData = contacts.some(c => c.contactId === 'C-10001');
+    if (hasSeedData) {
+      store.set('crm_contacts', JSON.stringify([]));
+    }
+  }
   populateRepDropdowns();
   renderDashboard();
 }
