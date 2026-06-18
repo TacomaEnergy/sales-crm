@@ -497,8 +497,7 @@
 // ============================================================
 
 const POWER_AUTOMATE = {
-  readContacts: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e9241447475d4deaa504d8d4bdf89ea5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VFLdkxCkdC3_5k9eDSyajDpxtw9y9YzPTDYtGjrOTlA',
-  addTouch:    '',   // TODO: paste Power Automate HTTP trigger URL — appends to SalesTouches
+  addTouch:    'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/780e39d608c54f55bccb3f94e228ffe4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2lKXv41gVbHKyUZcDZMU4MrND-J6H_YzNZhHA0in9Cc',   // Power Automate HTTP trigger URL — appends to SalesTouches
   addContact:  '',   // TODO: paste Power Automate HTTP trigger URL — appends to Contacts
   editContact: ''    // TODO: paste Power Automate HTTP trigger URL — updates Contacts by contactId
 };
@@ -609,12 +608,7 @@ function seed() {
 
 function getContacts() { try { return JSON.parse(store.get('crm_contacts')) || []; } catch(e) { return []; } }
 function getTouches() { try { return JSON.parse(store.get('crm_touches')) || []; } catch(e) { return []; } }
-function saveContacts(c) {
-  // Deduplicate by contactId — last write wins
-  const seen = new Set();
-  const deduped = c.filter(x => { if (seen.has(x.contactId)) return false; seen.add(x.contactId); return true; });
-  store.set('crm_contacts', JSON.stringify(deduped));
-}
+function saveContacts(c) { store.set('crm_contacts', JSON.stringify(c)); }
 function saveTouches(t) { store.set('crm_touches', JSON.stringify(t)); }
 
 // ---- helpers ----
@@ -697,7 +691,10 @@ async function pushPA(action, payload) {
   const url = POWER_AUTOMATE[action];
   if (!url) { console.log(`[Power Automate stub] ${action}:`, payload); return true; }
   try {
-    await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    // Send as a "simple" request (no JSON content-type) so the browser skips the
+    // CORS preflight that the Power Automate trigger can't answer. Fire-and-forget
+    // via no-cors: the row is still written; we just don't read the reply back.
+    await fetch(url, { method:'POST', mode:'no-cors', body: JSON.stringify(payload) });
     return true;
   } catch(e) { console.error('Power Automate push failed:', e); return false; }
 }
@@ -1308,12 +1305,14 @@ function populateRepDropdowns() {
     '<option value="">All builders</option>' + builders.map(b => `<option value="${b}">${b}</option>`).join('');
 }
 
-// Build state filter from fixed list so all states always show regardless of what is loaded
+// Build state + city filter options from the contact data
 function rebuildLocationFilters() {
+  const contacts = getContacts().filter(c => c.active);
+  const states = [...new Set(contacts.map(c => c.state).filter(Boolean))].sort();
   const stateSel = document.getElementById('contactStateFilter');
   if (stateSel) {
     const cur = stateSel.value;
-    stateSel.innerHTML = '<option value="">All states</option>' + STATE_LIST.map(s => `<option value="${s}">${s}</option>`).join('');
+    stateSel.innerHTML = '<option value="">All states</option>' + states.map(s => `<option value="${s}">${s}</option>`).join('');
     stateSel.value = cur;
   }
   rebuildCityFilter();
@@ -1332,122 +1331,11 @@ function rebuildCityFilter() {
   citySel.value = cities.includes(cur) ? cur : '';
 }
 
-function onContactStateChange() {
-  rebuildCityFilter();
-  const st = document.getElementById('contactStateFilter').value;
-  if (st) onStateSelected(st);
-  else renderContacts();
-}
+function onContactStateChange() { rebuildCityFilter(); renderContacts(); }
 
-// ---- Map Excel column names → app field names ----
-function mapContact(row) {
-  return {
-    contactId:   'C-' + String(row['Contact ID']).padStart(5, '0'),
-    company:     row['Company']      || '',
-    first:       row['First Name']   || '',
-    last:        row['Last Name']    || '',
-    title:       row['Title']        || '',
-    email:       row['Email']        || '',
-    phone:       row['Phone']        || '',
-    linkedin:    row['LinkedIn URL'] || '',
-    city:        row['City']         || '',
-    state:       row['State']        || '',
-    active:      (row['Active'] || 'Yes').toString().toLowerCase() !== 'no',
-    dateAdded:   row['Date Added']   || '',
-    lastEdited:  row['Last Edited']  || ''
-  };
-}
-
-// ---- Load contacts for a specific state from SharePoint ----
-async function loadContactsByState(st) {
-  if (!POWER_AUTOMATE.readContacts) return false;
-  if (!st) return false;
-  try {
-    toast('Loading ' + st + ' contacts...');
-    const url = POWER_AUTOMATE.readContacts + '&state=' + encodeURIComponent(st);
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const rows = await resp.json();
-    const fresh = rows.filter(r => r['Contact ID']).map(mapContact);
-
-    // Merge into existing contacts — replace any for this state, keep others
-    const existing = getContacts().filter(c => c.state !== st);
-    saveContacts([...existing, ...fresh]);
-    store.set('crm_loaded_states', JSON.stringify(
-      [...new Set([...(JSON.parse(store.get('crm_loaded_states')||'[]')), st])]
-    ));
-    return true;
-  } catch(e) {
-    console.warn('SharePoint load failed for ' + st + ':', e.message);
-    toast('Could not load ' + st + ' — using cached data');
-    return false;
-  }
-}
-
-// Called when rep selects a state filter — loads that state if not already loaded
-async function onStateSelected(st) {
-  if (!st) return;
-  const loaded = JSON.parse(store.get('crm_loaded_states') || '[]');
-  if (!loaded.includes(st)) {
-    await loadContactsByState(st);
-    populateRepDropdowns();
-  }
-  renderContacts();
-  renderDashboard();
-}
-
-// ---- Load ALL contacts from SharePoint via parallel paginated calls ----
-async function loadContactsFromSharePoint() {
-  if (!POWER_AUTOMATE.readContacts) return;
-  const base = POWER_AUTOMATE.readContacts;
-  const PAGE = 256;
-
-  try {
-    // First call to get page 0 and discover total
-    const first = await fetch(base + '&skip=0').then(r => r.json());
-    if (!Array.isArray(first) || first.length === 0) return;
-
-    // We know there are ~5460 contacts — build skip offsets up to 5376
-    const skips = [];
-    for (let s = PAGE; s <= 5376; s += PAGE) skips.push(s);
-
-    // Fetch all remaining pages in parallel
-    const rest = await Promise.all(
-      skips.map(skip => fetch(base + '&skip=' + skip).then(r => r.json()).catch(() => []))
-    );
-
-    // Combine all pages and map to app format
-    const all = [first, ...rest].flat();
-    const contacts = all.filter(r => r['Contact ID']).map(mapContact);
-
-    if (contacts.length > 0) {
-      saveContacts(contacts);
-      toast('Loaded ' + contacts.length + ' contacts');
-    }
-  } catch(e) {
-    console.warn('SharePoint load failed:', e.message);
-    toast('Could not load contacts — check connection');
-  }
-}
-
-// ---- Startup ----
-async function init() {
-  // Clear seed data if present
-  const existing = getContacts();
-  if (existing.some(c => c.contactId === 'C-10001')) {
-    store.set('crm_contacts', JSON.stringify([]));
-    store.set('crm_loaded_states', JSON.stringify([]));
-  }
-  populateRepDropdowns();
-  renderDashboard();
-  // Load all contacts from SharePoint in background
-  await loadContactsFromSharePoint();
-  populateRepDropdowns();
-  if (state.view === 'dashboard') renderDashboard();
-  if (state.view === 'contacts') renderContacts();
-}
-
-init();
+seed();
+populateRepDropdowns();
+renderDashboard();
 </script>
 </body>
 </html>
