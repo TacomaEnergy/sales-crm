@@ -691,10 +691,7 @@ async function pushPA(action, payload) {
   const url = POWER_AUTOMATE[action];
   if (!url) { console.log(`[Power Automate stub] ${action}:`, payload); return true; }
   try {
-    // Send as a "simple" request (no JSON content-type) so the browser skips the
-    // CORS preflight that the Power Automate trigger can't answer. Fire-and-forget
-    // via no-cors: the row is still written; we just don't read the reply back.
-    await fetch(url, { method:'POST', mode:'no-cors', body: JSON.stringify(payload) });
+    await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     return true;
   } catch(e) { console.error('Power Automate push failed:', e); return false; }
 }
