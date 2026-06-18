@@ -1396,17 +1396,37 @@ async function onStateSelected(st) {
   renderDashboard();
 }
 
-// ---- Load contacts from SharePoint on startup ----
+// ---- Load ALL contacts from SharePoint via parallel paginated calls ----
 async function loadContactsFromSharePoint() {
   if (!POWER_AUTOMATE.readContacts) return;
+  const base = POWER_AUTOMATE.readContacts;
+  const PAGE = 256;
+
   try {
-    const resp = await fetch(POWER_AUTOMATE.readContacts);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const rows = await resp.json();
-    const contacts = rows.filter(r => r['Contact ID']).map(mapContact);
-    if (contacts.length > 0) saveContacts(contacts);
+    // First call to get page 0 and discover total
+    const first = await fetch(base + '&skip=0').then(r => r.json());
+    if (!Array.isArray(first) || first.length === 0) return;
+
+    // We know there are ~5460 contacts — build skip offsets up to 5376
+    const skips = [];
+    for (let s = PAGE; s <= 5376; s += PAGE) skips.push(s);
+
+    // Fetch all remaining pages in parallel
+    const rest = await Promise.all(
+      skips.map(skip => fetch(base + '&skip=' + skip).then(r => r.json()).catch(() => []))
+    );
+
+    // Combine all pages and map to app format
+    const all = [first, ...rest].flat();
+    const contacts = all.filter(r => r['Contact ID']).map(mapContact);
+
+    if (contacts.length > 0) {
+      saveContacts(contacts);
+      toast('Loaded ' + contacts.length + ' contacts');
+    }
   } catch(e) {
     console.warn('SharePoint load failed:', e.message);
+    toast('Could not load contacts — check connection');
   }
 }
 
@@ -1420,7 +1440,7 @@ async function init() {
   }
   populateRepDropdowns();
   renderDashboard();
-  // Load real contacts from SharePoint
+  // Load all contacts from SharePoint in background
   await loadContactsFromSharePoint();
   populateRepDropdowns();
   if (state.view === 'dashboard') renderDashboard();
