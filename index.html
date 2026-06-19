@@ -4,268 +4,354 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Tacoma Energy — Sales CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f0f4f8;
+    --bg: #eaf1f7;
+    --bg-2: #f4f8fb;
     --panel: #ffffff;
-    --text: #15212e;
-    --muted: #6b7a8d;
-    --border: #dce5ee;
-    --navy: #0c2d47;
-    --navy-2: #155a8a;
-    --accent: #1572a8;
-    --accent-mid: #2094cc;
-    --accent-light: #e8f4fb;
-    --green: #2ea843;
-    --green-light: #e9f7ed;
+    --text: #102a3f;
+    --muted: #687d92;
+    --border: #dde7f0;
+    --border-2: #eef3f8;
+    --navy: #0e2f4a;
+    --navy-2: #14507e;
+    --blue: #1395d3;
+    --blue-2: #2aa7e0;
+    --sky: #8ec1e8;
+    --sky-light: #e7f3fb;
+    --green: #06a951;
+    --green-deep: #058a43;
+    --green-light: #e6f7ee;
     --amber: #e0a020;
     --amber-light: #fdf6e7;
     --red: #d8443a;
     --red-light: #fdecea;
-    --radius: 10px;
-    --radius-sm: 7px;
-    --shadow-sm: 0 1px 3px rgba(13,34,64,.07);
-    --shadow-md: 0 4px 16px rgba(13,34,64,.10);
-    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --hot: #f2622a;
+    --hot-2: #ff7a3d;
+    --hot-light: #fdede4;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow-sm: 0 1px 2px rgba(14,47,74,.06), 0 1px 3px rgba(14,47,74,.05);
+    --shadow-md: 0 6px 22px rgba(14,47,74,.10);
+    --shadow-lg: 0 16px 48px rgba(14,47,74,.16);
+    --font: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; -webkit-font-smoothing: antialiased; }
+  .tnum { font-variant-numeric: tabular-nums; }
 
-  /* ---- Top nav (matches main app) ---- */
+  /* ---- Top nav ---- */
   .nav {
-    height: 68px; background: linear-gradient(100deg, var(--navy) 0%, var(--navy-2) 100%);
-    display: flex; align-items: center; padding: 0 24px; gap: 28px; position: sticky; top: 0; z-index: 30;
-    box-shadow: 0 2px 10px rgba(13,34,64,.18);
+    height: 66px; background: rgba(255,255,255,.88); backdrop-filter: saturate(140%) blur(10px);
+    display: flex; align-items: center; padding: 0 26px; gap: 26px; position: sticky; top: 0; z-index: 30;
+    border-bottom: 1px solid var(--border); box-shadow: 0 1px 0 rgba(14,47,74,.02), 0 6px 18px rgba(14,47,74,.04);
   }
-  .nav-brand { display: flex; align-items: center; gap: 12px; }
-  .nav-logo { width: 40px; height: 40px; flex-shrink: 0; }
-  .nav-title { color: #fff; line-height: 1.1; }
-  .nav-title b { font-size: 16px; font-weight: 700; display: block; letter-spacing: .2px; }
-  .nav-title span { font-size: 11px; color: #9fc4dd; text-transform: uppercase; letter-spacing: .09em; }
-  .nav-tabs { display: flex; gap: 4px; margin-left: 8px; flex: 1; }
+  .nav-brand { display: flex; align-items: center; gap: 14px; }
+  .nav-logo { height: 34px; width: auto; display: block; }
+  .nav-divider { width: 1px; height: 30px; background: var(--border); }
+  .nav-eyebrow { line-height: 1.05; }
+  .nav-eyebrow b { display: block; font-size: 12.5px; font-weight: 800; color: var(--navy); letter-spacing: .14em; }
+  .nav-eyebrow span { font-size: 10px; color: var(--blue); text-transform: uppercase; letter-spacing: .16em; font-weight: 700; }
+  .nav-tabs { display: flex; gap: 2px; margin-left: 6px; flex: 1; }
   .nav-tab {
-    color: #c5dcec; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px;
-    cursor: pointer; border: none; background: none; transition: .15s; white-space: nowrap;
+    position: relative; color: var(--muted); font-size: 14px; font-weight: 700; padding: 9px 14px; border-radius: 9px;
+    cursor: pointer; border: none; background: none; transition: .15s; white-space: nowrap; font-family: var(--font);
+    display: inline-flex; align-items: center; gap: 7px;
   }
-  .nav-tab:hover { color: #fff; background: rgba(255,255,255,.08); }
-  .nav-tab.active { color: #fff; background: rgba(255,255,255,.16); }
-  .nav-right { display: flex; align-items: center; gap: 12px; }
+  .nav-tab:hover { color: var(--navy); background: var(--sky-light); }
+  .nav-tab.active { color: var(--blue); background: var(--sky-light); }
+  .nav-tab .tabflame { font-size: 12px; }
+  .nav-tab .tabcount {
+    font-size: 11px; font-weight: 800; background: var(--hot); color: #fff; border-radius: 999px;
+    min-width: 18px; height: 18px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .nav-right { display: flex; align-items: center; gap: 10px; }
+  .nav-right .lbl { color: var(--muted); font-size: 12px; font-weight: 700; }
   .rep-switch {
-    background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.22);
-    border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; font-family: var(--font); cursor: pointer;
+    background: #fff; color: var(--navy); border: 1px solid var(--border);
+    border-radius: 9px; padding: 8px 12px; font-size: 13px; font-weight: 700; font-family: var(--font); cursor: pointer;
+    box-shadow: var(--shadow-sm);
   }
-  .rep-switch option { color: #15212e; }
+  .rep-switch:focus { outline: none; border-color: var(--blue-2); box-shadow: 0 0 0 3px rgba(19,149,211,.16); }
 
   /* ---- Layout ---- */
-  .wrap { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
-  .view { display: none; }
+  .wrap { max-width: 1340px; margin: 0 auto; padding: 26px 26px 70px; }
+  .view { display: none; animation: fade .35s ease; }
   .view.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .view { animation: none; } html { scroll-behavior: auto; } }
 
-  .page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
-  .page-head h2 { font-size: 22px; font-weight: 700; }
-  .page-head p { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .page-head h2 { font-size: 25px; font-weight: 800; letter-spacing: -.02em; color: var(--navy); }
+  .page-head p { color: var(--muted); font-size: 13.5px; margin-top: 4px; font-weight: 500; }
   .btn {
-    border: none; border-radius: 8px; background: var(--accent); color: #fff; padding: 10px 15px;
-    font-size: 14px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: .15s;
-    display: inline-flex; align-items: center; gap: 6px;
+    border: none; border-radius: 10px; background: var(--blue); color: #fff; padding: 10px 16px;
+    font-size: 14px; font-weight: 700; font-family: var(--font); cursor: pointer; transition: .15s;
+    display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 1px 2px rgba(19,149,211,.3);
   }
-  .btn:hover { background: var(--navy-2); }
-  .btn.green { background: var(--green); }
-  .btn.green:hover { background: #25923a; }
-  .btn.ghost { background: #fff; color: var(--accent); border: 1px solid var(--border); }
-  .btn.ghost:hover { background: var(--accent-light); }
-  .btn.sm { padding: 6px 11px; font-size: 13px; }
+  .btn:hover { background: var(--navy-2); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .btn:active { transform: none; }
+  .btn.green { background: var(--green); box-shadow: 0 1px 2px rgba(6,169,81,.3); }
+  .btn.green:hover { background: var(--green-deep); }
+  .btn.hot { background: var(--hot); box-shadow: 0 1px 2px rgba(242,98,42,.3); }
+  .btn.hot:hover { background: #d9501c; }
+  .btn.ghost { background: #fff; color: var(--navy); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn.ghost:hover { background: var(--bg-2); color: var(--blue); }
+  .btn.sm { padding: 6px 11px; font-size: 12.5px; border-radius: 8px; }
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  /* ---- Stat cards ---- */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
-  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow-sm); }
-  .stat label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
-  .stat .num { font-size: 28px; font-weight: 800; margin-top: 6px; color: var(--navy); }
-  .stat .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .stat.alert .num { color: var(--red); }
-  .stat.good .num { color: var(--green); }
-
-  /* ---- Dashboard controls ---- */
-  .dash-controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
-  .seg { display: inline-flex; background: #fff; border: 1px solid var(--border); border-radius: 9px; padding: 3px; gap: 2px; box-shadow: var(--shadow-sm); }
-  .seg-btn { border: none; background: none; padding: 7px 13px; font-size: 13px; font-weight: 600; font-family: var(--font); color: var(--muted); border-radius: 6px; cursor: pointer; white-space: nowrap; transition: .12s; }
+  /* ---- Segmented controls ---- */
+  .dash-controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+  .seg { display: inline-flex; background: #fff; border: 1px solid var(--border); border-radius: 11px; padding: 4px; gap: 2px; box-shadow: var(--shadow-sm); }
+  .seg-btn { border: none; background: none; padding: 8px 14px; font-size: 13px; font-weight: 700; font-family: var(--font); color: var(--muted); border-radius: 8px; cursor: pointer; white-space: nowrap; transition: .14s; }
   .seg-btn:hover { color: var(--navy); }
-  .seg-btn.active { background: var(--accent); color: #fff; }
+  .seg-btn.active { background: var(--navy); color: #fff; box-shadow: 0 2px 8px rgba(14,47,74,.2); }
+  .seg-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-right: 2px; }
 
-  /* ---- Breakdown bars ---- */
-  .bd-row { display: grid; grid-template-columns: 120px 1fr 44px; align-items: center; gap: 10px; padding: 6px 0; }
-  .bd-label { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .bd-track { background: #eef2f6; border-radius: 6px; height: 22px; overflow: hidden; }
-  .bd-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), var(--accent-mid)); min-width: 2px; transition: width .3s; }
-  .bd-val { font-size: 13px; font-weight: 700; color: var(--navy); text-align: right; }
-  .bd-empty { text-align: center; color: var(--muted); font-style: italic; font-size: 13px; padding: 20px; }
+  /* ---- KPI cards ---- */
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 22px; }
+  .kpi { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 17px 18px 16px; box-shadow: var(--shadow-sm); overflow: hidden; transition: .18s; }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--blue); }
+  .kpi.k-reach::before { background: linear-gradient(var(--blue), var(--blue-2)); }
+  .kpi.k-reached::before { background: linear-gradient(var(--green), #2bd07e); }
+  .kpi.k-hot::before { background: linear-gradient(var(--hot), var(--hot-2)); }
+  .kpi.k-due::before { background: linear-gradient(var(--amber), #f3c04e); }
+  .kpi.k-untouched::before { background: linear-gradient(var(--red), #f0766c); }
+  .kpi.clickable { cursor: pointer; }
+  .kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .kpi label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 800; }
+  .kpi-ico { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .kpi.k-reach .kpi-ico { background: var(--sky-light); }
+  .kpi.k-reached .kpi-ico { background: var(--green-light); }
+  .kpi.k-hot .kpi-ico { background: var(--hot-light); }
+  .kpi.k-due .kpi-ico { background: var(--amber-light); }
+  .kpi.k-untouched .kpi-ico { background: var(--red-light); }
+  .kpi .num { font-size: 34px; font-weight: 800; margin-top: 9px; color: var(--navy); letter-spacing: -.03em; line-height: 1; }
+  .kpi.k-hot .num { color: var(--hot); }
+  .kpi.k-due .num { color: #b9831a; }
+  .kpi.k-untouched .num { color: var(--red); }
+  .kpi.k-reached .num { color: var(--green-deep); }
+  .kpi .sub { font-size: 12px; color: var(--muted); margin-top: 7px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .trend { font-weight: 800; display: inline-flex; align-items: center; gap: 2px; font-size: 11.5px; padding: 1px 6px; border-radius: 999px; }
+  .trend.up { color: var(--green-deep); background: var(--green-light); }
+  .trend.down { color: var(--red); background: var(--red-light); }
+  .trend.flat { color: var(--muted); background: var(--border-2); }
 
   /* ---- Panels ---- */
   .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
-  .panel-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .panel-head h3 { font-size: 15px; font-weight: 700; }
-  .panel-head .hint { font-size: 12px; color: var(--muted); }
-  .panel-body { padding: 16px 18px; }
+  .panel-head { padding: 15px 19px; border-bottom: 1px solid var(--border-2); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .panel-head h3 { font-size: 15px; font-weight: 800; color: var(--navy); letter-spacing: -.01em; }
+  .panel-head .hint { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .panel-body { padding: 17px 19px; }
+  .cols { display: grid; grid-template-columns: 1.25fr .9fr; gap: 18px; align-items: start; margin-bottom: 18px; }
 
-  .cols { display: grid; grid-template-columns: 1.3fr .85fr; gap: 18px; align-items: start; }
+  /* ---- Breakdown bars ---- */
+  .bd-row { display: grid; grid-template-columns: 150px 1fr 46px; align-items: center; gap: 12px; padding: 7px 0; }
+  .bd-label { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 7px; }
+  .bd-track { background: var(--border-2); border-radius: 7px; height: 24px; overflow: hidden; }
+  .bd-fill { height: 100%; border-radius: 7px; background: linear-gradient(90deg, var(--blue), var(--blue-2)); min-width: 3px; width: 0; transition: width .5s cubic-bezier(.22,1,.36,1); }
+  .bd-fill.g { background: linear-gradient(90deg, var(--green), #2bd07e); }
+  .bd-val { font-size: 13.5px; font-weight: 800; color: var(--navy); text-align: right; }
+  .bd-empty { text-align: center; color: var(--muted); font-style: italic; font-size: 13px; padding: 26px; }
 
   /* ---- Search / filters ---- */
-  .filters { display: grid; grid-template-columns: 1fr 180px 160px 130px; gap: 10px; margin-bottom: 16px; }
+  .filters { display: grid; gap: 10px; margin-bottom: 16px; }
   .filters-2row { grid-template-columns: 2fr 1.4fr 1fr 1fr 1.2fr 1.2fr; }
   input, select, textarea {
-    width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
-    font-size: 14px; font-family: var(--font); background: #fff; color: var(--text);
+    width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+    font-size: 14px; font-family: var(--font); background: #fff; color: var(--text); font-weight: 500;
   }
-  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-mid); box-shadow: 0 0 0 3px rgba(32,148,204,.14); }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue-2); box-shadow: 0 0 0 3px rgba(19,149,211,.15); }
   textarea { min-height: 84px; resize: vertical; }
-  label.fld { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+  label.fld { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
 
   /* ---- Table ---- */
   table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; padding: 10px 12px; border-bottom: 1px solid var(--border); background: #f7fafc; }
-  td { padding: 11px 12px; border-bottom: 1px solid #eef2f6; vertical-align: top; font-size: 13px; }
-  tbody tr { cursor: pointer; }
-  tbody tr:hover td { background: #f8fbfe; }
-  tbody tr.selected td { background: var(--accent-light); }
-  .company { font-weight: 700; color: var(--navy); }
-  .sub { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  th { text-align: left; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; font-weight: 800; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--bg-2); }
+  td { padding: 11px 12px; border-bottom: 1px solid var(--border-2); vertical-align: middle; font-size: 13px; }
+  tbody tr { cursor: pointer; transition: background .1s; }
+  tbody tr:hover td { background: var(--bg-2); }
+  .company { font-weight: 800; color: var(--navy); display: flex; align-items: center; gap: 7px; }
+  .sub { color: var(--muted); font-size: 12px; line-height: 1.45; font-weight: 500; }
 
   /* ---- Chips ---- */
-  .chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-  .chip.blue { background: var(--accent-light); color: var(--accent); }
-  .chip.green { background: var(--green-light); color: #1c7a2e; }
-  .chip.amber { background: var(--amber-light); color: #8a6212; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+  .chip.blue { background: var(--sky-light); color: var(--blue); }
+  .chip.green { background: var(--green-light); color: var(--green-deep); }
+  .chip.amber { background: var(--amber-light); color: #9a6f12; }
   .chip.red { background: var(--red-light); color: #a8322a; }
-  .chip.gray { background: #eef2f6; color: #5a6b7d; }
-  .rep-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; }
+  .chip.gray { background: var(--border-2); color: #5a6b7d; }
+  .chip.hot { background: var(--hot-light); color: var(--hot); }
+  .rep-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; }
   .rep-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
+  /* ---- Flame toggle ---- */
+  .flame-btn { background: none; border: none; cursor: pointer; font-size: 15px; line-height: 1; padding: 3px; border-radius: 7px; filter: grayscale(1) opacity(.32); transition: .15s; }
+  .flame-btn:hover { filter: grayscale(.3) opacity(.7); background: var(--hot-light); }
+  .flame-btn.on { filter: none; animation: flamepulse 2.4s ease-in-out infinite; }
+  @keyframes flamepulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.16); } }
+  @media (prefers-reduced-motion: reduce) { .flame-btn.on { animation: none; } }
+
   /* ---- Contact detail ---- */
-  .contact-detail h3 { font-size: 20px; font-weight: 800; }
-  .contact-detail .role { color: var(--muted); font-size: 13px; margin-top: 2px; line-height: 1.5; }
-  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
-  .info-box { background: #f7fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
-  .info-box label { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; font-weight: 600; }
-  .info-box strong { font-size: 13px; word-break: break-word; }
-  .info-box a { color: var(--accent); text-decoration: none; }
+  .contact-detail h3 { font-size: 21px; font-weight: 800; color: var(--navy); display: flex; align-items: center; gap: 9px; }
+  .contact-detail .role { color: var(--muted); font-size: 13px; margin-top: 3px; line-height: 1.5; font-weight: 600; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
+  .info-box { background: var(--bg-2); border: 1px solid var(--border-2); border-radius: 10px; padding: 10px 13px; }
+  .info-box label { display: block; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; font-weight: 800; }
+  .info-box strong { font-size: 13px; word-break: break-word; font-weight: 700; }
+  .info-box a { color: var(--blue); text-decoration: none; }
   .info-box a:hover { text-decoration: underline; }
 
   /* ---- Timeline ---- */
   .timeline { display: grid; gap: 10px; }
-  .touch { border-left: 3px solid var(--accent-mid); background: #f7fafc; border-radius: 0 8px 8px 0; padding: 11px 14px; }
-  .touch.method-call { border-left-color: var(--accent); }
-  .touch.method-email { border-left-color: var(--accent-mid); }
+  .touch { border-left: 3px solid var(--blue-2); background: var(--bg-2); border-radius: 0 10px 10px 0; padding: 12px 15px; }
+  .touch.method-call { border-left-color: var(--blue); }
+  .touch.method-email { border-left-color: var(--blue-2); }
   .touch.method-linkedin { border-left-color: #0a66c2; }
   .touch.method-text { border-left-color: var(--green); }
   .touch.method-inperson { border-left-color: var(--amber); }
   .touch-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 5px; }
-  .touch-meta { font-size: 12px; font-weight: 700; color: var(--navy); }
-  .touch-notes { font-size: 13px; color: #44515f; line-height: 1.5; }
-  .touch-followup { font-size: 11px; color: var(--amber); font-weight: 700; margin-top: 5px; }
+  .touch-meta { font-size: 12px; font-weight: 800; color: var(--navy); }
+  .touch-notes { font-size: 13px; color: #44515f; line-height: 1.5; font-weight: 500; }
+  .touch-followup { font-size: 11px; color: #b9831a; font-weight: 800; margin-top: 6px; }
 
-  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-style: italic; font-size: 13px; }
+  .empty { text-align: center; padding: 44px 20px; color: var(--muted); font-style: italic; font-size: 13px; }
 
   /* ---- Follow-up groups ---- */
-  .fu-group { margin-bottom: 18px; }
-  .fu-group-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; padding-left: 2px; }
+  .fu-group { margin-bottom: 20px; }
+  .fu-group:last-child { margin-bottom: 0; }
+  .fu-group-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 9px; padding-left: 2px; display: flex; align-items: center; gap: 8px; }
+  .fu-group-label .cnt { background: currentColor; color: #fff; border-radius: 999px; font-size: 10px; min-width: 18px; height: 18px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; }
   .fu-group-label.overdue { color: var(--red); }
   .fu-group-label.today { color: var(--amber); }
-  .fu-group-label.week { color: var(--accent); }
+  .fu-group-label.week { color: var(--blue); }
   .fu-group-label.later { color: var(--muted); }
 
+  /* ---- Hot leads view ---- */
+  .hot-banner { background: linear-gradient(110deg, #fff 0%, var(--hot-light) 100%); border: 1px solid #f6d3c2; border-left: 5px solid var(--hot);
+    border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow-sm); }
+  .hot-banner .big { font-size: 30px; }
+  .hot-banner b { color: var(--hot); }
+  .hot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 15px; }
+  .hot-card { background: var(--panel); border: 1px solid var(--border); border-top: 3px solid var(--hot); border-radius: var(--radius); padding: 16px 17px; box-shadow: var(--shadow-sm); transition: .16s; cursor: pointer; }
+  .hot-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .hot-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .hot-card-name { font-size: 16px; font-weight: 800; color: var(--navy); }
+  .hot-card-co { font-size: 12.5px; color: var(--muted); font-weight: 600; margin-top: 1px; }
+  .hot-card-meta { display: flex; gap: 14px; margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--border-2); }
+  .hot-card-meta .m { flex: 1; }
+  .hot-card-meta .m label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 800; margin-bottom: 3px; }
+  .hot-card-meta .m strong { font-size: 12.5px; color: var(--navy); font-weight: 700; }
+  .hot-card-actions { display: flex; gap: 8px; margin-top: 13px; }
+
   /* ---- Modal ---- */
-  .modal-bg { position: fixed; inset: 0; background: rgba(12,34,64,.55); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 50; }
-  .modal-bg.open { display: flex; }
-  .modal { background: #fff; width: min(640px, 100%); border-radius: 14px; box-shadow: 0 30px 70px rgba(0,0,0,.3); overflow: hidden; max-height: 92vh; display: flex; flex-direction: column; }
-  .modal-head { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-  .modal-head h3 { font-size: 18px; font-weight: 700; }
-  .modal-x { background: none; border: none; font-size: 22px; color: var(--muted); cursor: pointer; line-height: 1; }
-  .modal-body { padding: 20px 22px; display: grid; gap: 14px; overflow-y: auto; }
-  .modal-foot { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; background: #f7fafc; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(14,47,74,.5); backdrop-filter: blur(3px); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 50; }
+  .modal-bg.open { display: flex; animation: fade .2s ease; }
+  .modal { background: #fff; width: min(640px, 100%); border-radius: 18px; box-shadow: var(--shadow-lg); overflow: hidden; max-height: 92vh; display: flex; flex-direction: column; }
+  .modal-head { padding: 17px 23px; border-bottom: 1px solid var(--border-2); display: flex; justify-content: space-between; align-items: center; }
+  .modal-head h3 { font-size: 18px; font-weight: 800; color: var(--navy); }
+  .modal-x { background: none; border: none; font-size: 23px; color: var(--muted); cursor: pointer; line-height: 1; }
+  .modal-x:hover { color: var(--navy); }
+  .modal-body { padding: 21px 23px; display: grid; gap: 15px; overflow-y: auto; }
+  .modal-foot { padding: 15px 23px; border-top: 1px solid var(--border-2); display: flex; justify-content: flex-end; gap: 10px; background: var(--bg-2); }
   .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-  .context-note { background: var(--accent-light); border: 1px solid #b9ddf2; border-radius: 8px; padding: 11px 14px; font-size: 13px; color: var(--navy); line-height: 1.5; }
-  .dup-warn { background: var(--amber-light); border: 1px solid #f0d28a; border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #7a5200; line-height: 1.5; display: none; }
+  .context-note { background: var(--sky-light); border: 1px solid #bfe0f4; border-radius: 10px; padding: 12px 15px; font-size: 13px; color: var(--navy); line-height: 1.5; font-weight: 500; }
+  .dup-warn { background: var(--amber-light); border: 1px solid #f0d28a; border-radius: 10px; padding: 12px 15px; font-size: 13px; color: #7a5200; line-height: 1.5; display: none; font-weight: 500; }
   .dup-warn.show { display: block; }
   .dup-warn b { color: #5a3d00; }
-  .dup-hit { background: #fff; border: 1px solid #e6c88a; border-radius: 6px; padding: 8px 10px; margin-top: 8px; font-size: 12px; }
-  .new-hint { font-size: 11px; color: #1c7a2e; margin-top: 4px; display: none; }
+  .dup-hit { background: #fff; border: 1px solid #e6c88a; border-radius: 8px; padding: 8px 11px; margin-top: 8px; font-size: 12px; }
+  .new-hint { font-size: 11px; color: var(--green-deep); margin-top: 4px; display: none; font-weight: 700; }
   .new-hint.show { display: block; }
 
   /* ---- Activity log ---- */
   .activity-filters { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-  .activity-filters select, .activity-filters input { width: auto; min-width: 150px; }
+  .activity-filters select, .activity-filters input { width: auto; min-width: 160px; }
 
-  /* ---- toast ---- */
   /* ---- Builder cards (grouped directory) ---- */
-  .builder-card { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; background: #fff; }
+  .builder-card { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 11px; overflow: hidden; background: #fff; box-shadow: var(--shadow-sm); }
   .builder-card:last-child { margin-bottom: 0; }
-  .builder-head { display: grid; grid-template-columns: 1fr 130px 90px 28px; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; transition: background .12s; }
-  .builder-head:hover { background: #f7fafc; }
-  .builder-name { font-weight: 700; color: var(--navy); font-size: 14px; }
-  .builder-loc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .builder-head { display: grid; grid-template-columns: 1fr 120px 90px 28px; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; transition: background .12s; }
+  .builder-head:hover { background: var(--bg-2); }
+  .builder-name { font-weight: 800; color: var(--navy); font-size: 14.5px; display: flex; align-items: center; gap: 7px; }
+  .builder-loc { font-size: 12px; color: var(--muted); margin-top: 2px; font-weight: 600; }
   .builder-stat { text-align: center; }
-  .builder-stat .n { font-size: 14px; font-weight: 700; color: var(--navy); }
-  .builder-stat .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .builder-stat .n { font-size: 15px; font-weight: 800; color: var(--navy); }
+  .builder-stat .l { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 800; }
   .builder-chev { color: var(--muted); font-size: 11px; transition: transform .2s; text-align: center; }
   .builder-card.open .builder-chev { transform: rotate(180deg); }
-  .builder-body { display: none; border-top: 1px solid var(--border); background: #fafcfe; padding: 10px 12px; }
+  .builder-body { display: none; border-top: 1px solid var(--border-2); background: var(--bg-2); padding: 11px 13px; }
   .builder-card.open .builder-body { display: block; }
-  .builder-body-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-  .builder-body-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-  .crow { display: grid; grid-template-columns: 1fr 120px 70px; align-items: center; gap: 10px; padding: 9px 11px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 5px; cursor: pointer; transition: box-shadow .12s; }
+  .builder-body-head { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; }
+  .builder-body-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .crow { display: grid; grid-template-columns: 26px 1fr 120px auto; align-items: center; gap: 10px; padding: 10px 12px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; cursor: pointer; transition: box-shadow .12s, border-color .12s; }
   .crow:last-child { margin-bottom: 0; }
   .crow:hover { box-shadow: var(--shadow-sm); }
-  .crow.selected { border-color: var(--accent-mid); background: var(--accent-light); }
-  .crow.touched { border-left: 3px solid var(--accent-mid); }
+  .crow.selected { border-color: var(--blue-2); background: var(--sky-light); }
   .crow.never { border-left: 3px solid var(--red); }
-  .crow.won { border-left: 3px solid var(--green); }
-  .crow-name { font-weight: 700; font-size: 13px; color: var(--navy); }
-  .crow-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .crow.touched { border-left: 3px solid var(--blue-2); }
+  .crow.hot { border-left: 3px solid var(--hot); }
+  .crow-name { font-weight: 800; font-size: 13.5px; color: var(--navy); }
+  .crow-sub { font-size: 11px; color: var(--muted); margin-top: 1px; font-weight: 500; }
+  .crow-acts { display: flex; gap: 6px; align-items: center; }
 
-  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--navy); color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; box-shadow: var(--shadow-md); opacity: 0; pointer-events: none; transition: .25s; z-index: 100; }
+  .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--navy); color: #fff; padding: 13px 22px; border-radius: 12px; font-size: 14px; font-weight: 700; box-shadow: var(--shadow-lg); opacity: 0; pointer-events: none; transition: .25s; z-index: 100; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  @media (max-width: 1100px) {
-    .filters-2row { grid-template-columns: 1fr 1fr 1fr; }
-  }
+  @media (max-width: 1180px) { .kpis { grid-template-columns: repeat(3, 1fr); } .filters-2row { grid-template-columns: 1fr 1fr 1fr; } }
   @media (max-width: 960px) {
     .nav-tabs { display: none; }
-    .stats { grid-template-columns: repeat(2, 1fr); }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
     .cols { grid-template-columns: 1fr; }
-    .filters { grid-template-columns: 1fr; }
     .filters-2row { grid-template-columns: 1fr 1fr; }
     .frow { grid-template-columns: 1fr; }
     .dash-controls { flex-direction: column; align-items: stretch; }
     .seg { flex-wrap: wrap; }
   }
-  @media (max-width: 560px) {
-    .stats { grid-template-columns: 1fr; }
-    .filters-2row { grid-template-columns: 1fr; }
-  }
+  @media (max-width: 560px) { .kpis { grid-template-columns: 1fr; } .filters-2row { grid-template-columns: 1fr; } .bd-row { grid-template-columns: 110px 1fr 40px; } }
 </style>
 </head>
 <body>
 
 <nav class="nav">
   <div class="nav-brand">
-    <svg class="nav-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M12 60 Q35 35 55 48 Q72 58 88 40" stroke="#5bc8f5" stroke-width="7" fill="none" stroke-linecap="round"/>
-      <path d="M18 72 Q40 50 60 62 Q76 72 90 56" stroke="#4dd47a" stroke-width="7" fill="none" stroke-linecap="round"/>
-    </svg>
-    <div class="nav-title"><b>Tacoma Energy</b><span>Sales CRM</span></div>
+    <svg class="nav-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 504 288">
+  <path fill="#1395d3" d="M62.6,62.9c55.1,15.1,82.7,12,112.4,31.6,29.9,19.7,35.8,33.6,35.8,33.6,0,0-14.3-44.5-67.2-64.1-52.9-19.7-53.7-16.5-90.9-29.5S11.6,5.5,11.6,5.5c0,0-4.1,42.4,51,57.4Z"/>
+  <polygon fill="#06a951" points="116.5 251.4 135.4 251.4 135.4 247.5 116.5 247.5 116.5 237 136.9 237 136.9 232.8 112 232.8 112 267.2 137.3 267.2 137.3 263.1 116.5 263.1 116.5 251.4"/>
+  <polygon fill="#06a951" points="200.4 260.6 183.3 232.8 177.8 232.8 177.8 267.2 182.2 267.2 182.2 239.4 199.6 267.2 204.9 267.2 204.9 232.8 200.4 232.8 200.4 260.6"/>
+  <polygon fill="#06a951" points="251.6 251.4 270.5 251.4 270.5 247.5 251.6 247.5 251.6 237 272.1 237 272.1 232.8 247.1 232.8 247.1 267.2 272.4 267.2 272.4 263.1 251.6 263.1 251.6 251.4"/>
+  <path fill="#06a951" d="M340,264.3c-.2-.6-.3-1.6-.3-2.9l-.2-4.6c0-2-.5-3.4-1.1-4.3s-1.7-1.6-3-2.2c1.5-.8,2.7-1.9,3.6-3.2s1.3-3,1.3-5.1c0-4-1.6-6.7-4.8-8.1-1.7-.8-3.8-1.1-6.4-1.1h-15.7v34.4h4.7v-14.8h10.3c1.9,0,3.2.2,4.1.6,1.5.8,2.3,2.3,2.4,4.5l.3,5.7c0,1.3.1,2.2.2,2.7s.2.9.4,1.1h5.7v-.8c-.7-.3-1.2-1-1.5-2.1ZM333.6,247.2c-1.2.9-2.9,1.3-5,1.3h-10.5v-11.8h11.1c1.5,0,2.8.2,3.7.7,1.7.9,2.6,2.6,2.6,5s-.6,3.9-1.9,4.7Z"/>
+  <path fill="#06a951" d="M396.3,252.7h10.8c0,4-1.1,6.9-3.1,8.8-2,1.8-4.5,2.7-7.6,2.7s-6.9-1.3-8.6-3.9-2.6-5.9-2.6-10,1.1-8.3,3.2-10.7c2.1-2.4,4.8-3.6,7.9-3.6s4.8.6,6.5,1.7,2.9,3,3.4,5.5h4.6c-.8-4.5-2.8-7.6-6.2-9.4-2.3-1.2-5.1-1.9-8.3-1.9-4.7,0-8.4,1.6-11.4,4.9-3.1,3.4-4.6,8-4.6,13.8s1.6,10.3,4.7,13.6c2.9,2.6,6.3,4,10.4,4s5.7-.6,7.7-1.7c1.2-.7,2.6-1.9,4.1-3.6l1.1,4.4h3v-18.4h-15.1v3.9Z"/>
+  <polygon fill="#06a951" points="466 249.3 456.1 232.8 450.7 232.8 463.7 253.3 463.7 267.2 468.4 267.2 468.4 253.3 481.4 232.8 475.9 232.8 466 249.3"/>
+  <path fill="#1395d3" d="M484.3,150.7c-.9-.9-2.1-1.4-3.4-1.4s-2.4.5-3.4,1.4c-.9.9-1.4,2.1-1.4,3.4s.5,2.5,1.4,3.4c.9.9,2,1.4,3.4,1.4s2.4-.5,3.4-1.4,1.4-2.1,1.4-3.4-.5-2.4-1.4-3.4ZM483.8,157c-.8.8-1.8,1.2-2.9,1.2s-2.1-.4-2.9-1.2c-.8-.8-1.2-1.8-1.2-2.9s.4-2.1,1.2-2.9c.8-.8,1.8-1.2,2.9-1.2s2.1.4,2.9,1.2c.8.8,1.2,1.8,1.2,2.9s-.4,2.1-1.2,2.9Z"/>
+  <path fill="#1395d3" d="M483,156.3c0-.1,0-.3,0-.4v-.4c0-.3,0-.5-.3-.8-.2-.3-.5-.4-.9-.5.3,0,.6-.1.8-.3.3-.2.5-.6.5-1s-.3-1.1-.8-1.3c-.3-.1-.8-.2-1.4-.2h-1.8v5.2h.9v-2.1h.7c.5,0,.8,0,1,.2.3.2.5.6.5,1.2v.6s0,0,0,0c0,0,0,0,0,0h.9,0c0-.1,0-.2,0-.3ZM481.6,153.8c-.2,0-.5.1-.9.1h-.8v-1.9h.8c.5,0,.9,0,1.1.2.2.1.3.4.3.8s-.2.7-.5.8Z"/>
+  <path fill="#8ec1e8" d="M140.7,49.4c21.3,14.1,36.3,22.7,51,37.7s22.4,38.8,22.4,38.8c0,0-5.5-33.6-16.2-47-10.6-13.4-20.8-22.7-48.5-43.8C121.6,14,121.3,1.9,121.3,1.9c0,0-2,33.4,19.3,47.5Z"/>
+  <path fill="#06a951" d="M144.1,101.4c45.4,7.6,62.2,28.1,62.2,28.1,0,0-14.9-24.2-45.5-34.8-30.6-10.6-48-12.6-97.4-14C14.1,79.2,1.9,61.9,1.9,61.9c0,0,6.2,28.8,45.6,36s51.2-4.2,96.6,3.5Z"/>
+  <path fill="#1395d3" d="M201.6,130.8s-11.6-11.7-34.3-18c-22.7-6.3-40.9-3.5-80.3,5.1s-51.9-3.4-51.9-3.4c0,0,4.9,18.4,35.8,22.3,17.5,2.2,29.1.4,40.2-2.5v73h17.9v-78.1c2.8-.8,5.7-1.5,8.8-2.2,24.2-5.3,63.8,3.9,63.8,3.9Z"/>
+  <path fill="#1395d3" d="M187,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1.2-9.1.2-10.3c0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3c2.3,2.2,3.5,5.2,3.5,8.9s-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM178.4,190.2c0,3-1.2,5.5-3.7,7.6-2.5,2.1-5.2,3.1-8.2,3.1s-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
+  <path fill="#1395d3" d="M251.9,196.5l-1.1-.3c-3.8,4-8.8,6.1-15.3,6.1s-8.9-1.4-12.3-4.3c-4.9-4.1-7.4-10.7-7.4-19.8s1.6-12.7,4.9-16.8c3.3-4.1,8-6.1,14.2-6.1s11.3,3.1,13.7,9.3h1.4c.6-3.7,1.4-6.9,2.4-9.6-5.2-2.9-11.4-4.4-18.5-4.4s-16.5,2.6-21.8,7.7c-5.3,5.2-7.9,12.1-7.9,20.8s2.3,14.4,6.9,19.5c5.3,5.8,13,8.8,23,8.8s12.2-1.5,16.6-4.3c.1-2.4.6-4.6,1.3-6.6Z"/>
+  <path fill="#1395d3" d="M313,159.4c-5.2-5.8-12.8-8.8-22.7-8.8s-15.5,2.6-20.7,7.7c-5.3,5.1-7.9,12-7.9,20.7s3.3,17.9,9.8,22.8c5,3.8,11.3,5.6,18.7,5.6s15.8-2.6,21.2-7.9c5.5-5.3,8.2-12.4,8.2-21.2s-2.2-14-6.7-19ZM303.3,196.5c-3.3,4.3-7.6,6.5-12.9,6.5s-9.5-2.1-12.6-6.3c-3.1-4.2-4.7-10.2-4.7-17.9s.8-9.5,2.3-13.1c2.9-7,8-10.6,15.5-10.6s11.1,2.9,14.2,8.6c2,4.1,3.1,9.2,3.1,15.2s-1.6,13.3-4.9,17.6Z"/>
+  <path fill="#1395d3" d="M416.1,176.5c0-5.6.1-8.5.1-8.7,0-4.7-1.1-8.4-3.4-11.2-3.2-3.8-8-5.8-14.5-5.8s-14.6,3.4-18.5,10.1c-2.8-6.7-8.4-10.1-16.8-10.1s-13.1,3.4-17.3,10.1c0-3.6.2-6.9.7-9.8-3.4.5-5.3.7-5.8.7s-2.1-.2-5.5-.7c.5,14.4.8,24,.8,28.8s-.2,12.7-.7,26.1c2.4-.5,4.3-.7,5.8-.7s3.6.2,5.8.7c-.7-6.5-1-13.9-1-22.2s.2-10.7.5-13c.3-3.2,1.2-5.8,2.6-7.8,2.4-3.7,5.8-5.5,10.1-5.5s8.3,1.8,10,5.5c1.3,2.7,1.9,9,1.9,19s-.3,17.7-.9,24.1c1.5-.5,3.4-.7,5.6-.7s4.3.2,6.1.7c-.6-11.8-.9-21.2-.9-28,0-13.7,4.5-20.5,13.6-20.5s7.4,1.6,9.3,4.7c1.3,2.1,2,5.3,2.2,9.7v10.1c0,8.8-.3,16.8-1,24.1,1.9-.5,3.8-.7,5.7-.7s3.7.2,6,.7c-.5-8.6-.7-15-.7-19.3s0-4.5.1-10.2Z"/>
+  <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
+</svg>
+    <div class="nav-divider"></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM</span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
+    <button class="nav-tab" data-view="hotleads" onclick="switchView('hotleads')"><span class="tabflame">🔥</span>Hot Leads<span class="tabcount" id="navHotCount" style="display:none">0</span></button>
     <button class="nav-tab" data-view="contacts" onclick="switchView('contacts')">Contacts</button>
     <button class="nav-tab" data-view="followups" onclick="switchView('followups')">Follow-Ups</button>
     <button class="nav-tab" data-view="activity" onclick="switchView('activity')">Activity</button>
   </div>
   <div class="nav-right">
-    <span style="color:#9fc4dd;font-size:12px;font-weight:600">Logging as</span>
-    <select class="rep-switch" id="repSwitch" onchange="onRepSwitch()" title="Who you are — sets the rep on touches you log">
-    </select>
+    <span class="lbl">Logging as</span>
+    <select class="rep-switch" id="repSwitch" onchange="onRepSwitch()" title="Who you are — sets the rep on touches you log"></select>
   </div>
 </nav>
 
@@ -274,24 +360,24 @@
   <!-- DASHBOARD -->
   <section class="view active" id="view-dashboard">
     <div class="page-head">
-      <div><h2>Sales Dashboard</h2><p>Outreach overview. Filter by rep and time frame; everything below updates live.</p></div>
+      <div><h2>Sales Dashboard</h2><p>Team outreach at a glance. Filter by rep and time frame — every panel updates live.</p></div>
       <div class="btn-row">
-        <button class="btn green" onclick="openContactModal()">+ Add Contact</button>
-        <button class="btn" onclick="openTouchModal()">+ Add Touch</button>
+        <button class="btn ghost" onclick="openContactModal()">+ Add Contact</button>
+        <button class="btn" onclick="openTouchModal()">+ Log a Touch</button>
       </div>
     </div>
 
     <div class="dash-controls">
       <div class="seg" id="dashRepSeg"></div>
       <div class="seg" id="dashRangeSeg">
-        <button class="seg-btn active" data-range="7" onclick="setDashRange(7)">7 days</button>
-        <button class="seg-btn" data-range="30" onclick="setDashRange(30)">30 days</button>
+        <button class="seg-btn" data-range="7" onclick="setDashRange(7)">7 days</button>
+        <button class="seg-btn active" data-range="30" onclick="setDashRange(30)">30 days</button>
         <button class="seg-btn" data-range="90" onclick="setDashRange(90)">90 days</button>
         <button class="seg-btn" data-range="0" onclick="setDashRange(0)">All time</button>
       </div>
     </div>
 
-    <div class="stats" id="dashStats"></div>
+    <div class="kpis" id="dashKpis"></div>
 
     <div class="cols">
       <div class="panel">
@@ -306,13 +392,15 @@
 
     <div class="cols">
       <div class="panel">
-        <div class="panel-head"><h3>By Location</h3>
-          <select id="dashLocMode" onchange="renderDashboard()" style="width:auto;padding:6px 10px;font-size:13px">
-            <option value="state">By State</option>
-            <option value="city">By City</option>
-          </select>
+        <div class="panel-head">
+          <h3 id="dashBreakdownTitle">Activity by Builder</h3>
+          <div class="seg" id="dashBreakdownSeg">
+            <button class="seg-btn active" data-bd="builder" onclick="setDashBreakdown('builder')">Builder</button>
+            <button class="seg-btn" data-bd="state" onclick="setDashBreakdown('state')">State</button>
+            <button class="seg-btn" data-bd="city" onclick="setDashBreakdown('city')">City</button>
+          </div>
         </div>
-        <div class="panel-body" id="dashByLocation"></div>
+        <div class="panel-body" id="dashBreakdown"></div>
       </div>
       <div class="panel">
         <div class="panel-head"><h3>Follow-Ups Due</h3><span class="hint" id="dashFuHint"></span></div>
@@ -321,15 +409,25 @@
     </div>
 
     <div class="panel">
-      <div class="panel-head"><h3>Recent Activity</h3></div>
+      <div class="panel-head"><h3>Recent Activity</h3><span class="hint">Latest touches in this window</span></div>
       <div class="panel-body" id="dashActivity"></div>
     </div>
+  </section>
+
+  <!-- HOT LEADS -->
+  <section class="view" id="view-hotleads">
+    <div class="page-head">
+      <div><h2>🔥 Hot Leads</h2><p>Contacts flagged as close to closing. Keep these front and center — don't let them go cold.</p></div>
+      <div class="btn-row"><button class="btn ghost" onclick="switchView('contacts')">Browse all contacts</button></div>
+    </div>
+    <div id="hotBanner"></div>
+    <div class="hot-grid" id="hotGrid"></div>
   </section>
 
   <!-- CONTACTS -->
   <section class="view" id="view-contacts">
     <div class="page-head">
-      <div><h2>Contacts</h2><p>Builders with their contacts grouped underneath. Expand a builder to log, add, or edit contacts.</p></div>
+      <div><h2>Contacts</h2><p>Builders with their contacts grouped underneath. Expand a builder to log, flag, or edit contacts.</p></div>
       <div class="btn-row"><button class="btn green" onclick="openContactModal()">+ Add Contact</button></div>
     </div>
     <div class="filters filters-2row">
@@ -340,6 +438,7 @@
       <select id="contactRepFilter" onchange="renderContacts()"><option value="">Any rep activity</option></select>
       <select id="contactStatusFilter" onchange="renderContacts()">
         <option value="">Any status</option>
+        <option value="hot">🔥 Hot leads</option>
         <option value="never">Needs first touch</option>
         <option value="due">Follow-up due</option>
         <option value="active">Recently touched</option>
@@ -349,7 +448,7 @@
     <div class="cols">
       <div class="panel">
         <div class="panel-head"><h3>Leads Directory</h3><span class="hint" id="contactCount"></span></div>
-        <div style="overflow:auto; max-height: 640px; padding: 12px;" id="builderList"></div>
+        <div style="overflow:auto; max-height: 660px; padding: 13px;" id="builderList"></div>
       </div>
       <div class="panel">
         <div class="panel-head"><h3>Selected Contact</h3><span id="contactDetailActions"></span></div>
@@ -361,7 +460,11 @@
   <!-- FOLLOW-UPS -->
   <section class="view" id="view-followups">
     <div class="page-head">
-      <div><h2>Follow-Ups</h2><p>Everything with a scheduled next step, grouped by when it's due.</p></div>
+      <div><h2>Follow-Ups</h2><p>Everything with a scheduled next step, grouped by when it's due. Snooze a week or dismiss when handled.</p></div>
+    </div>
+    <div class="activity-filters">
+      <select id="fuRepFilter" onchange="renderFollowups()"><option value="">All reps</option></select>
+      <input type="text" id="fuSearch" placeholder="Search contact, builder, or notes..." oninput="renderFollowups()" />
     </div>
     <div class="panel"><div class="panel-body" id="followupList"></div></div>
   </section>
@@ -394,7 +497,7 @@
 <!-- ADD TOUCH MODAL -->
 <div class="modal-bg" id="touchModal">
   <div class="modal">
-    <div class="modal-head"><h3>Add Sales Touch</h3><button class="modal-x" onclick="closeTouchModal()">×</button></div>
+    <div class="modal-head"><h3>Log a Sales Touch</h3><button class="modal-x" onclick="closeTouchModal()">×</button></div>
     <div class="modal-body">
       <div class="context-note" id="touchContext">No contact selected — pick one from Contacts first, or this touch won't be linked.</div>
       <div class="frow">
@@ -439,23 +542,15 @@
         <datalist id="cmCompanyList"></datalist>
         <div class="new-hint" id="cmNewHint">✓ New builder — will be added to the directory</div>
       </div>
-      <div>
-        <label class="fld">Title / Position</label><input type="text" id="cmTitleField" placeholder="e.g. Purchasing Manager" />
-      </div>
+      <div><label class="fld">Title / Position</label><input type="text" id="cmTitleField" placeholder="e.g. Purchasing Manager" /></div>
       <div class="frow">
         <div><label class="fld">Email</label><input type="email" id="cmEmail" oninput="checkDup()" placeholder="name@builder.com" /></div>
         <div><label class="fld">Phone</label><input type="tel" id="cmPhone" placeholder="555-555-0000" /></div>
       </div>
       <div><label class="fld">LinkedIn URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="url" id="cmLinkedin" placeholder="https://www.linkedin.com/in/..." /></div>
       <div class="frow">
-        <div>
-          <label class="fld">State</label>
-          <select id="cmState" onchange="onModalStateChange()"></select>
-        </div>
-        <div>
-          <label class="fld">City</label>
-          <select id="cmCity"></select>
-        </div>
+        <div><label class="fld">State</label><select id="cmState" onchange="onModalStateChange()"></select></div>
+        <div><label class="fld">City</label><select id="cmCity"></select></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -467,121 +562,54 @@
 </div>
 
 <div class="toast" id="toast"></div>
-
 <script>
 // ============================================================
-//  TACOMA ENERGY — SALES CRM (rough draft)
-//
-//  DATA MODEL
-//  ----------
-//  CONTACTS — one row per person. Keyed by stable contactId
-//             (e.g. "C-10001"). When someone changes jobs you
-//             EDIT the company on their row — contactId never
-//             changes, so all their touch history stays attached.
-//
-//  TOUCHES  — append-only log. Each touch references a contactId.
-//             Adding a touch never modifies the contact record.
-//
-//  BACKEND (when wired up)
-//  -----------------------
-//  Source of truth: Excel workbook on SharePoint with two sheets:
-//    • Contacts  (the leads directory)
-//    • SalesTouches (the activity log)
-//  READS  — Power Automate (scheduled) writes the sheet data into
-//           this file, or the page fetches it. For this draft the
-//           data lives in localStorage so it works offline.
-//  WRITES — Add Touch / Add Contact / Edit Contact POST to a
-//           Power Automate HTTP trigger, which appends/updates the
-//           matching SharePoint row. Paste the URLs below to wire
-//           it up. Until then writes save locally and log to console.
+//  TACOMA ENERGY — SALES CRM
+//  Data model: CONTACTS (one row per person, stable contactId)
+//  + TOUCHES (append-only log keyed by contactId).
+//  Writes POST to Power Automate HTTP triggers; reads/local state
+//  live in localStorage so the app works instantly and offline.
 // ============================================================
 
 const POWER_AUTOMATE = {
-  addTouch:    'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/780e39d608c54f55bccb3f94e228ffe4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2lKXv41gVbHKyUZcDZMU4MrND-J6H_YzNZhHA0in9Cc',   // Power Automate HTTP trigger URL — appends to SalesTouches
+  addTouch:    'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/780e39d608c54f55bccb3f94e228ffe4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2lKXv41gVbHKyUZcDZMU4MrND-J6H_YzNZhHA0in9Cc',   // appends to SalesTouches
   addContact:  '',   // TODO: paste Power Automate HTTP trigger URL — appends to Contacts
   editContact: ''    // TODO: paste Power Automate HTTP trigger URL — updates Contacts by contactId
 };
 
-// Fixed location list — pick a state, then only that state's cities show.
-// Regional model: one anchor city per metro (e.g. Dallas covers the DFW area).
-// To add a market later, just add the city to the right state's array.
 const LOCATIONS = {
-  'AL': ['Birmingham','Huntsville','Mobile','Montgomery'],
-  'AK': ['Anchorage'],
-  'AZ': ['Phoenix','Tucson'],
-  'AR': ['Fayetteville','Little Rock'],
-  'CA': ['Los Angeles','Sacramento'],
-  'CO': ['Denver'],
-  'CT': ['Bridgeport'],
-  'DE': ['Dover'],
-  'DC': ['DC'],
-  'FL': ['Fort Myers','Jacksonville','Miami','Orlando','Pensacola','Tampa','West Palm Beach'],
-  'GA': ['Atlanta','Savannah'],
-  'HI': ['Honolulu'],
-  'ID': ['Boise'],
-  'IL': ['Chicago'],
-  'IN': ['Indianapolis'],
-  'IA': ['Des Moines'],
-  'KS': ['Wichita'],
-  'KY': ['Louisville'],
-  'LA': ['New Orleans'],
-  'ME': ['Bangor'],
-  'MD': ['Baltimore'],
-  'MA': ['Boston'],
-  'MI': ['Detroit','Grand Rapids'],
-  'MN': ['Minneapolis'],
-  'MS': ['Jackson'],
-  'MO': ['Kansas City','St. Louis'],
-  'MT': ['Billings'],
-  'NE': ['Omaha'],
-  'NV': ['Las Vegas'],
-  'NH': ['Manchester'],
-  'NJ': ['Newark'],
-  'NM': ['Albuquerque'],
-  'NY': ['Buffalo','New York','Rochester'],
-  'NC': ['Charlotte','Raleigh','Wilmington'],
-  'ND': ['Fargo'],
-  'OH': ['Cincinnati','Cleveland','Columbus'],
-  'OK': ['Oklahoma City'],
-  'OR': ['Portland'],
-  'PA': ['Philadelphia','Pittsburgh'],
-  'RI': ['Providence'],
-  'SC': ['Charleston','Columbia','Greenville','Myrtle Beach'],
-  'SD': ['Sioux Falls'],
-  'TN': ['Chattanooga','Knoxville','Memphis','Nashville'],
-  'TX': ['Austin','Dallas','El Paso','Houston','Lubbock','San Antonio'],
-  'UT': ['Salt Lake City'],
-  'VT': ['Burlington'],
-  'VA': ['Richmond','Virginia Beach'],
-  'WA': ['Seattle'],
-  'WV': ['Beckley'],
-  'WI': ['Milwaukee'],
-  'WY': ['Cheyenne'],
-  'CAN': ['Toronto']
+  'AL': ['Birmingham','Huntsville','Mobile','Montgomery'],'AK': ['Anchorage'],'AZ': ['Phoenix','Tucson'],
+  'AR': ['Fayetteville','Little Rock'],'CA': ['Los Angeles','Sacramento'],'CO': ['Denver'],'CT': ['Bridgeport'],
+  'DE': ['Dover'],'DC': ['DC'],'FL': ['Fort Myers','Jacksonville','Miami','Orlando','Pensacola','Tampa','West Palm Beach'],
+  'GA': ['Atlanta','Savannah'],'HI': ['Honolulu'],'ID': ['Boise'],'IL': ['Chicago'],'IN': ['Indianapolis'],
+  'IA': ['Des Moines'],'KS': ['Wichita'],'KY': ['Louisville'],'LA': ['New Orleans'],'ME': ['Bangor'],'MD': ['Baltimore'],
+  'MA': ['Boston'],'MI': ['Detroit','Grand Rapids'],'MN': ['Minneapolis'],'MS': ['Jackson'],'MO': ['Kansas City','St. Louis'],
+  'MT': ['Billings'],'NE': ['Omaha'],'NV': ['Las Vegas'],'NH': ['Manchester'],'NJ': ['Newark'],'NM': ['Albuquerque'],
+  'NY': ['Buffalo','New York','Rochester'],'NC': ['Charlotte','Raleigh','Wilmington'],'ND': ['Fargo'],
+  'OH': ['Cincinnati','Cleveland','Columbus'],'OK': ['Oklahoma City'],'OR': ['Portland'],'PA': ['Philadelphia','Pittsburgh'],
+  'RI': ['Providence'],'SC': ['Charleston','Columbia','Greenville','Myrtle Beach'],'SD': ['Sioux Falls'],
+  'TN': ['Chattanooga','Knoxville','Memphis','Nashville'],'TX': ['Austin','Dallas','El Paso','Houston','Lubbock','San Antonio'],
+  'UT': ['Salt Lake City'],'VT': ['Burlington'],'VA': ['Richmond','Virginia Beach'],'WA': ['Seattle'],'WV': ['Beckley'],
+  'WI': ['Milwaukee'],'WY': ['Cheyenne'],'CAN': ['Toronto']
 };
 const STATE_LIST = Object.keys(LOCATIONS);
 const REPS = ['N. Reynolds', 'C. Gaston', 'A. Palumbo', 'Unassigned'];
-const REP_COLOR = {
-  'N. Reynolds': '#1a5c3a', 'C. Gaston': '#1a4a8a',
-  'A. Palumbo': '#7a2a1a', 'Unassigned': '#5a6b7d'
-};
-function repColor(r) { return REP_COLOR[r] || '#5a6b7d'; }
+const REP_COLOR = { 'N. Reynolds': '#06a951', 'C. Gaston': '#1395d3', 'A. Palumbo': '#f2622a', 'Unassigned': '#687d92' };
+function repColor(r) { return REP_COLOR[r] || '#687d92'; }
 
-// ---- storage wrapper: localStorage with in-memory fallback ----
 const mem = {};
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch(e) { return mem[k] ?? null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch(e) { mem[k] = v; } }
 };
 
-// ---- seed sample data (only if empty) ----
 function seed() {
   if (store.get('crm_contacts')) return;
   const contacts = [
-    { contactId:'C-10001', company:'M/I Homes', city:'Columbus', state:'OH', first:'Sarah', last:'Jones', title:'Purchasing Manager', email:'sarah.jones@mihomes.com', phone:'614-555-1234', linkedin:'https://www.linkedin.com/in/sarah-jones-mih', active:true, dateAdded:'2026-05-02' },
-    { contactId:'C-10002', company:'M/I Homes', city:'Cincinnati', state:'OH', first:'Mike', last:'Reynolds', title:'Construction Manager', email:'mike.reynolds@mihomes.com', phone:'937-555-8755', linkedin:'https://www.linkedin.com/in/mike-reynolds-build', active:true, dateAdded:'2026-05-04' },
+    { contactId:'C-10001', company:'M/I Homes', city:'Columbus', state:'OH', first:'Sarah', last:'Jones', title:'Purchasing Manager', email:'sarah.jones@mihomes.com', phone:'614-555-1234', linkedin:'https://www.linkedin.com/in/sarah-jones-mih', active:true, hot:true, hotSince:'2026-06-10', dateAdded:'2026-05-02' },
+    { contactId:'C-10002', company:'M/I Homes', city:'Cincinnati', state:'OH', first:'Mike', last:'Reynolds', title:'Construction Manager', email:'mike.reynolds@mihomes.com', phone:'937-555-8755', linkedin:'https://www.linkedin.com/in/mike-reynolds-build', active:true, hot:true, hotSince:'2026-06-05', dateAdded:'2026-05-04' },
     { contactId:'C-10003', company:'Fischer Homes', city:'Cincinnati', state:'OH', first:'Lindsey', last:'Miller', title:'Operations Coordinator', email:'lmiller@fischerhomes.com', phone:'513-555-8822', linkedin:'', active:true, dateAdded:'2026-05-09' },
-    { contactId:'C-10004', company:'Fischer Homes', city:'Cincinnati', state:'OH', first:'David', last:'Campbell', title:'Division VP', email:'dcampbell@fischerhomes.com', phone:'513-555-2001', linkedin:'https://www.linkedin.com/in/david-campbell-fischer', active:true, dateAdded:'2026-04-18' },
+    { contactId:'C-10004', company:'Fischer Homes', city:'Cincinnati', state:'OH', first:'David', last:'Campbell', title:'Division VP', email:'dcampbell@fischerhomes.com', phone:'513-555-2001', linkedin:'https://www.linkedin.com/in/david-campbell-fischer', active:true, hot:true, hotSince:'2026-06-01', dateAdded:'2026-04-18' },
     { contactId:'C-10005', company:'Pulte Homes', city:'Columbus', state:'OH', first:'Amanda', last:'Foster', title:'Purchasing Manager', email:'amanda.foster@pulte.com', phone:'614-555-3002', linkedin:'', active:true, dateAdded:'2026-03-22' },
     { contactId:'C-10006', company:'Ryan Homes', city:'Columbus', state:'OH', first:'Jennifer', last:'Davis', title:'Sales Manager', email:'jdavis@nvrinc.com', phone:'614-555-4002', linkedin:'https://www.linkedin.com/in/jennifer-davis-nvr', active:true, dateAdded:'2026-05-12' },
     { contactId:'C-10007', company:'Drees Homes', city:'Cincinnati', state:'OH', first:'Stephanie', last:'Baker', title:'Purchasing Manager', email:'sbaker@dreeshomes.com', phone:'513-555-1002', linkedin:'', active:true, dateAdded:'2026-05-19' },
@@ -610,25 +638,14 @@ function getContacts() { try { return JSON.parse(store.get('crm_contacts')) || [
 function getTouches() { try { return JSON.parse(store.get('crm_touches')) || []; } catch(e) { return []; } }
 function saveContacts(c) { store.set('crm_contacts', JSON.stringify(c)); }
 function saveTouches(t) { store.set('crm_touches', JSON.stringify(t)); }
+function contactById(cid) { return getContacts().find(x => x.contactId === cid); }
 
-// ---- helpers ----
+// ---- date helpers ----
 function todayISO() { return new Date().toISOString().slice(0,10); }
-function plusWeeks(n) {
-  const d = new Date();
-  d.setDate(d.getDate() + n*7);
-  return d.toISOString().slice(0,10);
-}
-function plusYears(n) {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() + n);
-  return d.toISOString().slice(0,10);
-}
-// Default follow-up date based on the result picked. 6 weeks for everything
-// except "Not interested" (1 year out). Rep can always override.
-function followUpDefault(result) {
-  if (result === 'Not interested') return plusYears(1);
-  return plusWeeks(6);
-}
+function plusWeeks(n) { const d = new Date(); d.setDate(d.getDate() + n*7); return d.toISOString().slice(0,10); }
+function plusYears(n) { const d = new Date(); d.setFullYear(d.getFullYear() + n); return d.toISOString().slice(0,10); }
+function addDays(iso, n) { const d = new Date((iso||todayISO()) + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); }
+function followUpDefault(result) { return result === 'Not interested' ? plusYears(1) : plusWeeks(6); }
 function fmtDate(iso) {
   if (!iso) return '—';
   const [y,m,d] = iso.split('-');
@@ -640,18 +657,27 @@ function daysBetween(iso) {
   const d = new Date(iso + 'T00:00:00');
   return Math.floor((new Date(todayISO()+'T00:00:00') - d) / 86400000);
 }
-function touchesFor(cid) {
-  return getTouches().filter(t => t.contactId === cid)
-    .sort((a,b) => b.date.localeCompare(a.date));
-}
+function touchesFor(cid) { return getTouches().filter(t => t.contactId === cid).sort((a,b) => b.date.localeCompare(a.date)); }
 function lastTouch(cid) { return touchesFor(cid)[0] || null; }
-function nextFollowUp(cid) {
-  const fus = getTouches().filter(t => t.contactId === cid && t.followUp)
-    .map(t => t.followUp).sort();
+
+// raw follow-up = latest follow-up date carried on this contact's touches
+function rawNextFollowUp(cid) {
+  const fus = getTouches().filter(t => t.contactId === cid && t.followUp).map(t => t.followUp).sort();
   return fus.length ? fus[fus.length-1] : null;
 }
+// effective follow-up applies any snooze / dismiss the rep set against that date
+function nextFollowUp(cid) {
+  const base = rawNextFollowUp(cid);
+  const c = contactById(cid);
+  if (c && c.fuAdjust && c.fuAdjust.from === base) return c.fuAdjust.date || null;
+  return base;
+}
+
 function repChip(rep) {
   return `<span class="rep-chip" style="color:${repColor(rep)}"><span class="rep-dot" style="background:${repColor(rep)}"></span>${rep||'—'}</span>`;
+}
+function flameIcon(c, size) {
+  return `<button class="flame-btn ${c.hot?'on':''}" title="${c.hot?'Hot lead — click to unflag':'Flag as Hot Lead'}" style="${size?`font-size:${size}px`:''}" onclick="event.stopPropagation();toggleHot('${c.contactId}')">🔥</button>`;
 }
 function contactStatus(cid) {
   const lt = lastTouch(cid);
@@ -661,17 +687,12 @@ function contactStatus(cid) {
   if (fu) return { key:'active', chip:'<span class="chip blue">Scheduled</span>' };
   return { key:'active', chip:'<span class="chip green">Touched</span>' };
 }
-
-// When was this contact record last added/edited? Falls back to dateAdded for
-// older records that predate the lastEdited field. Used to flag stale contacts
-// whose employer/title may need verifying.
 function contactEdited(c) { return c.lastEdited || c.dateAdded || ''; }
 function contactFreshness(c) {
   const d = contactEdited(c);
   if (!d) return { label:'—', stale:false, days:null };
   const days = daysBetween(d);
   if (days === null) return { label:'—', stale:false, days:null };
-  // Stale if not touched/edited in 6+ months — worth re-checking their info.
   const stale = days > 180;
   let label;
   if (days <= 30) label = 'Updated recently';
@@ -683,10 +704,24 @@ function contactFreshness(c) {
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2600);
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-// ---- Power Automate push (stubbed) ----
+// count-up animation for KPI numbers
+function animateNum(el, to) {
+  to = +to || 0;
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to.toLocaleString(); return; }
+  const dur = 650, start = performance.now();
+  function step(now) {
+    const p = Math.min(1, (now - start) / dur);
+    const v = Math.round(to * (1 - Math.pow(1 - p, 3)));
+    el.textContent = v.toLocaleString();
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ---- Power Automate push ----
 async function pushPA(action, payload) {
   const url = POWER_AUTOMATE[action];
   if (!url) { console.log(`[Power Automate stub] ${action}:`, payload); return true; }
@@ -699,7 +734,7 @@ async function pushPA(action, payload) {
 // ============================================================
 //  STATE + NAV
 // ============================================================
-let state = { view:'dashboard', selectedContact:null, actingRep:'', openBuilders:new Set(), dashRange:7, dashRep:'' };
+let state = { view:'dashboard', selectedContact:null, actingRep:'', openBuilders:new Set(), dashRange:30, dashRep:'', dashBreakdown:'builder' };
 
 function switchView(v) {
   state.view = v;
@@ -707,15 +742,111 @@ function switchView(v) {
   document.getElementById('view-'+v).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.view===v));
   if (v==='dashboard') renderDashboard();
+  if (v==='hotleads') renderHotLeads();
   if (v==='contacts') renderContacts();
   if (v==='followups') renderFollowups();
   if (v==='activity') renderActivity();
+  window.scrollTo({top:0});
+}
+function onRepSwitch() { state.actingRep = document.getElementById('repSwitch').value; }
+
+function refreshHotCount() {
+  const n = getContacts().filter(c => c.active && c.hot).length;
+  const b = document.getElementById('navHotCount');
+  if (b) { b.textContent = n; b.style.display = n ? 'inline-flex' : 'none'; }
 }
 
-function onRepSwitch() {
-  // Identity only — sets who you are, which pre-fills the rep on touches you log.
-  // It does NOT filter the dashboard (use the dashboard's own rep control for that).
-  state.actingRep = document.getElementById('repSwitch').value;
+// ============================================================
+//  HOT LEADS + SNOOZE actions
+// ============================================================
+function toggleHot(cid) {
+  const contacts = getContacts();
+  const c = contacts.find(x => x.contactId === cid);
+  if (!c) return;
+  c.hot = !c.hot;
+  c.hotSince = c.hot ? todayISO() : '';
+  saveContacts(contacts);
+  toast(c.hot ? '🔥 Marked as Hot Lead' : 'Removed Hot Lead flag');
+  refreshHotCount();
+  if (state.view==='contacts') { renderContacts(); if (state.selectedContact) renderContactDetail(state.selectedContact); }
+  if (state.view==='hotleads') renderHotLeads();
+  if (state.view==='dashboard') renderDashboard();
+  pushPA('editContact', { contactId: cid, hot: c.hot, hotSince: c.hotSince });
+}
+
+function snoozeFollowUp(cid) {
+  const base = rawNextFollowUp(cid);
+  if (!base) { toast('No follow-up to snooze'); return; }
+  const cur = nextFollowUp(cid) || base;
+  const newDate = addDays(cur, 7);
+  const contacts = getContacts();
+  const c = contacts.find(x => x.contactId === cid);
+  c.fuAdjust = { from: base, date: newDate };
+  saveContacts(contacts);
+  toast('Snoozed 1 week → ' + fmtDate(newDate));
+  rerenderFollowupSurfaces();
+  pushPA('editContact', { contactId: cid, followUpSnoozedTo: newDate });
+}
+function dismissFollowUp(cid) {
+  const base = rawNextFollowUp(cid);
+  if (!base) return;
+  const contacts = getContacts();
+  const c = contacts.find(x => x.contactId === cid);
+  c.fuAdjust = { from: base, date: null };
+  saveContacts(contacts);
+  toast('Follow-up dismissed');
+  rerenderFollowupSurfaces();
+  pushPA('editContact', { contactId: cid, followUpDismissed: true });
+}
+function rerenderFollowupSurfaces() {
+  if (state.view==='followups') renderFollowups();
+  if (state.view==='dashboard') renderDashboard();
+  if (state.view==='hotleads') renderHotLeads();
+  if (state.view==='contacts' && state.selectedContact) renderContactDetail(state.selectedContact);
+}
+
+function renderHotLeads() {
+  const hot = getContacts().filter(c => c.active && c.hot);
+  const banner = document.getElementById('hotBanner');
+  const grid = document.getElementById('hotGrid');
+  if (!hot.length) {
+    banner.innerHTML = '';
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">No hot leads flagged yet. Open any contact and tap the 🔥 to flag deals that are close to closing.</div>`;
+    return;
+  }
+  const dueSoon = hot.filter(c => { const fu = nextFollowUp(c.contactId); return fu && daysBetween(fu) >= 0; }).length;
+  banner.innerHTML = `<div class="hot-banner">
+    <div class="big">🔥</div>
+    <div><div style="font-size:16px;font-weight:800;color:var(--navy)"><b>${hot.length}</b> hot lead${hot.length===1?'':'s'} in play</div>
+    <div class="sub" style="margin-top:2px">${dueSoon} ${dueSoon===1?'has':'have'} a follow-up due now — don't let them cool off.</div></div></div>`;
+  // sort: overdue/due first, then by soonest follow-up
+  const sorted = hot.slice().sort((a,b) => {
+    const fa = nextFollowUp(a.contactId), fb = nextFollowUp(b.contactId);
+    if (fa && fb) return fa.localeCompare(fb);
+    if (fa) return -1; if (fb) return 1; return 0;
+  });
+  grid.innerHTML = sorted.map(c => {
+    const lt = lastTouch(c.contactId);
+    const fu = nextFollowUp(c.contactId);
+    const d = fu ? daysBetween(fu) : null;
+    const fuChip = fu ? (d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Due today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`) : '<span class="chip gray">No follow-up set</span>';
+    return `<div class="hot-card" onclick="openContactFromDash('${c.contactId}')">
+      <div class="hot-card-top">
+        <div><div class="hot-card-name">${c.first} ${c.last}</div><div class="hot-card-co">${c.title||'—'} · ${c.company}</div></div>
+        ${flameIcon(c, 17)}
+      </div>
+      <div class="hot-card-meta">
+        <div class="m"><label>Location</label><strong>${c.city}, ${c.state}</strong></div>
+        <div class="m"><label>Last touch</label><strong>${lt ? fmtDate(lt.date) : 'None yet'}</strong></div>
+        <div class="m"><label>Next step</label><strong>${fuChip}</strong></div>
+      </div>
+      <div class="hot-card-actions" onclick="event.stopPropagation()">
+        <button class="btn hot sm" onclick="quickTouch('${c.contactId}')">Log a touch</button>
+        ${fu ? `<button class="btn ghost sm" onclick="snoozeFollowUp('${c.contactId}')">Snooze 1wk</button>` : ''}
+        <button class="btn ghost sm" onclick="openContactFromDash('${c.contactId}')">Open</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ============================================================
@@ -723,24 +854,25 @@ function onRepSwitch() {
 // ============================================================
 function setDashRange(days) {
   state.dashRange = days;
-  document.querySelectorAll('#dashRangeSeg .seg-btn').forEach(b =>
-    b.classList.toggle('active', parseInt(b.dataset.range) === days));
+  document.querySelectorAll('#dashRangeSeg .seg-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.range) === days));
   renderDashboard();
 }
 function setDashRep(rep) {
   state.dashRep = rep;
-  document.querySelectorAll('#dashRepSeg .seg-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.rep === rep));
+  document.querySelectorAll('#dashRepSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.rep === rep));
   renderDashboard();
 }
+function setDashBreakdown(mode) {
+  state.dashBreakdown = mode;
+  document.querySelectorAll('#dashBreakdownSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.bd === mode));
+  renderDashboard();
+}
+function cutoffFor(days) { if (!days) return null; const d = new Date(); d.setDate(d.getDate()-days); return d.toISOString().slice(0,10); }
 
-// touches within the active timeframe + rep filter
 function dashTouches() {
-  const days = state.dashRange;
-  const rep = state.dashRep;
-  const cutoff = days ? (() => { const d = new Date(); d.setDate(d.getDate()-days); return d.toISOString().slice(0,10); })() : null;
+  const cutoff = cutoffFor(state.dashRange);
   return getTouches().filter(t => {
-    if (rep && t.rep !== rep) return false;
+    if (state.dashRep && t.rep !== state.dashRep) return false;
     if (cutoff && t.date < cutoff) return false;
     return true;
   });
@@ -751,15 +883,32 @@ function barRows(counts, opts) {
   const entries = Object.entries(counts).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
   if (!entries.length) return '<div class="bd-empty">No reach-outs in this window.</div>';
   const max = Math.max(...entries.map(e => e[1]));
-  return entries.map(([label, val]) => {
+  const shown = opts.limit ? entries.slice(0, opts.limit) : entries;
+  return shown.map(([label, val]) => {
     const color = opts.repColor ? repColor(label) : null;
     const fillStyle = color ? `background:${color}` : '';
+    const dot = opts.repColor ? `<span class="rep-dot" style="background:${color}"></span>` : '';
     return `<div class="bd-row">
-      <div class="bd-label">${opts.repColor ? `<span class="rep-dot" style="background:${color};display:inline-block;margin-right:6px"></span>` : ''}${label}</div>
-      <div class="bd-track"><div class="bd-fill" style="width:${Math.round(val/max*100)}%;${fillStyle}"></div></div>
-      <div class="bd-val">${val}</div>
+      <div class="bd-label">${dot}${label}</div>
+      <div class="bd-track"><div class="bd-fill ${opts.green?'g':''}" style="${fillStyle}" data-w="${Math.round(val/max*100)}"></div></div>
+      <div class="bd-val tnum">${val}</div>
     </div>`;
   }).join('');
+}
+// trigger the width transition after insertion
+function animateBars(containerId) {
+  requestAnimationFrame(() => {
+    document.querySelectorAll('#'+containerId+' .bd-fill').forEach(el => { el.style.width = (el.dataset.w||0) + '%'; });
+  });
+}
+
+function trendBadge(cur, prev) {
+  if (prev === 0 && cur === 0) return '<span class="trend flat">— no prior</span>';
+  if (prev === 0) return '<span class="trend up">▲ new</span>';
+  const pct = Math.round((cur - prev) / prev * 100);
+  if (pct > 0) return `<span class="trend up">▲ ${pct}%</span>`;
+  if (pct < 0) return `<span class="trend down">▼ ${Math.abs(pct)}%</span>`;
+  return '<span class="trend flat">▬ 0%</span>';
 }
 
 function renderDashboard() {
@@ -769,69 +918,82 @@ function renderDashboard() {
   const rangeLabel = state.dashRange ? `last ${state.dashRange} days` : 'all time';
   const repLabel = state.dashRep || 'all reps';
 
-  // ---- top stat cards ----
+  // KPIs
   const totalReachOuts = tch.length;
   const contactsReached = new Set(tch.map(t => t.contactId)).size;
-  const fusDue = allTouches.filter(t => t.followUp && daysBetween(t.followUp) >= 0 && (!state.dashRep || t.rep === state.dashRep)).length;
+  const hotCount = contacts.filter(c => c.hot).length;
+  const fusDue = contacts.filter(c => { const fu = nextFollowUp(c.contactId); return fu && daysBetween(fu) >= 0 && (!state.dashRep || (lastTouch(c.contactId)||{}).rep === state.dashRep); }).length;
   const untouched = contacts.filter(c => !lastTouch(c.contactId)).length;
 
-  document.getElementById('dashStats').innerHTML = `
-    <div class="stat"><label>Reach-Outs</label><div class="num">${totalReachOuts}</div><div class="sub">${rangeLabel} · ${repLabel}</div></div>
-    <div class="stat good"><label>Contacts Reached</label><div class="num">${contactsReached}</div><div class="sub">unique people</div></div>
-    <div class="stat ${fusDue?'alert':''}"><label>Follow-Ups Due</label><div class="num">${fusDue}</div><div class="sub">${repLabel}</div></div>
-    <div class="stat ${untouched?'alert':''}"><label>Untouched Leads</label><div class="num">${untouched}</div><div class="sub">no touch ever</div></div>`;
+  // trend: reach-outs this period vs previous equal period
+  let trend = '';
+  if (state.dashRange) {
+    const start = cutoffFor(state.dashRange);
+    const prevStart = cutoffFor(state.dashRange*2);
+    const prev = allTouches.filter(t => (!state.dashRep || t.rep===state.dashRep) && t.date >= prevStart && t.date < start).length;
+    trend = trendBadge(totalReachOuts, prev);
+  } else { trend = '<span class="trend flat">all time</span>'; }
 
-  // ---- by rep ---- (ignores rep filter so you can compare reps; respects timeframe)
-  const repCutoff = state.dashRange ? (() => { const d=new Date(); d.setDate(d.getDate()-state.dashRange); return d.toISOString().slice(0,10); })() : null;
-  const repCounts = {};
-  REPS.forEach(r => repCounts[r] = 0);
+  document.getElementById('dashKpis').innerHTML = `
+    <div class="kpi k-reach"><div class="kpi-top"><label>Reach-Outs</label><span class="kpi-ico">📈</span></div><div class="num tnum" data-to="${totalReachOuts}">0</div><div class="sub">${trend} <span>vs prior ${state.dashRange?state.dashRange+'d':'—'}</span></div></div>
+    <div class="kpi k-reached"><div class="kpi-top"><label>Contacts Reached</label><span class="kpi-ico">🤝</span></div><div class="num tnum" data-to="${contactsReached}">0</div><div class="sub">unique people · ${rangeLabel}</div></div>
+    <div class="kpi k-hot clickable" onclick="switchView('hotleads')"><div class="kpi-top"><label>Hot Leads</label><span class="kpi-ico">🔥</span></div><div class="num tnum" data-to="${hotCount}">0</div><div class="sub">close to closing →</div></div>
+    <div class="kpi k-due"><div class="kpi-top"><label>Follow-Ups Due</label><span class="kpi-ico">⏰</span></div><div class="num tnum" data-to="${fusDue}">0</div><div class="sub">${repLabel}</div></div>
+    <div class="kpi k-untouched"><div class="kpi-top"><label>Untouched Leads</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${untouched}">0</div><div class="sub">no touch ever</div></div>`;
+  document.querySelectorAll('#dashKpis .num').forEach(el => animateNum(el, el.dataset.to));
+
+  // by rep (ignores rep filter; respects timeframe)
+  const repCutoff = cutoffFor(state.dashRange);
+  const repCounts = {}; REPS.forEach(r => repCounts[r] = 0);
   allTouches.forEach(t => { if (!repCutoff || t.date >= repCutoff) repCounts[t.rep] = (repCounts[t.rep]||0)+1; });
   document.getElementById('dashRepHint').textContent = rangeLabel;
   document.getElementById('dashByRep').innerHTML = barRows(repCounts, { repColor:true });
+  animateBars('dashByRep');
 
-  // ---- by method ---- (respects both filters)
+  // by method
   const methodCounts = {};
   tch.forEach(t => methodCounts[t.method] = (methodCounts[t.method]||0)+1);
   document.getElementById('dashByMethod').innerHTML = barRows(methodCounts);
+  animateBars('dashByMethod');
 
-  // ---- by location ---- (respects both filters)
-  const locMode = document.getElementById('dashLocMode') ? document.getElementById('dashLocMode').value : 'state';
-  const locCounts = {};
+  // breakdown: builder / state / city
+  const mode = state.dashBreakdown;
+  document.getElementById('dashBreakdownTitle').textContent = 'Activity by ' + (mode==='builder'?'Builder':mode==='state'?'State':'City');
+  const allContacts = getContacts();
+  const bdCounts = {};
   tch.forEach(t => {
-    const c = contacts.find(x => x.contactId === t.contactId) || getContacts().find(x => x.contactId === t.contactId);
+    const c = allContacts.find(x => x.contactId === t.contactId);
     if (!c) return;
-    const key = locMode === 'city' ? `${c.city}, ${c.state}` : (c.state || '—');
-    locCounts[key] = (locCounts[key]||0)+1;
+    let key;
+    if (mode==='builder') key = c.company || '—';
+    else if (mode==='city') key = `${c.city}, ${c.state}`;
+    else key = c.state || '—';
+    bdCounts[key] = (bdCounts[key]||0)+1;
   });
-  document.getElementById('dashByLocation').innerHTML = barRows(locCounts);
+  document.getElementById('dashBreakdown').innerHTML = barRows(bdCounts, { green: mode==='builder', limit: 10 });
+  animateBars('dashBreakdown');
 
-  // ---- follow-ups due ----
-  const rep = state.dashRep;
+  // follow-ups due
   document.getElementById('dashFuHint').textContent = repLabel;
-  const dueTouches = allTouches
-    .filter(t => t.followUp && (!rep || t.rep === rep))
-    .sort((a,b) => a.followUp.localeCompare(b.followUp));
-  const seen = new Set();
-  const fuRows = [];
-  dueTouches.forEach(t => {
-    if (seen.has(t.contactId)) return; seen.add(t.contactId);
-    const c = getContacts().find(x => x.contactId === t.contactId);
-    if (!c) return;
-    const d = daysBetween(t.followUp);
-    const chip = d > 0 ? `<span class="chip red">${d}d overdue</span>`
-              : d === 0 ? '<span class="chip amber">Today</span>'
-              : `<span class="chip blue">${fmtDate(t.followUp)}</span>`;
-    fuRows.push(`<tr onclick="openContactFromDash('${c.contactId}')">
-      <td style="width:120px">${chip}</td>
-      <td><div class="company">${c.first} ${c.last}</div><div class="sub">${c.company} · ${c.city}, ${c.state}</div></td>
-      <td onclick="event.stopPropagation()" style="width:64px"><button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button></td>
-    </tr>`);
-  });
+  const seen = new Set(); const fuRows = [];
+  contacts.map(c => ({ c, fu: nextFollowUp(c.contactId) }))
+    .filter(x => x.fu && (!state.dashRep || (lastTouch(x.c.contactId)||{}).rep === state.dashRep))
+    .sort((a,b) => a.fu.localeCompare(b.fu))
+    .forEach(({c, fu}) => {
+      if (seen.has(c.contactId)) return; seen.add(c.contactId);
+      const d = daysBetween(fu);
+      const chip = d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`;
+      fuRows.push(`<tr onclick="openContactFromDash('${c.contactId}')">
+        <td style="width:118px">${chip}</td>
+        <td><div class="company">${c.hot?'🔥 ':''}${c.first} ${c.last}</div><div class="sub">${c.company} · ${c.city}, ${c.state}</div></td>
+        <td onclick="event.stopPropagation()" style="width:60px"><button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button></td>
+      </tr>`);
+    });
   document.getElementById('dashFollowups').innerHTML = fuRows.length
-    ? `<div style="max-height:280px;overflow:auto"><table><tbody>${fuRows.slice(0,30).join('')}</tbody></table></div>`
+    ? `<div style="max-height:300px;overflow:auto"><table><tbody>${fuRows.slice(0,40).join('')}</tbody></table></div>`
     : '<div class="empty">No follow-ups scheduled.</div>';
 
-  // ---- recent activity ----
+  // recent activity
   const recent = [...tch].sort((a,b) => b.date.localeCompare(a.date)).slice(0,8);
   document.getElementById('dashActivity').innerHTML = recent.length
     ? `<div class="timeline">${recent.map(t => {
@@ -839,10 +1001,12 @@ function renderDashboard() {
         const name = c ? `${c.first} ${c.last}` : '(unknown)';
         return `<div class="touch method-${t.method.toLowerCase().replace(' ','')}">
           <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${t.method}</span>${repChip(t.rep)}</div>
-          <div class="touch-notes"><b>${name}</b> — ${t.result}</div>
+          <div class="touch-notes"><b>${c&&c.hot?'🔥 ':''}${name}</b> — ${t.result}</div>
         </div>`;
       }).join('')}</div>`
     : '<div class="empty">No activity in this window.</div>';
+
+  refreshHotCount();
 }
 
 function openContactFromDash(cid) { state.selectedContact = cid; switchView('contacts'); }
@@ -866,7 +1030,8 @@ function renderContacts() {
     if (cityF && c.city !== cityF) return false;
     if (repF && !getTouches().some(t => t.contactId === c.contactId && t.rep === repF)) return false;
     if (statusF) {
-      if (statusF === 'stale') { if (!contactFreshness(c).stale) return false; }
+      if (statusF === 'hot') { if (!c.hot) return false; }
+      else if (statusF === 'stale') { if (!contactFreshness(c).stale) return false; }
       else if (contactStatus(c.contactId).key !== statusF) return false;
     }
     if (q) {
@@ -876,7 +1041,6 @@ function renderContacts() {
     return true;
   });
 
-  // Group by builder + city + state
   const groups = {};
   contacts.forEach(c => {
     const key = `${c.company}|||${c.city}|||${c.state}`;
@@ -894,39 +1058,38 @@ function renderContacts() {
   }
 
   document.getElementById('builderList').innerHTML = builders.map((b, idx) => {
-    const cardId = `bc_${idx}`;
     const open = state.openBuilders.has(`${b.company}|${b.city}|${b.state}`);
-    // most recent touch across this builder's contacts
-    let lastDate = '';
-    b.contacts.forEach(c => { const lt = lastTouch(c.contactId); if (lt && lt.date > lastDate) lastDate = lt.date; });
+    let lastDate = ''; let hotN = 0;
+    b.contacts.forEach(c => { const lt = lastTouch(c.contactId); if (lt && lt.date > lastDate) lastDate = lt.date; if (c.hot) hotN++; });
 
     const rows = b.contacts.sort((a,c) => a.last.localeCompare(c.last)).map(c => {
       const lt = lastTouch(c.contactId);
       const st = contactStatus(c.contactId);
-      const cls = !lt ? 'never' : (st.key==='due' ? 'touched' : 'touched');
+      const cls = c.hot ? 'hot' : (!lt ? 'never' : 'touched');
       const ltText = lt ? `${fmtDate(lt.date)} · ${lt.rep}` : 'Not yet contacted';
       const fresh = contactFreshness(c);
-      const staleFlag = fresh.stale ? ` <span title="Not updated in ${Math.round(fresh.days/30)} months — verify employer/title" style="color:var(--amber);font-size:11px;font-weight:700">⚠ verify</span>` : '';
+      const staleFlag = fresh.stale ? ` <span title="Not updated in ${Math.round(fresh.days/30)} months — verify employer/title" style="color:var(--amber);font-size:11px;font-weight:800">⚠</span>` : '';
       return `<div class="crow ${cls} ${state.selectedContact===c.contactId?'selected':''}" onclick="selectContact('${c.contactId}')">
+        <div onclick="event.stopPropagation()" style="text-align:center">${flameIcon(c)}</div>
         <div>
           <div class="crow-name">${c.first} ${c.last}${staleFlag}</div>
           <div class="crow-sub">${c.title||'—'} · ${ltText}</div>
         </div>
         <div>${st.chip}</div>
-        <div style="text-align:right" onclick="event.stopPropagation()">
+        <div class="crow-acts" onclick="event.stopPropagation()">
           <button class="btn ghost sm" onclick="openContactModal('${c.contactId}')">Edit</button>
           <button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button>
         </div>
       </div>`;
     }).join('');
 
-    return `<div class="builder-card ${open?'open':''}" id="${cardId}">
+    return `<div class="builder-card ${open?'open':''}">
       <div class="builder-head" onclick="toggleBuilder('${b.company}|${b.city}|${b.state}')">
         <div>
-          <div class="builder-name">${b.company}</div>
+          <div class="builder-name">${b.company}${hotN?` <span class="chip hot">🔥 ${hotN}</span>`:''}</div>
           <div class="builder-loc">${b.city}, ${b.state}</div>
         </div>
-        <div class="builder-stat"><div class="n">${b.contacts.length}</div><div class="l">Contacts</div></div>
+        <div class="builder-stat"><div class="n tnum">${b.contacts.length}</div><div class="l">Contacts</div></div>
         <div class="builder-stat"><div class="n" style="font-size:12px">${lastDate?fmtDate(lastDate):'—'}</div><div class="l">Last Touch</div></div>
         <div class="builder-chev">▼</div>
       </div>
@@ -948,7 +1111,6 @@ function toggleBuilder(key) {
   else state.openBuilders.add(key);
   renderContacts();
 }
-
 function addContactToBuilder(company, city, st) {
   openContactModal();
   document.getElementById('cmCompany').value = company;
@@ -957,7 +1119,6 @@ function addContactToBuilder(company, city, st) {
   document.getElementById('cmCity').value = city;
   checkDup();
 }
-
 function selectContact(cid) { state.selectedContact = cid; renderContacts(); renderContactDetail(cid); }
 
 function renderContactDetail(cid) {
@@ -966,17 +1127,17 @@ function renderContactDetail(cid) {
   const actions = document.getElementById('contactDetailActions');
   if (!c) { box.innerHTML = '<div class="empty">Select a contact.</div>'; actions.innerHTML=''; return; }
 
+  const fu = nextFollowUp(cid);
   actions.innerHTML = `<div class="btn-row">
     <button class="btn ghost sm" onclick="openContactModal('${c.contactId}')">Edit</button>
     <button class="btn sm" onclick="openTouchModal()">+ Touch</button>
   </div>`;
 
   const history = touchesFor(cid);
-  const fu = nextFollowUp(cid);
   box.innerHTML = `
     <div class="contact-detail">
-      <h3>${c.first} ${c.last}</h3>
-      <div class="role">${c.company} · ${c.title}<br>${c.city}, ${c.state}</div>
+      <h3>${flameIcon(c, 18)} ${c.first} ${c.last} ${c.hot?'<span class="chip hot">🔥 Hot Lead</span>':''}</h3>
+      <div class="role">${c.company} · ${c.title||'—'}<br>${c.city}, ${c.state}</div>
       <div class="info-grid">
         <div class="info-box"><label>Email</label><strong><a href="mailto:${c.email}">${c.email||'—'}</a></strong></div>
         <div class="info-box"><label>Phone</label><strong><a href="tel:${c.phone}">${c.phone||'—'}</a></strong></div>
@@ -986,10 +1147,13 @@ function renderContactDetail(cid) {
         <div class="info-box"><label>Last Edited</label><strong>${contactEdited(c)?fmtDate(contactEdited(c)):'—'}</strong></div>
       </div>
       ${(() => { const f = contactFreshness(c); return f.stale ? `<div class="context-note" style="background:var(--amber-light);border-color:#f0d28a;color:#7a5200">⚠ This contact hasn't been updated in ${Math.round(f.days/30)} months — worth confirming their employer and title are still current.</div>` : ''; })()}
-      ${fu ? `<div class="context-note">Next follow-up: <b>${fmtDate(fu)}</b>${daysBetween(fu)>0?` · <span style="color:var(--red)">${daysBetween(fu)} days overdue</span>`:''}</div>` : ''}
+      ${fu ? `<div class="context-note" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <span>Next follow-up: <b>${fmtDate(fu)}</b>${daysBetween(fu)>0?` · <span style="color:var(--red);font-weight:800">${daysBetween(fu)} days overdue</span>`:daysBetween(fu)===0?' · <b style="color:#b9831a">due today</b>':''}</span>
+        <span class="btn-row"><button class="btn ghost sm" onclick="snoozeFollowUp('${c.contactId}')">Snooze 1wk</button><button class="btn ghost sm" onclick="dismissFollowUp('${c.contactId}')">Dismiss</button></span>
+      </div>` : ''}
     </div>
     <div style="margin-top:16px">
-      <div class="panel-head" style="padding:0 0 10px;border:none"><h3>Touch History</h3><span class="hint">${history.length} logged</span></div>
+      <div class="panel-head" style="padding:0 0 11px;border:none"><h3>Touch History</h3><span class="hint">${history.length} logged</span></div>
       ${history.length ? `<div class="timeline">${history.map(t => `
         <div class="touch method-${t.method.toLowerCase().replace(' ','')}">
           <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${t.method}</span>${repChip(t.rep)}</div>
@@ -1004,41 +1168,49 @@ function renderContactDetail(cid) {
 //  FOLLOW-UPS
 // ============================================================
 function renderFollowups() {
-  const touches = getTouches().filter(t => t.followUp);
-  const byContact = {};
-  touches.forEach(t => {
-    if (!byContact[t.contactId] || t.followUp > byContact[t.contactId].followUp)
-      byContact[t.contactId] = t;
-  });
-  const items = Object.values(byContact).sort((a,b) => a.followUp.localeCompare(b.followUp));
+  const repF = document.getElementById('fuRepFilter') ? document.getElementById('fuRepFilter').value : '';
+  const q = (document.getElementById('fuSearch') ? document.getElementById('fuSearch').value : '').toLowerCase();
+
+  const items = getContacts().filter(c => c.active)
+    .map(c => ({ c, fu: nextFollowUp(c.contactId), lt: lastTouch(c.contactId) }))
+    .filter(x => x.fu)
+    .filter(x => !repF || (x.lt && x.lt.rep === repF))
+    .filter(x => {
+      if (!q) return true;
+      const hay = `${x.c.first} ${x.c.last} ${x.c.company} ${(x.lt&&x.lt.notes)||''}`.toLowerCase();
+      return hay.includes(q);
+    })
+    .sort((a,b) => a.fu.localeCompare(b.fu));
 
   const groups = { overdue:[], today:[], week:[], later:[] };
-  items.forEach(t => {
-    const d = daysBetween(t.followUp);
-    if (d > 0) groups.overdue.push(t);
-    else if (d === 0) groups.today.push(t);
-    else if (d >= -7) groups.week.push(t);
-    else groups.later.push(t);
+  items.forEach(x => {
+    const d = daysBetween(x.fu);
+    if (d > 0) groups.overdue.push(x);
+    else if (d === 0) groups.today.push(x);
+    else if (d >= -7) groups.week.push(x);
+    else groups.later.push(x);
   });
 
   const labels = { overdue:'Overdue', today:'Due Today', week:'This Week', later:'Later' };
   let html = '';
   ['overdue','today','week','later'].forEach(k => {
     if (!groups[k].length) return;
-    html += `<div class="fu-group"><div class="fu-group-label ${k}">${labels[k]} (${groups[k].length})</div>
-      <table><tbody>${groups[k].map(t => {
-        const c = getContacts().find(x => x.contactId === t.contactId);
-        if (!c) return '';
+    html += `<div class="fu-group"><div class="fu-group-label ${k}">${labels[k]} <span class="cnt">${groups[k].length}</span></div>
+      <table><tbody>${groups[k].map(({c, fu, lt}) => {
         return `<tr onclick="openContactFromDash('${c.contactId}')">
-          <td style="width:130px"><span class="chip ${k==='overdue'?'red':k==='today'?'amber':'blue'}">${fmtDate(t.followUp)}</span></td>
-          <td><div class="company">${c.first} ${c.last}</div><div class="sub">${c.company} · ${c.city}, ${c.state}</div></td>
-          <td>${repChip(t.rep)}</td>
-          <td class="sub">${t.notes||''}</td>
-          <td onclick="event.stopPropagation()" style="width:70px"><button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button></td>
+          <td style="width:128px"><span class="chip ${k==='overdue'?'red':k==='today'?'amber':'blue'}">${fmtDate(fu)}</span></td>
+          <td><div class="company">${c.hot?'🔥 ':''}${c.first} ${c.last}</div><div class="sub">${c.company} · ${c.city}, ${c.state}</div></td>
+          <td style="width:120px">${lt?repChip(lt.rep):'—'}</td>
+          <td class="sub">${(lt&&lt.notes)||''}</td>
+          <td onclick="event.stopPropagation()" style="width:240px"><div class="btn-row">
+            <button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button>
+            <button class="btn ghost sm" onclick="snoozeFollowUp('${c.contactId}')">Snooze 1wk</button>
+            <button class="btn ghost sm" onclick="dismissFollowUp('${c.contactId}')">Dismiss</button>
+          </div></td>
         </tr>`;
       }).join('')}</tbody></table></div>`;
   });
-  document.getElementById('followupList').innerHTML = html || '<div class="empty">No follow-ups scheduled.</div>';
+  document.getElementById('followupList').innerHTML = html || '<div class="empty">No follow-ups match your filters.</div>';
 }
 
 // ============================================================
@@ -1068,7 +1240,7 @@ function renderActivity() {
     return `<tr onclick="${c?`openContactFromDash('${t.contactId}')`:''}">
       <td style="white-space:nowrap">${fmtDate(t.date)}</td>
       <td>${repChip(t.rep)}</td>
-      <td><div class="company">${name}</div><div class="sub">${co}</div></td>
+      <td><div class="company">${c&&c.hot?'🔥 ':''}${name}</div><div class="sub">${co}</div></td>
       <td><span class="chip gray">${t.method}</span></td>
       <td>${t.result}</td>
       <td class="sub">${t.notes||''}</td>
@@ -1082,7 +1254,7 @@ function renderActivity() {
 function openTouchModal() {
   const c = getContacts().find(x => x.contactId === state.selectedContact);
   document.getElementById('touchContext').innerHTML = c
-    ? `<b>Selected contact:</b> ${c.first} ${c.last} · ${c.company} · ${c.contactId}<br>Saving appends a new row to SalesTouches — the contact record is untouched.`
+    ? `<b>${c.hot?'🔥 ':''}Selected contact:</b> ${c.first} ${c.last} · ${c.company} · ${c.contactId}<br>Saving appends a new row to SalesTouches — the contact record is untouched.`
     : 'No contact selected — pick one from Contacts first, or this touch won\'t be linked.';
   document.getElementById('tmDate').value = todayISO();
   document.getElementById('tmRep').value = state.actingRep || REPS[0];
@@ -1093,13 +1265,8 @@ function openTouchModal() {
   document.getElementById('touchModal').classList.add('open');
 }
 function closeTouchModal() { document.getElementById('touchModal').classList.remove('open'); }
-
-// When the result changes, re-apply the default follow-up date for that result.
-// (Only overwrites the date — if the rep already typed a custom one we still
-//  reset it to the new default, since the result is the stronger signal.)
 function onResultChange() {
-  const result = document.getElementById('tmResult').value;
-  document.getElementById('tmFollowup').value = followUpDefault(result);
+  document.getElementById('tmFollowup').value = followUpDefault(document.getElementById('tmResult').value);
 }
 
 async function saveTouch() {
@@ -1119,13 +1286,21 @@ async function saveTouch() {
   touches.push(entry);
   saveTouches(touches);
 
-  // Update the UI immediately — logged and visible right away.
+  // a fresh touch creates a new follow-up date, which supersedes any prior snooze/dismiss
+  if (entry.followUp) {
+    const contacts = getContacts();
+    const c = contacts.find(x => x.contactId === cid);
+    if (c && c.fuAdjust) { delete c.fuAdjust; saveContacts(contacts); }
+  }
+
   closeTouchModal();
   toast('Touch logged');
-  renderContacts(); renderContactDetail(cid);
+  if (state.view==='contacts') { renderContacts(); renderContactDetail(cid); }
   if (state.view==='dashboard') renderDashboard();
+  if (state.view==='followups') renderFollowups();
+  if (state.view==='hotleads') renderHotLeads();
+  if (state.view==='activity') renderActivity();
 
-  // Background sync to SharePoint (does not block the UI).
   pushPA('addTouch', entry);
 }
 
@@ -1142,11 +1317,8 @@ function openContactModal(cid) {
   document.getElementById('cmDupWarn').classList.remove('show');
   document.getElementById('cmNewHint').classList.remove('show');
 
-  // builder datalist
   const builders = [...new Set(getContacts().map(c => c.company))].sort();
   document.getElementById('cmCompanyList').innerHTML = builders.map(b => `<option value="${b}">`).join('');
-
-  // state dropdown — fixed list
   document.getElementById('cmState').innerHTML =
     '<option value="">— State —</option>' + STATE_LIST.map(s => `<option value="${s}">${s}</option>`).join('');
 
@@ -1159,14 +1331,13 @@ function openContactModal(cid) {
   document.getElementById('cmPhone').value = c?.phone || '';
   document.getElementById('cmLinkedin').value = c?.linkedin || '';
   document.getElementById('cmState').value = c?.state || '';
-  rebuildModalCityList();                       // fill cities for the chosen state
+  rebuildModalCityList();
   document.getElementById('cmCity').value = c?.city || '';
 
   document.getElementById('contactModal').classList.add('open');
 }
 function closeContactModal() { document.getElementById('contactModal').classList.remove('open'); editingContactId = null; }
 
-// City dropdown shows only the chosen state's cities (fixed list)
 function rebuildModalCityList() {
   const st = document.getElementById('cmState').value;
   const cities = LOCATIONS[st] || [];
@@ -1175,29 +1346,22 @@ function rebuildModalCityList() {
     ? '<option value="">— City —</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('')
     : '<option value="">— Select a state first —</option>';
 }
-function onModalStateChange() {
-  document.getElementById('cmCity').value = '';   // clear city when state changes
-  rebuildModalCityList();
-}
+function onModalStateChange() { document.getElementById('cmCity').value = ''; rebuildModalCityList(); }
 
-// Duplicate check: email match (strongest) OR first+last+company. Never title.
 function checkDup() {
   const first = document.getElementById('cmFirst').value.trim().toLowerCase();
   const last = document.getElementById('cmLast').value.trim().toLowerCase();
   const email = document.getElementById('cmEmail').value.trim().toLowerCase();
   const company = document.getElementById('cmCompany').value.trim();
 
-  // new-builder hint
   const known = getContacts().some(c => c.company.toLowerCase() === company.toLowerCase());
   document.getElementById('cmNewHint').classList.toggle('show', !!company && !known);
 
   const hits = getContacts().filter(c => {
-    if (c.contactId === editingContactId) return false; // don't flag self when editing
+    if (c.contactId === editingContactId) return false;
     if (!c.active) return false;
     if (email && c.email && c.email.toLowerCase() === email) return true;
-    if (first && last && company &&
-        c.first.toLowerCase() === first && c.last.toLowerCase() === last &&
-        c.company.toLowerCase() === company.toLowerCase()) return true;
+    if (first && last && company && c.first.toLowerCase() === first && c.last.toLowerCase() === last && c.company.toLowerCase() === company.toLowerCase()) return true;
     return false;
   });
 
@@ -1207,9 +1371,7 @@ function checkDup() {
       hits.map(h => `<div class="dup-hit"><b>${h.first} ${h.last}</b> · ${h.title} · ${h.company} (${h.contactId})<br>${h.email||''}</div>`).join('') +
       `<div style="margin-top:8px">If it's the same person, cancel and open their record instead. If it's genuinely a different person, you can still save.</div>`;
     warn.classList.add('show');
-  } else {
-    warn.classList.remove('show');
-  }
+  } else { warn.classList.remove('show'); }
 }
 
 async function saveContact() {
@@ -1231,9 +1393,7 @@ async function saveContact() {
   };
 
   let syncAction, syncPayload;
-
   if (editingContactId) {
-    // EDIT IN PLACE — contactId stays the same, history stays attached
     const c = contacts.find(x => x.contactId === editingContactId);
     Object.assign(c, payload);
     saveContacts(contacts);
@@ -1243,7 +1403,7 @@ async function saveContact() {
     toast('Contact updated');
   } else {
     const newId = 'C-' + (10000 + contacts.length + 1 + Math.floor(Math.random()*50));
-    const entry = { contactId:newId, active:true, dateAdded: todayISO(), ...payload };
+    const entry = { contactId:newId, active:true, hot:false, dateAdded: todayISO(), ...payload };
     contacts.push(entry);
     saveContacts(contacts);
     state.selectedContact = newId;
@@ -1252,13 +1412,9 @@ async function saveContact() {
     toast('Contact added');
   }
 
-  // Update the UI immediately — the contact is usable for logging right now,
-  // regardless of whether/when the background sync to SharePoint completes.
   closeContactModal();
   if (state.view==='contacts') { renderContacts(); renderContactDetail(state.selectedContact); }
   else switchView('contacts');
-
-  // Fire the sync in the background (does not block using the app).
   pushPA(syncAction, syncPayload);
 }
 
@@ -1283,17 +1439,16 @@ function markInactive() {
 // ============================================================
 function populateRepDropdowns() {
   const opts = REPS.map(r => `<option value="${r}">${r}</option>`).join('');
-  // "Logging as" identity picker — list reps only (no "All reps"); default to the first rep.
   document.getElementById('repSwitch').innerHTML = opts;
   if (!state.actingRep) state.actingRep = REPS[0];
   document.getElementById('repSwitch').value = state.actingRep;
   document.getElementById('tmRep').innerHTML = opts;
   document.getElementById('contactRepFilter').innerHTML = '<option value="">Any rep activity</option>' + opts;
   document.getElementById('actRepFilter').innerHTML = '<option value="">All reps</option>' + opts;
+  document.getElementById('fuRepFilter').innerHTML = '<option value="">All reps</option>' + opts;
 
-  // Dashboard rep segmented control
   document.getElementById('dashRepSeg').innerHTML =
-    `<button class="seg-btn active" data-rep="" onclick="setDashRep('')">All reps</button>` +
+    `<span class="seg-label" style="padding:8px 6px 8px 8px">Rep</span><button class="seg-btn active" data-rep="" onclick="setDashRep('')">All</button>` +
     REPS.map(r => `<button class="seg-btn" data-rep="${r}" onclick="setDashRep('${r}')">${r}</button>`).join('');
 
   rebuildLocationFilters();
@@ -1302,7 +1457,6 @@ function populateRepDropdowns() {
     '<option value="">All builders</option>' + builders.map(b => `<option value="${b}">${b}</option>`).join('');
 }
 
-// Build state + city filter options from the contact data
 function rebuildLocationFilters() {
   const contacts = getContacts().filter(c => c.active);
   const states = [...new Set(contacts.map(c => c.state).filter(Boolean))].sort();
@@ -1314,7 +1468,6 @@ function rebuildLocationFilters() {
   }
   rebuildCityFilter();
 }
-
 function rebuildCityFilter() {
   const contacts = getContacts().filter(c => c.active);
   const stateSel = document.getElementById('contactStateFilter');
@@ -1324,14 +1477,13 @@ function rebuildCityFilter() {
   const cities = [...new Set(contacts.filter(c => !stateF || c.state === stateF).map(c => c.city).filter(Boolean))].sort();
   const cur = citySel.value;
   citySel.innerHTML = '<option value="">All cities</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('');
-  // keep current city only if still valid
   citySel.value = cities.includes(cur) ? cur : '';
 }
-
 function onContactStateChange() { rebuildCityFilter(); renderContacts(); }
 
 seed();
 populateRepDropdowns();
+refreshHotCount();
 renderDashboard();
 </script>
 </body>
