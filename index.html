@@ -634,11 +634,40 @@ function seed() {
   store.set('crm_touches', JSON.stringify(touches));
 }
 
-function getContacts() { try { return JSON.parse(store.get('crm_contacts')) || []; } catch(e) { return []; } }
-function getTouches() { try { return JSON.parse(store.get('crm_touches')) || []; } catch(e) { return []; } }
-function saveContacts(c) { store.set('crm_contacts', JSON.stringify(c)); }
-function saveTouches(t) { store.set('crm_touches', JSON.stringify(t)); }
-function contactById(cid) { return getContacts().find(x => x.contactId === cid); }
+// ---- cached data layer ----
+// Parse localStorage once and build lookup indexes. Without this, large
+// datasets (thousands of contacts/touches) get re-parsed thousands of times
+// per render and freeze the UI. Caches are rebuilt only when data is saved.
+let _cache = { contacts:null, touches:null, byContact:null, cById:null };
+function getContacts() {
+  if (_cache.contacts) return _cache.contacts;
+  try { _cache.contacts = JSON.parse(store.get('crm_contacts')) || []; } catch(e) { _cache.contacts = []; }
+  return _cache.contacts;
+}
+function getTouches() {
+  if (_cache.touches) return _cache.touches;
+  try { _cache.touches = JSON.parse(store.get('crm_touches')) || []; } catch(e) { _cache.touches = []; }
+  return _cache.touches;
+}
+// touches grouped by contactId, each list sorted newest-first (built once)
+function touchIndex() {
+  if (_cache.byContact) return _cache.byContact;
+  const m = new Map();
+  for (const t of getTouches()) { if (!m.has(t.contactId)) m.set(t.contactId, []); m.get(t.contactId).push(t); }
+  for (const arr of m.values()) arr.sort((a,b) => b.date.localeCompare(a.date));
+  _cache.byContact = m;
+  return m;
+}
+function contactIndex() {
+  if (_cache.cById) return _cache.cById;
+  const m = new Map();
+  for (const c of getContacts()) m.set(c.contactId, c);
+  _cache.cById = m;
+  return m;
+}
+function saveContacts(c) { store.set('crm_contacts', JSON.stringify(c)); _cache.contacts = c; _cache.cById = null; }
+function saveTouches(t) { store.set('crm_touches', JSON.stringify(t)); _cache.touches = t; _cache.byContact = null; }
+function contactById(cid) { return contactIndex().get(cid); }
 
 // ---- date helpers ----
 function todayISO() { return new Date().toISOString().slice(0,10); }
@@ -657,13 +686,16 @@ function daysBetween(iso) {
   const d = new Date(iso + 'T00:00:00');
   return Math.floor((new Date(todayISO()+'T00:00:00') - d) / 86400000);
 }
-function touchesFor(cid) { return getTouches().filter(t => t.contactId === cid).sort((a,b) => b.date.localeCompare(a.date)); }
-function lastTouch(cid) { return touchesFor(cid)[0] || null; }
+function touchesFor(cid) { return touchIndex().get(cid) || []; }      // already sorted newest-first
+function lastTouch(cid) { const a = touchIndex().get(cid); return (a && a.length) ? a[0] : null; }
 
 // raw follow-up = latest follow-up date carried on this contact's touches
 function rawNextFollowUp(cid) {
-  const fus = getTouches().filter(t => t.contactId === cid && t.followUp).map(t => t.followUp).sort();
-  return fus.length ? fus[fus.length-1] : null;
+  const a = touchIndex().get(cid);
+  if (!a) return null;
+  let mx = null;
+  for (const t of a) { if (t.followUp && (!mx || t.followUp > mx)) mx = t.followUp; }
+  return mx;
 }
 // effective follow-up applies any snooze / dismiss the rep set against that date
 function nextFollowUp(cid) {
@@ -962,7 +994,7 @@ function renderDashboard() {
   const allContacts = getContacts();
   const bdCounts = {};
   tch.forEach(t => {
-    const c = allContacts.find(x => x.contactId === t.contactId);
+    const c = contactById(t.contactId);
     if (!c) return;
     let key;
     if (mode==='builder') key = c.company || '—';
@@ -973,31 +1005,30 @@ function renderDashboard() {
   document.getElementById('dashBreakdown').innerHTML = barRows(bdCounts, { green: mode==='builder', limit: 10 });
   animateBars('dashBreakdown');
 
-  // follow-ups due
+  // follow-ups due (sort, then render only the top 40)
   document.getElementById('dashFuHint').textContent = repLabel;
-  const seen = new Set(); const fuRows = [];
-  contacts.map(c => ({ c, fu: nextFollowUp(c.contactId) }))
+  const dueList = contacts.map(c => ({ c, fu: nextFollowUp(c.contactId) }))
     .filter(x => x.fu && (!state.dashRep || (lastTouch(x.c.contactId)||{}).rep === state.dashRep))
     .sort((a,b) => a.fu.localeCompare(b.fu))
-    .forEach(({c, fu}) => {
-      if (seen.has(c.contactId)) return; seen.add(c.contactId);
-      const d = daysBetween(fu);
-      const chip = d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`;
-      fuRows.push(`<tr onclick="openContactFromDash('${c.contactId}')">
+    .slice(0, 40);
+  const fuRows = dueList.map(({c, fu}) => {
+    const d = daysBetween(fu);
+    const chip = d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`;
+    return `<tr onclick="openContactFromDash('${c.contactId}')">
         <td style="width:118px">${chip}</td>
         <td><div class="company">${c.hot?'🔥 ':''}${c.first} ${c.last}</div><div class="sub">${c.company} · ${c.city}, ${c.state}</div></td>
         <td onclick="event.stopPropagation()" style="width:60px"><button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button></td>
-      </tr>`);
-    });
+      </tr>`;
+  });
   document.getElementById('dashFollowups').innerHTML = fuRows.length
-    ? `<div style="max-height:300px;overflow:auto"><table><tbody>${fuRows.slice(0,40).join('')}</tbody></table></div>`
+    ? `<div style="max-height:300px;overflow:auto"><table><tbody>${fuRows.join('')}</tbody></table></div>`
     : '<div class="empty">No follow-ups scheduled.</div>';
 
   // recent activity
   const recent = [...tch].sort((a,b) => b.date.localeCompare(a.date)).slice(0,8);
   document.getElementById('dashActivity').innerHTML = recent.length
     ? `<div class="timeline">${recent.map(t => {
-        const c = getContacts().find(x => x.contactId === t.contactId);
+        const c = contactById(t.contactId);
         const name = c ? `${c.first} ${c.last}` : '(unknown)';
         return `<div class="touch method-${t.method.toLowerCase().replace(' ','')}">
           <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${t.method}</span>${repChip(t.rep)}</div>
@@ -1057,12 +1088,14 @@ function renderContacts() {
     return;
   }
 
-  document.getElementById('builderList').innerHTML = builders.map((b, idx) => {
+  const BCAP = 200;
+  const builderOverflow = builders.length - BCAP;
+  document.getElementById('builderList').innerHTML = builders.slice(0, BCAP).map((b, idx) => {
     const open = state.openBuilders.has(`${b.company}|${b.city}|${b.state}`);
     let lastDate = ''; let hotN = 0;
     b.contacts.forEach(c => { const lt = lastTouch(c.contactId); if (lt && lt.date > lastDate) lastDate = lt.date; if (c.hot) hotN++; });
 
-    const rows = b.contacts.sort((a,c) => a.last.localeCompare(c.last)).map(c => {
+    const rows = !open ? '' : b.contacts.sort((a,c) => a.last.localeCompare(c.last)).map(c => {
       const lt = lastTouch(c.contactId);
       const st = contactStatus(c.contactId);
       const cls = c.hot ? 'hot' : (!lt ? 'never' : 'touched');
@@ -1101,7 +1134,7 @@ function renderContacts() {
         ${rows}
       </div>
     </div>`;
-  }).join('');
+  }).join('') + (builderOverflow > 0 ? `<div class="sub" style="text-align:center;padding:16px">+ ${builderOverflow} more builders — use search or the filters above to narrow.</div>` : '');
 
   if (state.selectedContact) renderContactDetail(state.selectedContact);
 }
@@ -1122,7 +1155,7 @@ function addContactToBuilder(company, city, st) {
 function selectContact(cid) { state.selectedContact = cid; renderContacts(); renderContactDetail(cid); }
 
 function renderContactDetail(cid) {
-  const c = getContacts().find(x => x.contactId === cid);
+  const c = contactById(cid);
   const box = document.getElementById('contactDetail');
   const actions = document.getElementById('contactDetailActions');
   if (!c) { box.innerHTML = '<div class="empty">Select a contact.</div>'; actions.innerHTML=''; return; }
@@ -1192,11 +1225,14 @@ function renderFollowups() {
   });
 
   const labels = { overdue:'Overdue', today:'Due Today', week:'This Week', later:'Later' };
+  const CAP = 150;
   let html = '';
   ['overdue','today','week','later'].forEach(k => {
     if (!groups[k].length) return;
+    const rows = groups[k].slice(0, CAP);
+    const overflow = groups[k].length - rows.length;
     html += `<div class="fu-group"><div class="fu-group-label ${k}">${labels[k]} <span class="cnt">${groups[k].length}</span></div>
-      <table><tbody>${groups[k].map(({c, fu, lt}) => {
+      <table><tbody>${rows.map(({c, fu, lt}) => {
         return `<tr onclick="openContactFromDash('${c.contactId}')">
           <td style="width:128px"><span class="chip ${k==='overdue'?'red':k==='today'?'amber':'blue'}">${fmtDate(fu)}</span></td>
           <td><div class="company">${c.hot?'🔥 ':''}${c.first} ${c.last}</div><div class="sub">${c.company} · ${c.city}, ${c.state}</div></td>
@@ -1208,7 +1244,7 @@ function renderFollowups() {
             <button class="btn ghost sm" onclick="dismissFollowUp('${c.contactId}')">Dismiss</button>
           </div></td>
         </tr>`;
-      }).join('')}</tbody></table></div>`;
+      }).join('')}${overflow>0?`<tr><td colspan="5" class="sub" style="text-align:center;padding:12px">+ ${overflow} more — use the rep filter or search to narrow.</td></tr>`:''}</tbody></table></div>`;
   });
   document.getElementById('followupList').innerHTML = html || '<div class="empty">No follow-ups match your filters.</div>';
 }
@@ -1226,15 +1262,18 @@ function renderActivity() {
     if (repF && t.rep !== repF) return false;
     if (methodF && t.method !== methodF) return false;
     if (q) {
-      const c = getContacts().find(x => x.contactId === t.contactId);
+      const c = contactById(t.contactId);
       const name = c ? `${c.first} ${c.last} ${c.company}` : '';
       if (!(`${name} ${t.notes}`.toLowerCase().includes(q))) return false;
     }
     return true;
   });
 
-  document.getElementById('activityRows').innerHTML = touches.length ? touches.map(t => {
-    const c = getContacts().find(x => x.contactId === t.contactId);
+  const CAP = 300;
+  const total = touches.length;
+  const shown = touches.slice(0, CAP);
+  document.getElementById('activityRows').innerHTML = total ? shown.map(t => {
+    const c = contactById(t.contactId);
     const name = c ? `${c.first} ${c.last}` : '(unknown)';
     const co = c ? c.company : '';
     return `<tr onclick="${c?`openContactFromDash('${t.contactId}')`:''}">
@@ -1245,14 +1284,14 @@ function renderActivity() {
       <td>${t.result}</td>
       <td class="sub">${t.notes||''}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="6"><div class="empty">No activity matches your filters.</div></td></tr>';
+  }).join('') + (total > CAP ? `<tr><td colspan="6" class="sub" style="text-align:center;padding:14px">Showing the ${CAP} most recent of ${total.toLocaleString()} touches — use the filters above to narrow.</td></tr>` : '') : '<tr><td colspan="6"><div class="empty">No activity matches your filters.</div></td></tr>';
 }
 
 // ============================================================
 //  ADD TOUCH MODAL
 // ============================================================
 function openTouchModal() {
-  const c = getContacts().find(x => x.contactId === state.selectedContact);
+  const c = contactById(state.selectedContact);
   document.getElementById('touchContext').innerHTML = c
     ? `<b>${c.hot?'🔥 ':''}Selected contact:</b> ${c.first} ${c.last} · ${c.company} · ${c.contactId}<br>Saving appends a new row to SalesTouches — the contact record is untouched.`
     : 'No contact selected — pick one from Contacts first, or this touch won\'t be linked.';
@@ -1322,7 +1361,7 @@ function openContactModal(cid) {
   document.getElementById('cmState').innerHTML =
     '<option value="">— State —</option>' + STATE_LIST.map(s => `<option value="${s}">${s}</option>`).join('');
 
-  const c = cid ? getContacts().find(x => x.contactId === cid) : null;
+  const c = cid ? contactById(cid) : null;
   document.getElementById('cmFirst').value = c?.first || '';
   document.getElementById('cmLast').value = c?.last || '';
   document.getElementById('cmCompany').value = c?.company || '';
