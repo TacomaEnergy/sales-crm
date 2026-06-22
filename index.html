@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM</title>
+<title>Tacoma Energy — Sales CRM (v3 · fast)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -340,7 +340,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM</span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v3</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -563,6 +563,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
+console.log("Tacoma CRM build: v3 (fast/indexed)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -638,7 +639,7 @@ function seed() {
 // Parse localStorage once and build lookup indexes. Without this, large
 // datasets (thousands of contacts/touches) get re-parsed thousands of times
 // per render and freeze the UI. Caches are rebuilt only when data is saved.
-let _cache = { contacts:null, touches:null, byContact:null, cById:null };
+let _cache = { contacts:null, touches:null, byContact:null, cById:null, summ:null };
 function getContacts() {
   if (_cache.contacts) return _cache.contacts;
   try { _cache.contacts = JSON.parse(store.get('crm_contacts')) || []; } catch(e) { _cache.contacts = []; }
@@ -665,8 +666,8 @@ function contactIndex() {
   _cache.cById = m;
   return m;
 }
-function saveContacts(c) { store.set('crm_contacts', JSON.stringify(c)); _cache.contacts = c; _cache.cById = null; }
-function saveTouches(t) { store.set('crm_touches', JSON.stringify(t)); _cache.touches = t; _cache.byContact = null; }
+function saveContacts(c) { store.set('crm_contacts', JSON.stringify(c)); _cache.contacts = c; _cache.cById = null; _cache.summ = null; }
+function saveTouches(t) { store.set('crm_touches', JSON.stringify(t)); _cache.touches = t; _cache.byContact = null; _cache.summ = null; }
 function contactById(cid) { return contactIndex().get(cid); }
 
 // ---- date helpers ----
@@ -703,6 +704,22 @@ function nextFollowUp(cid) {
   const c = contactById(cid);
   if (c && c.fuAdjust && c.fuAdjust.from === base) return c.fuAdjust.date || null;
   return base;
+}
+
+// Heavy per-contact derivations (last rep, next follow-up) computed ONCE and
+// cached. The dashboard's rep/timeframe toggles then just re-filter this list
+// instead of recomputing across every contact, so toggling stays instant.
+function contactSummaries() {
+  if (_cache.summ) return _cache.summ;
+  const out = [];
+  for (const c of getContacts()) {
+    if (!c.active) continue;
+    const arr = touchIndex().get(c.contactId);
+    const lt = (arr && arr.length) ? arr[0] : null;
+    out.push({ c, hasTouch: !!lt, lastRep: lt ? lt.rep : null, nextFu: nextFollowUp(c.contactId) });
+  }
+  _cache.summ = out;
+  return out;
 }
 
 function repChip(rep) {
@@ -945,17 +962,17 @@ function trendBadge(cur, prev) {
 
 function renderDashboard() {
   const allTouches = getTouches();
-  const contacts = getContacts().filter(c => c.active);
+  const summaries = contactSummaries();
   const tch = dashTouches();
   const rangeLabel = state.dashRange ? `last ${state.dashRange} days` : 'all time';
   const repLabel = state.dashRep || 'all reps';
 
-  // KPIs
+  // KPIs (derived from the prebuilt summaries — cheap on every toggle)
   const totalReachOuts = tch.length;
   const contactsReached = new Set(tch.map(t => t.contactId)).size;
-  const hotCount = contacts.filter(c => c.hot).length;
-  const fusDue = contacts.filter(c => { const fu = nextFollowUp(c.contactId); return fu && daysBetween(fu) >= 0 && (!state.dashRep || (lastTouch(c.contactId)||{}).rep === state.dashRep); }).length;
-  const untouched = contacts.filter(c => !lastTouch(c.contactId)).length;
+  const hotCount = summaries.reduce((n, s) => n + (s.c.hot ? 1 : 0), 0);
+  const fusDue = summaries.reduce((n, s) => n + ((s.nextFu && daysBetween(s.nextFu) >= 0 && (!state.dashRep || s.lastRep === state.dashRep)) ? 1 : 0), 0);
+  const untouched = summaries.reduce((n, s) => n + (s.hasTouch ? 0 : 1), 0);
 
   // trend: reach-outs this period vs previous equal period
   let trend = '';
@@ -1007,8 +1024,8 @@ function renderDashboard() {
 
   // follow-ups due (sort, then render only the top 40)
   document.getElementById('dashFuHint').textContent = repLabel;
-  const dueList = contacts.map(c => ({ c, fu: nextFollowUp(c.contactId) }))
-    .filter(x => x.fu && (!state.dashRep || (lastTouch(x.c.contactId)||{}).rep === state.dashRep))
+  const dueList = summaries.filter(s => s.nextFu && (!state.dashRep || s.lastRep === state.dashRep))
+    .map(s => ({ c: s.c, fu: s.nextFu }))
     .sort((a,b) => a.fu.localeCompare(b.fu))
     .slice(0, 40);
   const fuRows = dueList.map(({c, fu}) => {
