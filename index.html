@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v3 · fast)</title>
+<title>Tacoma Energy — Sales CRM (v4 · fast)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -340,7 +340,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v3</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v4</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -563,7 +563,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v3 (fast/indexed)");
+console.log("Tacoma CRM build: v4 (fast/indexed)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -607,29 +607,29 @@ const store = {
 function seed() {
   if (store.get('crm_contacts')) return;
   const contacts = [
-    { contactId:'C-10001', company:'M/I Homes', city:'Columbus', state:'OH', first:'Sarah', last:'Jones', title:'Purchasing Manager', email:'sarah.jones@mihomes.com', phone:'614-555-1234', linkedin:'https://www.linkedin.com/in/sarah-jones-mih', active:true, hot:true, hotSince:'2026-06-10', dateAdded:'2026-05-02' },
-    { contactId:'C-10002', company:'M/I Homes', city:'Cincinnati', state:'OH', first:'Mike', last:'Reynolds', title:'Construction Manager', email:'mike.reynolds@mihomes.com', phone:'937-555-8755', linkedin:'https://www.linkedin.com/in/mike-reynolds-build', active:true, hot:true, hotSince:'2026-06-05', dateAdded:'2026-05-04' },
-    { contactId:'C-10003', company:'Fischer Homes', city:'Cincinnati', state:'OH', first:'Lindsey', last:'Miller', title:'Operations Coordinator', email:'lmiller@fischerhomes.com', phone:'513-555-8822', linkedin:'', active:true, dateAdded:'2026-05-09' },
-    { contactId:'C-10004', company:'Fischer Homes', city:'Cincinnati', state:'OH', first:'David', last:'Campbell', title:'Division VP', email:'dcampbell@fischerhomes.com', phone:'513-555-2001', linkedin:'https://www.linkedin.com/in/david-campbell-fischer', active:true, hot:true, hotSince:'2026-06-01', dateAdded:'2026-04-18' },
-    { contactId:'C-10005', company:'Pulte Homes', city:'Columbus', state:'OH', first:'Amanda', last:'Foster', title:'Purchasing Manager', email:'amanda.foster@pulte.com', phone:'614-555-3002', linkedin:'', active:true, dateAdded:'2026-03-22' },
-    { contactId:'C-10006', company:'Ryan Homes', city:'Columbus', state:'OH', first:'Jennifer', last:'Davis', title:'Sales Manager', email:'jdavis@nvrinc.com', phone:'614-555-4002', linkedin:'https://www.linkedin.com/in/jennifer-davis-nvr', active:true, dateAdded:'2026-05-12' },
-    { contactId:'C-10007', company:'Drees Homes', city:'Cincinnati', state:'OH', first:'Stephanie', last:'Baker', title:'Purchasing Manager', email:'sbaker@dreeshomes.com', phone:'513-555-1002', linkedin:'', active:true, dateAdded:'2026-05-19' },
-    { contactId:'C-10008', company:'Maronda Homes', city:'Columbus', state:'OH', first:'Thomas', last:'Greene', title:'Purchasing Director', email:'tgreene@marondahomes.com', phone:'614-555-5001', linkedin:'https://www.linkedin.com/in/thomas-greene-maronda', active:true, dateAdded:'2025-09-15', lastEdited:'2025-09-15' },
-    { contactId:'C-10009', company:'Epcon Communities', city:'Columbus', state:'OH', first:'Rachel', last:'Scott', title:'Division Manager', email:'rscott@epconcommunities.com', phone:'614-555-7001', linkedin:'', active:true, dateAdded:'2026-05-21' },
-    { contactId:'C-10010', company:'Rockford Homes', city:'Columbus', state:'OH', first:'Brian', last:'Walsh', title:'Owner', email:'bwalsh@rockfordhomes.com', phone:'614-555-9001', linkedin:'https://www.linkedin.com/in/brian-walsh-rockford', active:true, dateAdded:'2025-10-02', lastEdited:'2025-10-02' },
-    { contactId:'C-10011', company:'3 Pillar Homes', city:'Columbus', state:'OH', first:'Kevin', last:'Tran', title:'Project Manager', email:'kevin@3pillarhomes.com', phone:'614-555-1199', linkedin:'', active:true, dateAdded:'2026-05-25' },
-    { contactId:'C-10012', company:'Fischer Homes', city:'Columbus', state:'OH', first:'Nicole', last:'Young', title:'Purchasing Manager', email:'nyoung@fischerhomes.com', phone:'614-555-6002', linkedin:'https://www.linkedin.com/in/nicole-young-fischer', active:true, dateAdded:'2026-04-02' }
+    { contactId:'10001', company:'M/I Homes', city:'Columbus', state:'OH', first:'Sarah', last:'Jones', title:'Purchasing Manager', email:'sarah.jones@mihomes.com', phone:'614-555-1234', linkedin:'https://www.linkedin.com/in/sarah-jones-mih', active:true, hot:true, hotSince:'2026-06-10', dateAdded:'2026-05-02' },
+    { contactId:'10002', company:'M/I Homes', city:'Cincinnati', state:'OH', first:'Mike', last:'Reynolds', title:'Construction Manager', email:'mike.reynolds@mihomes.com', phone:'937-555-8755', linkedin:'https://www.linkedin.com/in/mike-reynolds-build', active:true, hot:true, hotSince:'2026-06-05', dateAdded:'2026-05-04' },
+    { contactId:'10003', company:'Fischer Homes', city:'Cincinnati', state:'OH', first:'Lindsey', last:'Miller', title:'Operations Coordinator', email:'lmiller@fischerhomes.com', phone:'513-555-8822', linkedin:'', active:true, dateAdded:'2026-05-09' },
+    { contactId:'10004', company:'Fischer Homes', city:'Cincinnati', state:'OH', first:'David', last:'Campbell', title:'Division VP', email:'dcampbell@fischerhomes.com', phone:'513-555-2001', linkedin:'https://www.linkedin.com/in/david-campbell-fischer', active:true, hot:true, hotSince:'2026-06-01', dateAdded:'2026-04-18' },
+    { contactId:'10005', company:'Pulte Homes', city:'Columbus', state:'OH', first:'Amanda', last:'Foster', title:'Purchasing Manager', email:'amanda.foster@pulte.com', phone:'614-555-3002', linkedin:'', active:true, dateAdded:'2026-03-22' },
+    { contactId:'10006', company:'Ryan Homes', city:'Columbus', state:'OH', first:'Jennifer', last:'Davis', title:'Sales Manager', email:'jdavis@nvrinc.com', phone:'614-555-4002', linkedin:'https://www.linkedin.com/in/jennifer-davis-nvr', active:true, dateAdded:'2026-05-12' },
+    { contactId:'10007', company:'Drees Homes', city:'Cincinnati', state:'OH', first:'Stephanie', last:'Baker', title:'Purchasing Manager', email:'sbaker@dreeshomes.com', phone:'513-555-1002', linkedin:'', active:true, dateAdded:'2026-05-19' },
+    { contactId:'10008', company:'Maronda Homes', city:'Columbus', state:'OH', first:'Thomas', last:'Greene', title:'Purchasing Director', email:'tgreene@marondahomes.com', phone:'614-555-5001', linkedin:'https://www.linkedin.com/in/thomas-greene-maronda', active:true, dateAdded:'2025-09-15', lastEdited:'2025-09-15' },
+    { contactId:'10009', company:'Epcon Communities', city:'Columbus', state:'OH', first:'Rachel', last:'Scott', title:'Division Manager', email:'rscott@epconcommunities.com', phone:'614-555-7001', linkedin:'', active:true, dateAdded:'2026-05-21' },
+    { contactId:'10010', company:'Rockford Homes', city:'Columbus', state:'OH', first:'Brian', last:'Walsh', title:'Owner', email:'bwalsh@rockfordhomes.com', phone:'614-555-9001', linkedin:'https://www.linkedin.com/in/brian-walsh-rockford', active:true, dateAdded:'2025-10-02', lastEdited:'2025-10-02' },
+    { contactId:'10011', company:'3 Pillar Homes', city:'Columbus', state:'OH', first:'Kevin', last:'Tran', title:'Project Manager', email:'kevin@3pillarhomes.com', phone:'614-555-1199', linkedin:'', active:true, dateAdded:'2026-05-25' },
+    { contactId:'10012', company:'Fischer Homes', city:'Columbus', state:'OH', first:'Nicole', last:'Young', title:'Purchasing Manager', email:'nyoung@fischerhomes.com', phone:'614-555-6002', linkedin:'https://www.linkedin.com/in/nicole-young-fischer', active:true, dateAdded:'2026-04-02' }
   ];
   const touches = [
-    { touchId:'T-1', contactId:'C-10001', date:'2026-05-26', rep:'N. Reynolds', method:'Email', result:'Sent info', notes:'Sent intro email with inspection + modeling overview. Follow up next week.', followUp:'2026-06-13' },
-    { touchId:'T-2', contactId:'C-10001', date:'2026-05-19', rep:'N. Reynolds', method:'Call', result:'Left voicemail', notes:'Left VM asking who handles rating/inspection coordination.', followUp:'' },
-    { touchId:'T-3', contactId:'C-10001', date:'2026-05-12', rep:'C. Gaston', method:'LinkedIn', result:'Spoke with contact', notes:'Connected on LinkedIn, she confirmed she is the right POC for Columbus.', followUp:'' },
-    { touchId:'T-4', contactId:'C-10002', date:'2026-06-04', rep:'C. Gaston', method:'Call', result:'Spoke with contact', notes:'Quick call, wants pricing for Cincinnati division. Sending proposal.', followUp:'2026-06-12' },
-    { touchId:'T-5', contactId:'C-10004', date:'2026-05-30', rep:'A. Palumbo', method:'In Person', result:'Spoke with contact', notes:'Met at the Cincinnati parade of homes. Very interested in AeroBarrier.', followUp:'2026-06-16' },
-    { touchId:'T-6', contactId:'C-10005', date:'2026-04-15', rep:'N. Reynolds', method:'Email', result:'Sent info', notes:'No response to last two emails. Trying a call next.', followUp:'2026-06-11' },
-    { touchId:'T-7', contactId:'C-10007', date:'2026-05-28', rep:'Unassigned', method:'Email', result:'Sent info', notes:'Sent pricing sheet for compliance + testing bundle.', followUp:'2026-06-18' },
-    { touchId:'T-8', contactId:'C-10008', date:'2026-02-20', rep:'N. Reynolds', method:'Call', result:'Not interested', notes:'Said they have an existing provider. Revisit in Q4.', followUp:'' },
-    { touchId:'T-9', contactId:'C-10010', date:'2026-06-09', rep:'C. Gaston', method:'Text', result:'Spoke with contact', notes:'Texted re: scheduling first inspection. Confirmed for next week.', followUp:'2026-06-12' }
+    { touchId:'T-1', contactId:'10001', date:'2026-05-26', rep:'N. Reynolds', method:'Email', result:'Sent info', notes:'Sent intro email with inspection + modeling overview. Follow up next week.', followUp:'2026-06-13' },
+    { touchId:'T-2', contactId:'10001', date:'2026-05-19', rep:'N. Reynolds', method:'Call', result:'Left voicemail', notes:'Left VM asking who handles rating/inspection coordination.', followUp:'' },
+    { touchId:'T-3', contactId:'10001', date:'2026-05-12', rep:'C. Gaston', method:'LinkedIn', result:'Spoke with contact', notes:'Connected on LinkedIn, she confirmed she is the right POC for Columbus.', followUp:'' },
+    { touchId:'T-1', contactId:'10002', date:'2026-06-04', rep:'C. Gaston', method:'Call', result:'Spoke with contact', notes:'Quick call, wants pricing for Cincinnati division. Sending proposal.', followUp:'2026-06-12' },
+    { touchId:'T-1', contactId:'10004', date:'2026-05-30', rep:'A. Palumbo', method:'In Person', result:'Spoke with contact', notes:'Met at the Cincinnati parade of homes. Very interested in AeroBarrier.', followUp:'2026-06-16' },
+    { touchId:'T-1', contactId:'10005', date:'2026-04-15', rep:'N. Reynolds', method:'Email', result:'Sent info', notes:'No response to last two emails. Trying a call next.', followUp:'2026-06-11' },
+    { touchId:'T-1', contactId:'10007', date:'2026-05-28', rep:'Unassigned', method:'Email', result:'Sent info', notes:'Sent pricing sheet for compliance + testing bundle.', followUp:'2026-06-18' },
+    { touchId:'T-1', contactId:'10008', date:'2026-02-20', rep:'N. Reynolds', method:'Call', result:'Not interested', notes:'Said they have an existing provider. Revisit in Q4.', followUp:'' },
+    { touchId:'T-1', contactId:'10010', date:'2026-06-09', rep:'C. Gaston', method:'Text', result:'Spoke with contact', notes:'Texted re: scheduling first inspection. Confirmed for next week.', followUp:'2026-06-12' }
   ];
   store.set('crm_contacts', JSON.stringify(contacts));
   store.set('crm_touches', JSON.stringify(touches));
@@ -1325,12 +1325,31 @@ function onResultChange() {
   document.getElementById('tmFollowup').value = followUpDefault(document.getElementById('tmResult').value);
 }
 
+// ---- ID generators (must match the SharePoint sheet's format exactly) ----
+// Contact ID: plain sequential number stored as text (e.g. "15460"), no prefix —
+// continues the existing 10001..15459 sequence by taking the highest numeric ID + 1.
+function nextContactId() {
+  let max = 10000;
+  for (const c of getContacts()) {
+    const id = String(c.contactId || '');
+    if (/^\d+$/.test(id)) { const n = parseInt(id, 10); if (n > max) max = n; }
+  }
+  return String(max + 1);
+}
+// Touch ID: per-contact sequence ("T-1", "T-2", ...) — counts existing touches
+// for THIS contact and adds one. Touch IDs are only unique within a contact,
+// which matches the sheet (every contact's first touch is "T-1").
+function nextTouchId(cid) {
+  const n = getTouches().filter(t => t.contactId === cid).length;
+  return 'T-' + (n + 1);
+}
+
 async function saveTouch() {
   const cid = state.selectedContact;
   if (!cid) { toast('Select a contact first'); return; }
   const touches = getTouches();
   const entry = {
-    touchId: 'T-' + Date.now(),
+    touchId: nextTouchId(cid),
     contactId: cid,
     date: document.getElementById('tmDate').value || todayISO(),
     rep: document.getElementById('tmRep').value,
@@ -1458,7 +1477,7 @@ async function saveContact() {
     syncPayload = { contactId: editingContactId, ...payload };
     toast('Contact updated');
   } else {
-    const newId = 'C-' + (10000 + contacts.length + 1 + Math.floor(Math.random()*50));
+    const newId = nextContactId();
     const entry = { contactId:newId, active:true, hot:false, dateAdded: todayISO(), ...payload };
     contacts.push(entry);
     saveContacts(contacts);
