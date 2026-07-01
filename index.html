@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v8 · fast)</title>
+<title>Tacoma Energy — Sales CRM (v9 · fast)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -340,7 +340,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v8</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v9</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -564,7 +564,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v8 (activity: builder+location)");
+console.log("Tacoma CRM build: v9 (edit+touches wired, write-confirm/retry, edit payload normalized)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -577,7 +577,8 @@ const POWER_AUTOMATE = {
   readContacts: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e9241447475d4deaa504d8d4bdf89ea5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VFLdkxCkdC3_5k9eDSyajDpxtw9y9YzPTDYtGjrOTlA',  // Flow 1 — reads tblContacts (POST, skip from body, 256/page, returns Hot). Verified working.
   addTouch:    'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/780e39d608c54f55bccb3f94e228ffe4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2lKXv41gVbHKyUZcDZMU4MrND-J6H_YzNZhHA0in9Cc',   // appends to SalesTouches
   addContact:  'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c9786ec2549d444cb1400deda840418d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4EKyJtoxIy2rkKX9Nhf58latShrXHhD364FwqauDx74',   // appends to tblContacts
-  editContact: ''    // TODO: paste Power Automate HTTP trigger URL — updates Contacts by contactId
+  editContact: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c4441cd721c34995aeb6fe5d0cb50fc5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pYlDA42Wc6CKKM-YS9Qpetc5k45XQbqCT73cW1C3Z6A',  // Flow 4 — updates tblContacts by contactId (maps all 12 columns; must send full record)
+  readTouches: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/214a673ba2d2405ab64d3dc6cd38d04b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=STXVdvlW1smv0JiR-FnXNjywxD1add6BlNkW3cJdXGg'    // Flow 5 — reads tblTouches (POST, skip from body, 256/page)
 };
 
 const LOCATIONS = {
@@ -773,14 +774,81 @@ function animateNum(el, to) {
   requestAnimationFrame(step);
 }
 
-// ---- Power Automate push ----
-async function pushPA(action, payload) {
+// ---- Power Automate push + write confirmation / retry queue ----
+// pushPA now checks the HTTP status. fetch only rejects on network errors, NOT on
+// 4xx/5xx, so previously a flow that errored still counted as "saved" and the write
+// was lost silently. Now any failed write — network down, throttled, Excel briefly
+// locked, auth blip — is queued locally, the rep is told it didn't save, and it's
+// retried automatically on the next load. This happens to a single user; it's not
+// a concurrency issue, and it's the one gap that mattered for the boss's dashboard.
+const PENDING_KEY = 'crm_pending_writes';
+function getPending() { try { return JSON.parse(store.get(PENDING_KEY)) || []; } catch(e) { return []; } }
+function setPending(q) { store.set(PENDING_KEY, JSON.stringify(q)); }
+function pendingCount() { return getPending().length; }
+
+async function pushPA(action, payload, opts) {
+  opts = opts || {};
   const url = POWER_AUTOMATE[action];
   if (!url) { console.log(`[Power Automate stub] ${action}:`, payload); return true; }
   try {
-    await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     return true;
-  } catch(e) { console.error('Power Automate push failed:', e); return false; }
+  } catch(e) {
+    console.error('Power Automate push failed:', action, e);
+    if (!opts.noQueue) {
+      const q = getPending();
+      q.push({ action, payload, ts: Date.now() });
+      setPending(q);
+      toast('\u26a0 Didn\u2019t reach the server \u2014 saved locally, will retry');
+      updateSyncBadge();
+    }
+    return false;
+  }
+}
+
+// Retry everything queued from earlier failed writes. Runs once on load.
+async function flushPendingWrites() {
+  const q = getPending();
+  if (!q.length) return;
+  const still = [];
+  for (const w of q) {
+    const ok = await pushPA(w.action, w.payload, { noQueue:true });
+    if (!ok) still.push(w);
+  }
+  setPending(still);
+  updateSyncBadge();
+  if (q.length && !still.length) toast('\u2713 Synced ' + q.length + ' pending change' + (q.length>1?'s':''));
+}
+
+// Persistent amber indicator whenever writes are still waiting to sync.
+function updateSyncBadge() {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  const n = pendingCount();
+  if (n > 0) { el.textContent = '\u23f3 ' + n + ' change' + (n>1?'s':'') + ' not yet synced'; el.style.color = 'var(--amber)'; }
+}
+
+// Build the FULL sheet-ready record for Flow 4 (Edit Contact). Flow 4's "Update a
+// row" maps all 12 columns, so a partial payload blanks the unmapped columns
+// (name/email/company/etc.) in SharePoint. Every edit must send the whole record.
+// Active/Hot serialize as "Yes"/"" to match how the read parses them back.
+function editPayload(c) {
+  return {
+    contactId:  c.contactId,
+    company:    c.company   || '',
+    linkedin:   c.linkedin  || '',
+    city:       c.city      || '',
+    state:      c.state     || '',
+    title:      c.title     || '',
+    first:      c.first     || '',
+    last:       c.last      || '',
+    email:      c.email     || '',
+    phone:      c.phone     || '',
+    active:     c.active ? 'Yes' : '',
+    lastEdited: c.lastEdited || '',
+    hot:        c.hot ? 'Yes' : ''
+  };
 }
 
 // ---- Contact sync (Flow 1 — Read Contacts) ----
@@ -792,7 +860,7 @@ function setSyncStatus(st, count) {
   } else if (st === 'ok') {
     el.textContent = '✓ ' + (count || 0).toLocaleString() + ' contacts loaded';
     el.style.color = 'var(--green-deep)';
-    setTimeout(() => { el.textContent = ''; }, 5000);
+    setTimeout(() => { el.textContent = ''; updateSyncBadge(); }, 5000);
   } else if (st === 'error') {
     el.textContent = '⚠ Sync failed — using cached data'; el.style.color = 'var(--amber)';
   }
@@ -862,6 +930,63 @@ async function loadContactsFromSharePoint() {
   }
 }
 
+// ---- Touch sync (Flow 5 — Read Touches) ----
+// Same client-side paginated pattern as contacts. tblTouches is append-only and
+// larger than contacts (multiple touches per contact), so we page further.
+async function loadTouchesFromSharePoint() {
+  const url = POWER_AUTOMATE.readTouches;
+  if (!url) return;
+  const PAGE = 256;
+  const MAX_PAGES = 40;  // 40 × 256 = 10,240 — covers current ~9k touches with growth room
+  try {
+    const pages = await Promise.all(
+      Array.from({ length: MAX_PAGES }, (_, i) =>
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skip: i * PAGE })
+        })
+          .then(async r => {
+            if (!r.ok) return [];
+            const d = await r.json();
+            return Array.isArray(d) ? d : (d.value || []);
+          })
+          .catch(() => [])
+      )
+    );
+    const rows = pages.flat().filter(r => r && r['Touch ID'] && r['Contact ID']);
+    if (!rows.length) return;   // keep whatever's cached (incl. seed) rather than blanking history
+    const touches = rows.map(r => ({
+      touchId:   String(r['Touch ID']),
+      contactId: String(r['Contact ID']),
+      date:      r['Date']           || '',
+      rep:       r['Rep']            || '',
+      method:    r['Method']         || '',
+      result:    r['Result']         || '',
+      notes:     r['Notes']          || '',
+      followUp:  r['Follow-Up Date'] || ''
+    }));
+    // Preserve any locally-logged touches still waiting to sync (in the retry
+    // queue), so a refresh never makes a rep's just-logged touch disappear
+    // before it lands in SharePoint.
+    const have = new Set(touches.map(t => t.contactId + '|' + t.touchId));
+    for (const w of getPending()) {
+      if (w.action === 'addTouch' && w.payload && !have.has(w.payload.contactId + '|' + w.payload.touchId)) {
+        touches.push(w.payload);
+      }
+    }
+    saveTouches(touches);
+    store.set('crm_touches_source', 'live');
+    if      (state.view === 'dashboard') renderDashboard();
+    else if (state.view === 'contacts')  { renderContacts(); if (state.selectedContact) renderContactDetail(state.selectedContact); }
+    else if (state.view === 'hotleads')  renderHotLeads();
+    else if (state.view === 'followups') renderFollowups();
+    else if (state.view === 'activity')  renderActivity();
+  } catch(e) {
+    console.error('[readTouches] sync failed:', e);
+  }
+}
+
 // ============================================================
 //  STATE + NAV
 // ============================================================
@@ -902,7 +1027,7 @@ function toggleHot(cid) {
   if (state.view==='contacts') { renderContacts(); if (state.selectedContact) renderContactDetail(state.selectedContact); }
   if (state.view==='hotleads') renderHotLeads();
   if (state.view==='dashboard') renderDashboard();
-  pushPA('editContact', { contactId: cid, hot: c.hot, hotSince: c.hotSince });
+  pushPA('editContact', editPayload(c));   // full record — Flow 4 maps all 12 columns, partial would blank the rest
 }
 
 function snoozeFollowUp(cid) {
@@ -916,7 +1041,9 @@ function snoozeFollowUp(cid) {
   saveContacts(contacts);
   toast('Snoozed 1 week → ' + fmtDate(newDate));
   rerenderFollowupSurfaces();
-  pushPA('editContact', { contactId: cid, followUpSnoozedTo: newDate });
+  // Snooze is a local-only view adjustment (fuAdjust). There is no Follow-Up
+  // snooze column in tblContacts, so nothing is synced — sending a partial edit
+  // here would only blank the mapped columns in SharePoint.
 }
 function dismissFollowUp(cid) {
   const base = rawNextFollowUp(cid);
@@ -927,7 +1054,7 @@ function dismissFollowUp(cid) {
   saveContacts(contacts);
   toast('Follow-up dismissed');
   rerenderFollowupSurfaces();
-  pushPA('editContact', { contactId: cid, followUpDismissed: true });
+  // Dismiss is a local-only view adjustment (fuAdjust) — no column to sync to.
 }
 function rerenderFollowupSurfaces() {
   if (state.view==='followups') renderFollowups();
@@ -1576,7 +1703,7 @@ async function saveContact() {
     saveContacts(contacts);
     state.selectedContact = editingContactId;
     syncAction = 'editContact';
-    syncPayload = { contactId: editingContactId, ...payload };
+    syncPayload = editPayload(c);   // full record (c already carries active/hot from the loaded book)
     toast('Contact updated');
   } else {
     // GUARDRAIL: refuse to create a contact (and mint an ID) unless the real
@@ -1609,7 +1736,7 @@ function markInactive() {
   const c = contacts.find(x => x.contactId === editingContactId);
   c.active = false;
   saveContacts(contacts);
-  pushPA('editContact', { contactId: editingContactId, active:false });
+  pushPA('editContact', editPayload(c));   // full record; active now "" so the row is hidden but not blanked
   closeContactModal();
   state.selectedContact = null;
   toast('Contact marked inactive');
@@ -1669,7 +1796,14 @@ seed();
 populateRepDropdowns();
 refreshHotCount();
 renderDashboard();
-loadContactsFromSharePoint();
+updateSyncBadge();
+// On load: retry any writes that failed in a previous session, then pull both
+// directories fresh from SharePoint (contacts + touches).
+(async () => {
+  await flushPendingWrites();
+  loadContactsFromSharePoint();
+  loadTouchesFromSharePoint();
+})();
 </script>
 </body>
 </html>
