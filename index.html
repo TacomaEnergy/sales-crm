@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v10 · fast)</title>
+<title>Tacoma Energy — Sales CRM (v11 · fast)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -115,6 +115,7 @@
   /* ---- KPI cards ---- */
   .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 22px; }
   .kpi { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 17px 18px 16px; box-shadow: var(--shadow-sm); overflow: hidden; transition: .18s; }
+  .signals { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
   .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
   .kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--blue); }
   .kpi.k-reach::before { background: linear-gradient(var(--blue), var(--blue-2)); }
@@ -321,7 +322,7 @@
     .dash-controls { flex-direction: column; align-items: stretch; }
     .seg { flex-wrap: wrap; }
   }
-  @media (max-width: 560px) { .kpis { grid-template-columns: 1fr; } .filters-2row { grid-template-columns: 1fr; } .bd-row { grid-template-columns: 110px 1fr 40px; } }
+  @media (max-width: 560px) { .kpis { grid-template-columns: 1fr; } .signals { grid-template-columns: 1fr; } .filters-2row { grid-template-columns: 1fr; } .bd-row { grid-template-columns: 110px 1fr 40px; } }
 </style>
 </head>
 <body>
@@ -348,7 +349,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v10</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v11</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -387,6 +388,11 @@
     </div>
 
     <div class="kpis" id="dashKpis"></div>
+
+    <div class="panel" style="margin-bottom:22px">
+      <div class="panel-head"><h3>Deal Signals</h3><span class="hint" id="dashSignalsHint"></span></div>
+      <div class="panel-body"><div class="signals" id="dashSignals"></div></div>
+    </div>
 
     <div class="cols">
       <div class="panel">
@@ -525,6 +531,8 @@
           <option>Left voicemail</option>
           <option>Sent info</option>
           <option>Spoke with contact</option>
+          <option>Pricing sent</option>
+          <option>Meeting booked</option>
           <option>Not interested</option>
           <option>Bad contact info</option>
         </select></div>
@@ -577,7 +585,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v10 (HTML-escape, dedupe-on-read, persisted rep, focus-refetch, sync stamp, touch-modal picker)");
+console.log("Tacoma CRM build: v11 (auto-hot pipeline: Meeting booked / Pricing sent flag Hot; Deal Signals on dashboard)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -611,6 +619,9 @@ const LOCATIONS = {
 };
 const STATE_LIST = Object.keys(LOCATIONS);
 const REPS = ['N. Reynolds', 'C. Gaston', 'A. Palumbo', 'Unassigned'];
+// High-intent touch outcomes that auto-promote a contact to Hot (the lightweight
+// pipeline). Reps just pick the result; logging one of these flags the lead.
+const HOT_RESULTS = ['Meeting booked', 'Pricing sent'];
 const REP_COLOR = { 'N. Reynolds': '#06a951', 'C. Gaston': '#1395d3', 'A. Palumbo': '#f2622a', 'Unassigned': '#687d92' };
 function repColor(r) { return REP_COLOR[r] || '#687d92'; }
 
@@ -703,7 +714,11 @@ function todayISO() { return new Date().toISOString().slice(0,10); }
 function plusWeeks(n) { const d = new Date(); d.setDate(d.getDate() + n*7); return d.toISOString().slice(0,10); }
 function plusYears(n) { const d = new Date(); d.setFullYear(d.getFullYear() + n); return d.toISOString().slice(0,10); }
 function addDays(iso, n) { const d = new Date((iso||todayISO()) + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); }
-function followUpDefault(result) { return result === 'Not interested' ? plusYears(1) : plusWeeks(6); }
+function followUpDefault(result) {
+  if (result === 'Not interested') return plusYears(1);
+  if (HOT_RESULTS.includes(result)) return plusWeeks(1);   // meeting/pricing — keep it warm
+  return plusWeeks(6);
+}
 function fmtDate(iso) {
   if (!iso) return '—';
   const [y,m,d] = iso.split('-');
@@ -717,6 +732,14 @@ function daysBetween(iso) {
 }
 function touchesFor(cid) { return touchIndex().get(cid) || []; }      // already sorted newest-first
 function lastTouch(cid) { const a = touchIndex().get(cid); return (a && a.length) ? a[0] : null; }
+// Why a contact is hot: the most recent high-intent touch. Derived from touch
+// history (which is synced), so there's no separate stored field to fall out of date.
+function hotReasonFor(cid) {
+  const a = touchIndex().get(cid);
+  if (!a) return null;
+  for (const t of a) { if (HOT_RESULTS.includes(t.result)) return { result: t.result, date: t.date }; }
+  return null;
+}
 
 // raw follow-up = latest follow-up date carried on this contact's touches
 function rawNextFollowUp(cid) {
@@ -1136,10 +1159,11 @@ function renderHotLeads() {
     const lt = lastTouch(c.contactId);
     const fu = nextFollowUp(c.contactId);
     const d = fu ? daysBetween(fu) : null;
+    const why = hotReasonFor(c.contactId);
     const fuChip = fu ? (d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Due today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`) : '<span class="chip gray">No follow-up set</span>';
     return `<div class="hot-card" onclick="openContactFromDash('${c.contactId}')">
       <div class="hot-card-top">
-        <div><div class="hot-card-name">${esc(c.first)} ${esc(c.last)}</div><div class="hot-card-co">${esc(c.title||'—')} · ${esc(c.company)}</div></div>
+        <div><div class="hot-card-name">${esc(c.first)} ${esc(c.last)}</div><div class="hot-card-co">${esc(c.title||'—')} · ${esc(c.company)}</div>${why?`<div style="font-size:11.5px;font-weight:800;color:var(--red);margin-top:3px">🔥 ${esc(why.result)} · ${fmtDate(why.date)}</div>`:''}</div>
         ${flameIcon(c, 17)}
       </div>
       <div class="hot-card-meta">
@@ -1248,6 +1272,15 @@ function renderDashboard() {
     <div class="kpi k-due"><div class="kpi-top"><label>Follow-Ups Due</label><span class="kpi-ico">⏰</span></div><div class="num tnum" data-to="${fusDue}">0</div><div class="sub">${repLabel}</div></div>
     <div class="kpi k-untouched"><div class="kpi-top"><label>Untouched Leads</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${untouched}">0</div><div class="sub">no touch ever</div></div>`;
   document.querySelectorAll('#dashKpis .num').forEach(el => animateNum(el, el.dataset.to));
+
+  // Deal Signals — high-intent outcomes in the current window (respects rep + timeframe)
+  const meetings = tch.filter(t => t.result === 'Meeting booked').length;
+  const pricing  = tch.filter(t => t.result === 'Pricing sent').length;
+  document.getElementById('dashSignalsHint').textContent = rangeLabel + ' · ' + repLabel;
+  document.getElementById('dashSignals').innerHTML = `
+    <div class="kpi k-meet"><div class="kpi-top"><label>Meetings Booked</label><span class="kpi-ico">📅</span></div><div class="num tnum" data-to="${meetings}">0</div><div class="sub">${rangeLabel}</div></div>
+    <div class="kpi k-price"><div class="kpi-top"><label>Pricing Sent</label><span class="kpi-ico">💲</span></div><div class="num tnum" data-to="${pricing}">0</div><div class="sub">${rangeLabel}</div></div>`;
+  document.querySelectorAll('#dashSignals .num').forEach(el => animateNum(el, el.dataset.to));
 
   // by rep (ignores rep filter; respects timeframe)
   const repCutoff = cutoffFor(state.dashRange);
@@ -1676,8 +1709,24 @@ async function saveTouch() {
     if (c && c.fuAdjust) { delete c.fuAdjust; saveContacts(contacts); }
   }
 
+  // Lightweight pipeline: a high-intent outcome auto-promotes the contact to Hot.
+  // The rep does nothing extra — logging "Meeting booked"/"Pricing sent" is the signal.
+  let autoHot = false;
+  if (HOT_RESULTS.includes(entry.result)) {
+    const contacts = getContacts();
+    const c = contacts.find(x => x.contactId === cid);
+    if (c && !c.hot) {
+      c.hot = true;
+      c.hotSince = entry.date || todayISO();
+      saveContacts(contacts);
+      refreshHotCount();
+      pushPA('editContact', editPayload(c));   // sync Hot flag — full record, no blanking
+      autoHot = true;
+    }
+  }
+
   closeTouchModal();
-  toast('Touch logged');
+  toast(autoHot ? ('\u{1F525} Logged \u2014 flagged Hot (' + entry.result + ')') : 'Touch logged');
   if (state.view==='contacts') { renderContacts(); renderContactDetail(cid); }
   if (state.view==='dashboard') renderDashboard();
   if (state.view==='followups') renderFollowups();
