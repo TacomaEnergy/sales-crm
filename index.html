@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v11 · fast)</title>
+<title>Tacoma Energy — Sales CRM (v12 · fast)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -77,6 +77,18 @@
     box-shadow: var(--shadow-sm);
   }
   .rep-switch:focus { outline: none; border-color: var(--blue-2); box-shadow: 0 0 0 3px rgba(19,149,211,.16); }
+  .nav-logout { background: none; border: none; color: var(--muted); font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 4px 6px; }
+  .nav-logout:hover { color: var(--navy); text-decoration: underline; }
+  .login-gate { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; padding: 24px;
+    background: linear-gradient(135deg, var(--navy) 0%, #0a3a52 100%); }
+  .login-gate.show { display: flex; }
+  .login-card { background: #fff; width: min(400px, 100%); border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,.35); padding: 30px 28px; }
+  .login-card h2 { font-size: 20px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+  .login-card p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .login-card label.fld { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 5px; }
+  .login-card select, .login-card input { width: 100%; }
+  .login-err { color: var(--red); font-size: 12.5px; font-weight: 700; min-height: 16px; margin-top: 10px; }
+  .login-card .btn { width: 100%; justify-content: center; margin-top: 14px; padding: 12px; font-size: 15px; }
 
   /* ---- Layout ---- */
   .wrap { max-width: 1340px; margin: 0 auto; padding: 26px 26px 70px; }
@@ -349,7 +361,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v11</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v12</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -362,8 +374,23 @@
     <span id="syncStatus" style="font-size:11.5px;font-weight:700;margin-right:6px"></span>
     <span class="lbl">Logging as</span>
     <select class="rep-switch" id="repSwitch" onchange="onRepSwitch()" title="Who you are — sets the rep on touches you log"></select>
+    <button class="nav-logout" id="navLogout" onclick="logout()" title="Log out" style="display:none">Log out</button>
   </div>
 </nav>
+
+<!-- LOGIN GATE -->
+<div class="login-gate" id="loginGate">
+  <div class="login-card">
+    <h2>Tacoma Energy — Sales CRM</h2>
+    <p>Select your name and enter the team passcode to continue.</p>
+    <label class="fld">Your name</label>
+    <select id="lgName"></select>
+    <label class="fld">Team passcode</label>
+    <input type="password" id="lgCode" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()" />
+    <div class="login-err" id="lgErr"></div>
+    <button class="btn green" onclick="doLogin()">Sign in</button>
+  </div>
+</div>
 
 <div class="wrap">
 
@@ -585,7 +612,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v11 (auto-hot pipeline: Meeting booked / Pricing sent flag Hot; Deal Signals on dashboard)");
+console.log("Tacoma CRM build: v12 (login gate + APP_KEY on all requests; readUsers slot + flow key-checks pending)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -599,8 +626,19 @@ const POWER_AUTOMATE = {
   addTouch:    'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/780e39d608c54f55bccb3f94e228ffe4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2lKXv41gVbHKyUZcDZMU4MrND-J6H_YzNZhHA0in9Cc',   // appends to SalesTouches
   addContact:  'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c9786ec2549d444cb1400deda840418d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4EKyJtoxIy2rkKX9Nhf58latShrXHhD364FwqauDx74',   // appends to tblContacts
   editContact: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c4441cd721c34995aeb6fe5d0cb50fc5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pYlDA42Wc6CKKM-YS9Qpetc5k45XQbqCT73cW1C3Z6A',  // Flow 4 — updates tblContacts by contactId (maps all 12 columns; must send full record)
-  readTouches: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/214a673ba2d2405ab64d3dc6cd38d04b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=STXVdvlW1smv0JiR-FnXNjywxD1add6BlNkW3cJdXGg'    // Flow 5 — reads tblTouches (POST, skip from body, 256/page)
+  readTouches: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/214a673ba2d2405ab64d3dc6cd38d04b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=STXVdvlW1smv0JiR-FnXNjywxD1add6BlNkW3cJdXGg',    // Flow 5 — reads tblTouches (POST, skip from body, 256/page)
+  readUsers:   ''    // TODO: paste the "Read Users" flow URL once built — reads tblUsers for the login roster
 };
+
+// ---- Auth / access config ----
+// APP_KEY is sent in the body of every request; each flow verifies it (triggerBody()?['key'])
+// and rejects anything without it. Note: it lives in this file, so it's deterrence — it stops
+// URL-only abuse, not a determined source-viewer. Real page-access control (Cloudflare/M365) is separate.
+const APP_KEY = 'tac-a7Kq2Wm9Rf4Xp1Zc8Nv3Bs6';   // change this, and set the SAME value in each flow's key-check
+// Team login passcode — CHANGE THIS, and set the same value in the login instructions to the reps.
+// Cosmetic UI gate (client-side check); pair with APP_KEY + hosting for real protection.
+const TEAM_PASSCODE = 'CHANGE-ME';
+const SESSION_HOURS = 12;   // how long a login lasts before re-prompting
 
 const LOCATIONS = {
   'AL': ['Birmingham','Huntsville','Mobile','Montgomery'],'AK': ['Anchorage'],'AZ': ['Phoenix','Tucson'],
@@ -838,7 +876,7 @@ async function pushPA(action, payload, opts) {
   const url = POWER_AUTOMATE[action];
   if (!url) { console.log(`[Power Automate stub] ${action}:`, payload); return true; }
   try {
-    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, key: APP_KEY }) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return true;
   } catch(e) {
@@ -940,7 +978,7 @@ async function loadContactsFromSharePoint() {
         fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ skip: i * PAGE })
+          body: JSON.stringify({ skip: i * PAGE, key: APP_KEY })
         })
           .then(async r => {
             if (!r.ok) return [];
@@ -1011,7 +1049,7 @@ async function loadTouchesFromSharePoint() {
         fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ skip: i * PAGE })
+          body: JSON.stringify({ skip: i * PAGE, key: APP_KEY })
         })
           .then(async r => {
             if (!r.ok) return [];
@@ -1928,10 +1966,50 @@ populateRepDropdowns();
 refreshHotCount();
 renderDashboard();
 updateSyncBadge();
-// Refresh from SharePoint when the tab regains focus, so a tab left open all day
-// doesn't drift from the source. Throttled to at most once per 60s.
+// ---- Auth (pragmatic login gate) ----
+function getRoster() {
+  // Active users from tblUsers once "Read Users" is wired; otherwise the rep list.
+  try {
+    const u = JSON.parse(store.get('crm_users') || 'null');
+    if (Array.isArray(u) && u.length) return u.filter(x => x.active !== false).map(x => x.name).filter(Boolean);
+  } catch(e){}
+  return REPS.filter(r => r !== 'Unassigned');
+}
+function authOK() {
+  try { const sn = JSON.parse(store.get('crm_session') || 'null'); return !!(sn && sn.name && sn.until && Date.now() < sn.until); }
+  catch(e){ return false; }
+}
+function currentUserName() { try { return (JSON.parse(store.get('crm_session')||'null')||{}).name || ''; } catch(e){ return ''; } }
+function showLoginGate() {
+  const sel = document.getElementById('lgName');
+  const names = getRoster();
+  sel.innerHTML = '<option value="">\u2014 Select \u2014</option>' + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const last = store.get('crm_acting_rep'); if (last && names.includes(last)) sel.value = last;
+  document.getElementById('lgErr').textContent = '';
+  document.getElementById('lgCode').value = '';
+  document.getElementById('loginGate').classList.add('show');
+  setTimeout(() => { try { document.getElementById('lgCode').focus(); } catch(e){} }, 60);
+}
+function doLogin() {
+  const name = document.getElementById('lgName').value;
+  const code = document.getElementById('lgCode').value;
+  const err = document.getElementById('lgErr');
+  if (!name) { err.textContent = 'Select your name.'; return; }
+  if (code !== TEAM_PASSCODE) { err.textContent = 'Incorrect passcode.'; return; }
+  store.set('crm_session', JSON.stringify({ name, until: Date.now() + SESSION_HOURS*3600*1000 }));
+  store.set('crm_acting_rep', name);
+  state.actingRep = name;
+  populateRepDropdowns();
+  document.getElementById('loginGate').classList.remove('show');
+  document.getElementById('navLogout').style.display = '';
+  startApp();
+}
+function logout() { store.set('crm_session', 'null'); location.reload(); }
+
+// ---- Refresh on focus (throttled; only when signed in) ----
 let _lastRefresh = 0;
 function refreshFromServer(force) {
+  if (!authOK()) return;
   const now = Date.now();
   if (!force && now - _lastRefresh < 60000) return;
   _lastRefresh = now;
@@ -1941,14 +2019,23 @@ function refreshFromServer(force) {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshFromServer(); });
 window.addEventListener('focus', () => refreshFromServer());
 
-// On load: retry any writes that failed in a previous session, then pull both
-// directories fresh from SharePoint (contacts + touches).
-(async () => {
+// ---- App start: runs once the user is signed in ----
+async function startApp() {
+  document.getElementById('navLogout').style.display = '';
   await flushPendingWrites();
   loadContactsFromSharePoint();
   loadTouchesFromSharePoint();
   _lastRefresh = Date.now();
-})();
+}
+
+// Boot: shell is already rendered above; now gate on auth.
+if (authOK()) {
+  state.actingRep = currentUserName() || state.actingRep;
+  populateRepDropdowns();
+  startApp();
+} else {
+  showLoginGate();
+}
 
 
 </script>
