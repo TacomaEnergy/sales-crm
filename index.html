@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v9 · fast)</title>
+<title>Tacoma Energy — Sales CRM (v10 · fast)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -262,6 +262,14 @@
   .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   .context-note { background: var(--sky-light); border: 1px solid #bfe0f4; border-radius: 10px; padding: 12px 15px; font-size: 13px; color: var(--navy); line-height: 1.5; font-weight: 500; }
+  .touch-picker-results { border: 1px solid var(--border); border-radius: 9px; margin-top: 6px; max-height: 200px; overflow: auto; }
+  .touch-picker-results:empty { display: none; }
+  .tp-row { padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .tp-row:last-child { border-bottom: none; }
+  .tp-row:hover { background: var(--sky-light); }
+  .tp-name { font-weight: 800; color: var(--navy); font-size: 13px; }
+  .tp-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .tp-empty { padding: 11px 12px; font-size: 12.5px; color: var(--muted); font-style: italic; }
   .dup-warn { background: var(--amber-light); border: 1px solid #f0d28a; border-radius: 10px; padding: 12px 15px; font-size: 13px; color: #7a5200; line-height: 1.5; display: none; font-weight: 500; }
   .dup-warn.show { display: block; }
   .dup-warn b { color: #5a3d00; }
@@ -340,7 +348,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v9</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v10</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -500,7 +508,12 @@
   <div class="modal">
     <div class="modal-head"><h3>Log a Sales Touch</h3><button class="modal-x" onclick="closeTouchModal()">×</button></div>
     <div class="modal-body">
-      <div class="context-note" id="touchContext">No contact selected — pick one from Contacts first, or this touch won't be linked.</div>
+      <div>
+        <label class="fld">Contact</label>
+        <input type="text" id="tmContactSearch" placeholder="Search a contact by name, builder, email…" oninput="renderTouchPicker()" autocomplete="off" />
+        <div id="tmContactResults" class="touch-picker-results"></div>
+      </div>
+      <div class="context-note" id="touchContext">Search above to pick the contact this touch is for.</div>
       <div class="frow">
         <div><label class="fld">Rep</label><select id="tmRep"></select></div>
         <div><label class="fld">Method</label><select id="tmMethod">
@@ -564,7 +577,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v9 (edit+touches wired, write-confirm/retry, edit payload normalized)");
+console.log("Tacoma CRM build: v10 (HTML-escape, dedupe-on-read, persisted rep, focus-refetch, sync stamp, touch-modal picker)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -606,6 +619,17 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch(e) { return mem[k] ?? null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch(e) { mem[k] = v; } }
 };
+
+// ---- HTML-escaping (applied at render time only — never on stored/synced data,
+// which would push "&amp;" back into SharePoint). esc() for text nodes; escArg()
+// for values embedded inside an onclick="fn('…')" (JS-string + HTML-attr layers).
+const _ESC = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, m => _ESC[m]); }
+function escArg(s) {
+  return String(s == null ? '' : s)
+    .replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ')      // JS-string layer
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); // HTML-attr layer
+}
 
 function seed() {
   if (store.get('crm_contacts')) return;
@@ -727,7 +751,7 @@ function contactSummaries() {
 }
 
 function repChip(rep) {
-  return `<span class="rep-chip" style="color:${repColor(rep)}"><span class="rep-dot" style="background:${repColor(rep)}"></span>${rep||'—'}</span>`;
+  return `<span class="rep-chip" style="color:${repColor(rep)}"><span class="rep-dot" style="background:${repColor(rep)}"></span>${esc(rep||'—')}</span>`;
 }
 function flameIcon(c, size) {
   return `<button class="flame-btn ${c.hot?'on':''}" title="${c.hot?'Hot lead — click to unflag':'Flag as Hot Lead'}" style="${size?`font-size:${size}px`:''}" onclick="event.stopPropagation();toggleHot('${c.contactId}')">🔥</button>`;
@@ -817,7 +841,7 @@ async function flushPendingWrites() {
     if (!ok) still.push(w);
   }
   setPending(still);
-  updateSyncBadge();
+  if (still.length) updateSyncBadge(); else showSyncResting();
   if (q.length && !still.length) toast('\u2713 Synced ' + q.length + ' pending change' + (q.length>1?'s':''));
 }
 
@@ -852,17 +876,32 @@ function editPayload(c) {
 }
 
 // ---- Contact sync (Flow 1 — Read Contacts) ----
+function fmtClock(ts) {
+  const d = new Date(ts);
+  let h = d.getHours(), m = d.getMinutes(); const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12; return h + ':' + String(m).padStart(2,'0') + ' ' + ap;
+}
+// Resting state: pending writes take priority; otherwise show when data was last synced.
+function showSyncResting() {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  if (pendingCount() > 0) { updateSyncBadge(); return; }
+  const ts = +store.get('crm_last_synced') || 0;
+  if (ts) { el.textContent = '✓ Synced ' + fmtClock(ts); el.style.color = 'var(--muted)'; }
+  else { el.textContent = ''; }
+}
 function setSyncStatus(st, count) {
   const el = document.getElementById('syncStatus');
   if (!el) return;
   if (st === 'syncing') {
     el.textContent = '↻ Syncing…'; el.style.color = 'var(--muted)';
   } else if (st === 'ok') {
-    el.textContent = '✓ ' + (count || 0).toLocaleString() + ' contacts loaded';
+    store.set('crm_last_synced', String(Date.now()));
+    el.textContent = '✓ ' + (count || 0).toLocaleString() + ' contacts · just synced';
     el.style.color = 'var(--green-deep)';
-    setTimeout(() => { el.textContent = ''; updateSyncBadge(); }, 5000);
+    setTimeout(showSyncResting, 5000);
   } else if (st === 'error') {
-    el.textContent = '⚠ Sync failed — using cached data'; el.style.color = 'var(--amber)';
+    el.textContent = '⚠ Sync failed — showing last-synced data'; el.style.color = 'var(--amber)';
   }
 }
 
@@ -914,9 +953,14 @@ async function loadContactsFromSharePoint() {
         hot:        isHot
       };
     });
-    saveContacts(contacts);
+    // Dedupe by contactId — a retried add that had actually succeeded could
+    // create a duplicate row in the sheet; collapse to one (last wins).
+    const seenC = new Map();
+    for (const c of contacts) seenC.set(c.contactId, c);
+    const deduped = [...seenC.values()];
+    saveContacts(deduped);
     store.set('crm_contacts_source', 'live');
-    setSyncStatus('ok', contacts.length);
+    setSyncStatus('ok', deduped.length);
     populateRepDropdowns();
     refreshHotCount();
     if      (state.view === 'dashboard') renderDashboard();
@@ -956,7 +1000,7 @@ async function loadTouchesFromSharePoint() {
     );
     const rows = pages.flat().filter(r => r && r['Touch ID'] && r['Contact ID']);
     if (!rows.length) return;   // keep whatever's cached (incl. seed) rather than blanking history
-    const touches = rows.map(r => ({
+    let touches = rows.map(r => ({
       touchId:   String(r['Touch ID']),
       contactId: String(r['Contact ID']),
       date:      r['Date']           || '',
@@ -966,6 +1010,11 @@ async function loadTouchesFromSharePoint() {
       notes:     r['Notes']          || '',
       followUp:  r['Follow-Up Date'] || ''
     }));
+    // Dedupe by contactId+touchId — a retried addTouch that had actually
+    // succeeded could duplicate a row; collapse to one.
+    const seenT = new Map();
+    for (const t of touches) seenT.set(t.contactId + '|' + t.touchId, t);
+    touches = [...seenT.values()];
     // Preserve any locally-logged touches still waiting to sync (in the retry
     // queue), so a refresh never makes a rep's just-logged touch disappear
     // before it lands in SharePoint.
@@ -1004,7 +1053,7 @@ function switchView(v) {
   if (v==='activity') renderActivity();
   window.scrollTo({top:0});
 }
-function onRepSwitch() { state.actingRep = document.getElementById('repSwitch').value; }
+function onRepSwitch() { state.actingRep = document.getElementById('repSwitch').value; store.set('crm_acting_rep', state.actingRep); }
 
 function refreshHotCount() {
   const n = getContacts().filter(c => c.active && c.hot).length;
@@ -1090,11 +1139,11 @@ function renderHotLeads() {
     const fuChip = fu ? (d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Due today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`) : '<span class="chip gray">No follow-up set</span>';
     return `<div class="hot-card" onclick="openContactFromDash('${c.contactId}')">
       <div class="hot-card-top">
-        <div><div class="hot-card-name">${c.first} ${c.last}</div><div class="hot-card-co">${c.title||'—'} · ${c.company}</div></div>
+        <div><div class="hot-card-name">${esc(c.first)} ${esc(c.last)}</div><div class="hot-card-co">${esc(c.title||'—')} · ${esc(c.company)}</div></div>
         ${flameIcon(c, 17)}
       </div>
       <div class="hot-card-meta">
-        <div class="m"><label>Location</label><strong>${c.city}, ${c.state}</strong></div>
+        <div class="m"><label>Location</label><strong>${esc(c.city)}, ${esc(c.state)}</strong></div>
         <div class="m"><label>Last touch</label><strong>${lt ? fmtDate(lt.date) : 'None yet'}</strong></div>
         <div class="m"><label>Next step</label><strong>${fuChip}</strong></div>
       </div>
@@ -1224,7 +1273,7 @@ function renderDashboard() {
     if (!c) return;
     let key;
     if (mode==='builder') key = c.company || '—';
-    else if (mode==='city') key = `${c.city}, ${c.state}`;
+    else if (mode==='city') key = `${esc(c.city)}, ${esc(c.state)}`;
     else key = c.state || '—';
     bdCounts[key] = (bdCounts[key]||0)+1;
   });
@@ -1242,7 +1291,7 @@ function renderDashboard() {
     const chip = d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`;
     return `<tr onclick="openContactFromDash('${c.contactId}')">
         <td style="width:118px">${chip}</td>
-        <td><div class="company">${c.hot?'🔥 ':''}${c.first} ${c.last}</div><div class="sub">${c.company} · ${c.city}, ${c.state}</div></td>
+        <td><div class="company">${c.hot?'🔥 ':''}${esc(c.first)} ${esc(c.last)}</div><div class="sub">${esc(c.company)} · ${esc(c.city)}, ${esc(c.state)}</div></td>
         <td onclick="event.stopPropagation()" style="width:60px"><button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button></td>
       </tr>`;
   });
@@ -1260,12 +1309,12 @@ function renderDashboard() {
     ? `<div class="timeline">${recent.map(t => {
         const c = contactById(t.contactId);
         const hot = c.hot ? '🔥 ' : '';
-        const loc = [c.city, c.state].filter(Boolean).join(', ');
-        const where = `${hot}${c.company || '—'}${loc ? ` · ${loc}` : ''}`;
-        const who = `${c.first} ${c.last}${c.title ? ` · ${c.title}` : ''}`.trim();
+        const loc = [esc(c.city), esc(c.state)].filter(Boolean).join(', ');
+        const where = `${hot}${esc(c.company || '—')}${loc ? ` · ${loc}` : ''}`;
+        const who = `${esc(c.first)} ${esc(c.last)}${c.title ? ` · ${esc(c.title)}` : ''}`.trim();
         return `<div class="touch method-${t.method.toLowerCase().replace(' ','')}">
-          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${t.method}</span>${repChip(t.rep)}</div>
-          <div class="touch-notes"><b>${where}</b> — ${t.result}</div>
+          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${esc(t.method)}</span>${repChip(t.rep)}</div>
+          <div class="touch-notes"><b>${where}</b> — ${esc(t.result)}</div>
           ${who ? `<div class="sub" style="margin-top:3px">${who}</div>` : ''}
         </div>`;
       }).join('')}</div>`
@@ -1300,7 +1349,7 @@ function renderContacts() {
       else if (contactStatus(c.contactId).key !== statusF) return false;
     }
     if (q) {
-      const hay = `${c.first} ${c.last} ${c.company} ${c.email} ${c.city} ${c.state} ${c.title}`.toLowerCase();
+      const hay = `${esc(c.first)} ${esc(c.last)} ${esc(c.company)} ${esc(c.email)} ${esc(c.city)} ${esc(c.state)} ${esc(c.title)}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -1308,7 +1357,7 @@ function renderContacts() {
 
   const groups = {};
   contacts.forEach(c => {
-    const key = `${c.company}|||${c.city}|||${c.state}`;
+    const key = `${esc(c.company)}|||${esc(c.city)}|||${esc(c.state)}`;
     if (!groups[key]) groups[key] = { company:c.company, city:c.city, state:c.state, contacts:[] };
     groups[key].contacts.push(c);
   });
@@ -1339,8 +1388,8 @@ function renderContacts() {
       return `<div class="crow ${cls} ${state.selectedContact===c.contactId?'selected':''}" onclick="selectContact('${c.contactId}')">
         <div onclick="event.stopPropagation()" style="text-align:center">${flameIcon(c)}</div>
         <div>
-          <div class="crow-name">${c.first} ${c.last}${staleFlag}</div>
-          <div class="crow-sub">${c.title||'—'} · ${ltText}</div>
+          <div class="crow-name">${esc(c.first)} ${esc(c.last)}${staleFlag}</div>
+          <div class="crow-sub">${esc(c.title||'—')} · ${ltText}</div>
         </div>
         <div>${st.chip}</div>
         <div class="crow-acts" onclick="event.stopPropagation()">
@@ -1351,10 +1400,10 @@ function renderContacts() {
     }).join('');
 
     return `<div class="builder-card ${open?'open':''}">
-      <div class="builder-head" onclick="toggleBuilder('${b.company}|${b.city}|${b.state}')">
+      <div class="builder-head" onclick="toggleBuilder('${escArg(b.company+'|'+b.city+'|'+b.state)}')">
         <div>
-          <div class="builder-name">${b.company}${hotN?` <span class="chip hot">🔥 ${hotN}</span>`:''}</div>
-          <div class="builder-loc">${b.city}, ${b.state}</div>
+          <div class="builder-name">${esc(b.company)}${hotN?` <span class="chip hot">🔥 ${hotN}</span>`:''}</div>
+          <div class="builder-loc">${esc(b.city)}, ${esc(b.state)}</div>
         </div>
         <div class="builder-stat"><div class="n tnum">${b.contacts.length}</div><div class="l">Contacts</div></div>
         <div class="builder-stat"><div class="n" style="font-size:12px">${lastDate?fmtDate(lastDate):'—'}</div><div class="l">Last Touch</div></div>
@@ -1363,7 +1412,7 @@ function renderContacts() {
       <div class="builder-body">
         <div class="builder-body-head">
           <span class="builder-body-title">Contacts (${b.contacts.length})</span>
-          <button class="btn ghost sm" onclick="event.stopPropagation();addContactToBuilder('${b.company.replace(/'/g,"\\'")}','${b.city.replace(/'/g,"\\'")}','${b.state}')">+ Add Contact</button>
+          <button class="btn ghost sm" onclick="event.stopPropagation();addContactToBuilder('${escArg(b.company)}','${escArg(b.city)}','${escArg(b.state)}')">+ Add Contact</button>
         </div>
         ${rows}
       </div>
@@ -1403,12 +1452,12 @@ function renderContactDetail(cid) {
   const history = touchesFor(cid);
   box.innerHTML = `
     <div class="contact-detail">
-      <h3>${flameIcon(c, 18)} ${c.first} ${c.last} ${c.hot?'<span class="chip hot">🔥 Hot Lead</span>':''}</h3>
-      <div class="role">${c.company} · ${c.title||'—'}<br>${c.city}, ${c.state}</div>
+      <h3>${flameIcon(c, 18)} ${esc(c.first)} ${esc(c.last)} ${c.hot?'<span class="chip hot">🔥 Hot Lead</span>':''}</h3>
+      <div class="role">${esc(c.company)} · ${esc(c.title||'—')}<br>${esc(c.city)}, ${esc(c.state)}</div>
       <div class="info-grid">
-        <div class="info-box"><label>Email</label><strong><a href="mailto:${c.email}">${c.email||'—'}</a></strong></div>
-        <div class="info-box"><label>Phone</label><strong><a href="tel:${c.phone}">${c.phone||'—'}</a></strong></div>
-        <div class="info-box"><label>LinkedIn</label><strong>${c.linkedin?`<a href="${c.linkedin}" target="_blank" rel="noopener">View profile ↗</a>`:'—'}</strong></div>
+        <div class="info-box"><label>Email</label><strong><a href="mailto:${esc(c.email)}">${esc(c.email||'—')}</a></strong></div>
+        <div class="info-box"><label>Phone</label><strong><a href="tel:${esc(c.phone)}">${esc(c.phone||'—')}</a></strong></div>
+        <div class="info-box"><label>LinkedIn</label><strong>${c.linkedin?`<a href="${esc(c.linkedin)}" target="_blank" rel="noopener">View profile ↗</a>`:'—'}</strong></div>
         <div class="info-box"><label>Last Rep</label><strong>${(() => { const lt = lastTouch(c.contactId); return lt ? repChip(lt.rep) : '<span style="color:var(--muted)">— none yet —</span>'; })()}</strong></div>
         <div class="info-box"><label>Contact ID</label><strong>${c.contactId}</strong></div>
         <div class="info-box"><label>Last Edited</label><strong>${contactEdited(c)?fmtDate(contactEdited(c)):'—'}</strong></div>
@@ -1423,8 +1472,8 @@ function renderContactDetail(cid) {
       <div class="panel-head" style="padding:0 0 11px;border:none"><h3>Touch History</h3><span class="hint">${history.length} logged</span></div>
       ${history.length ? `<div class="timeline">${history.map(t => `
         <div class="touch method-${t.method.toLowerCase().replace(' ','')}">
-          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${t.method}</span>${repChip(t.rep)}</div>
-          <div class="touch-notes"><b>${t.result}.</b> ${t.notes||''}</div>
+          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${esc(t.method)}</span>${repChip(t.rep)}</div>
+          <div class="touch-notes"><b>${esc(t.result)}.</b> ${esc(t.notes||'')}</div>
           ${t.followUp ? `<div class="touch-followup">⏰ Follow up ${fmtDate(t.followUp)}</div>` : ''}
         </div>`).join('')}</div>`
         : '<div class="empty">No touches yet. Add the first one.</div>'}
@@ -1469,9 +1518,9 @@ function renderFollowups() {
       <table><tbody>${rows.map(({c, fu, lt}) => {
         return `<tr onclick="openContactFromDash('${c.contactId}')">
           <td style="width:128px"><span class="chip ${k==='overdue'?'red':k==='today'?'amber':'blue'}">${fmtDate(fu)}</span></td>
-          <td><div class="company">${c.hot?'🔥 ':''}${c.first} ${c.last}</div><div class="sub">${c.company} · ${c.city}, ${c.state}</div></td>
+          <td><div class="company">${c.hot?'🔥 ':''}${esc(c.first)} ${esc(c.last)}</div><div class="sub">${esc(c.company)} · ${esc(c.city)}, ${esc(c.state)}</div></td>
           <td style="width:120px">${lt?repChip(lt.rep):'—'}</td>
-          <td class="sub">${(lt&&lt.notes)||''}</td>
+          <td class="sub">${esc((lt&&lt.notes)||'')}</td>
           <td onclick="event.stopPropagation()" style="width:240px"><div class="btn-row">
             <button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button>
             <button class="btn ghost sm" onclick="snoozeFollowUp('${c.contactId}')">Snooze 1wk</button>
@@ -1497,8 +1546,8 @@ function renderActivity() {
     if (methodF && t.method !== methodF) return false;
     if (q) {
       const c = contactById(t.contactId);
-      const name = c ? `${c.first} ${c.last} ${c.company}` : '';
-      if (!(`${name} ${t.notes}`.toLowerCase().includes(q))) return false;
+      const name = c ? `${esc(c.first)} ${esc(c.last)} ${esc(c.company)}` : '';
+      if (!(`${name} ${esc(t.notes)}`.toLowerCase().includes(q))) return false;
     }
     return true;
   });
@@ -1508,15 +1557,15 @@ function renderActivity() {
   const shown = touches.slice(0, CAP);
   document.getElementById('activityRows').innerHTML = total ? shown.map(t => {
     const c = contactById(t.contactId);
-    const name = c ? `${c.first} ${c.last}` : '(unknown)';
+    const name = c ? `${esc(c.first)} ${esc(c.last)}` : '(unknown)';
     const co = c ? c.company : '';
     return `<tr onclick="${c?`openContactFromDash('${t.contactId}')`:''}">
       <td style="white-space:nowrap">${fmtDate(t.date)}</td>
       <td>${repChip(t.rep)}</td>
       <td><div class="company">${c&&c.hot?'🔥 ':''}${name}</div><div class="sub">${co}</div></td>
-      <td><span class="chip gray">${t.method}</span></td>
-      <td>${t.result}</td>
-      <td class="sub">${t.notes||''}</td>
+      <td><span class="chip gray">${esc(t.method)}</span></td>
+      <td>${esc(t.result)}</td>
+      <td class="sub">${esc(t.notes||'')}</td>
     </tr>`;
   }).join('') + (total > CAP ? `<tr><td colspan="6" class="sub" style="text-align:center;padding:14px">Showing the ${CAP} most recent of ${total.toLocaleString()} touches — use the filters above to narrow.</td></tr>` : '') : '<tr><td colspan="6"><div class="empty">No activity matches your filters.</div></td></tr>';
 }
@@ -1524,11 +1573,41 @@ function renderActivity() {
 // ============================================================
 //  ADD TOUCH MODAL
 // ============================================================
-function openTouchModal() {
+function refreshTouchContext() {
   const c = contactById(state.selectedContact);
   document.getElementById('touchContext').innerHTML = c
-    ? `<b>${c.hot?'🔥 ':''}Selected contact:</b> ${c.first} ${c.last} · ${c.company} · ${c.contactId}<br>Saving appends a new row to SalesTouches — the contact record is untouched.`
-    : 'No contact selected — pick one from Contacts first, or this touch won\'t be linked.';
+    ? `<b>${c.hot?'\u{1F525} ':''}Logging for:</b> ${esc(c.first)} ${esc(c.last)} \u00b7 ${esc(c.company)} \u00b7 ${c.contactId}<button class="btn ghost sm" style="margin-left:10px" onclick="changeTouchContact()">Change</button>`
+    : 'Search above to pick the contact this touch is for.';
+}
+function renderTouchPicker() {
+  const box = document.getElementById('tmContactResults');
+  const q = (document.getElementById('tmContactSearch').value || '').trim().toLowerCase();
+  if (!q) { box.innerHTML = ''; return; }
+  const hits = getContacts().filter(c => c.active).filter(c => {
+    const hay = `${c.first} ${c.last} ${c.company} ${c.email} ${c.city} ${c.state} ${c.title}`.toLowerCase();
+    return hay.includes(q);
+  }).slice(0, 8);
+  box.innerHTML = hits.length ? hits.map(c => `
+    <div class="tp-row" onclick="pickTouchContact('${c.contactId}')">
+      <div class="tp-name">${c.hot?'\u{1F525} ':''}${esc(c.first)} ${esc(c.last)}</div>
+      <div class="tp-sub">${esc(c.title||'\u2014')} \u00b7 ${esc(c.company)} \u00b7 ${esc(c.city)}, ${esc(c.state)}</div>
+    </div>`).join('') : '<div class="tp-empty">No matches. Add the contact first from the Contacts tab.</div>';
+}
+function pickTouchContact(cid) {
+  state.selectedContact = cid;
+  document.getElementById('tmContactSearch').value = '';
+  document.getElementById('tmContactResults').innerHTML = '';
+  refreshTouchContext();
+}
+function changeTouchContact() {
+  state.selectedContact = null;
+  refreshTouchContext();
+  const s = document.getElementById('tmContactSearch'); s.value = ''; s.focus();
+}
+function openTouchModal() {
+  document.getElementById('tmContactSearch').value = '';
+  document.getElementById('tmContactResults').innerHTML = '';
+  refreshTouchContext();
   document.getElementById('tmDate').value = todayISO();
   document.getElementById('tmRep').value = state.actingRep || REPS[0];
   document.getElementById('tmMethod').value = 'Call';
@@ -1672,7 +1751,7 @@ function checkDup() {
   const warn = document.getElementById('cmDupWarn');
   if (hits.length) {
     warn.innerHTML = `<b>Possible duplicate.</b> This person may already be in the directory:` +
-      hits.map(h => `<div class="dup-hit"><b>${h.first} ${h.last}</b> · ${h.title} · ${h.company} (${h.contactId})<br>${h.email||''}</div>`).join('') +
+      hits.map(h => `<div class="dup-hit"><b>${esc(h.first)} ${esc(h.last)}</b> · ${esc(h.title)} · ${esc(h.company)} (${h.contactId})<br>${esc(h.email||'')}</div>`).join('') +
       `<div style="margin-top:8px">If it's the same person, cancel and open their record instead. If it's genuinely a different person, you can still save.</div>`;
     warn.classList.add('show');
   } else { warn.classList.remove('show'); }
@@ -1751,7 +1830,10 @@ function markInactive() {
 function populateRepDropdowns() {
   const opts = REPS.map(r => `<option value="${r}">${r}</option>`).join('');
   document.getElementById('repSwitch').innerHTML = opts;
-  if (!state.actingRep) state.actingRep = REPS[0];
+  if (!state.actingRep) {
+    const saved = store.get('crm_acting_rep');
+    state.actingRep = (saved && REPS.includes(saved)) ? saved : REPS[0];
+  }
   document.getElementById('repSwitch').value = state.actingRep;
   document.getElementById('tmRep').innerHTML = opts;
   document.getElementById('contactRepFilter').innerHTML = '<option value="">Any rep activity</option>' + opts;
@@ -1797,13 +1879,29 @@ populateRepDropdowns();
 refreshHotCount();
 renderDashboard();
 updateSyncBadge();
+// Refresh from SharePoint when the tab regains focus, so a tab left open all day
+// doesn't drift from the source. Throttled to at most once per 60s.
+let _lastRefresh = 0;
+function refreshFromServer(force) {
+  const now = Date.now();
+  if (!force && now - _lastRefresh < 60000) return;
+  _lastRefresh = now;
+  loadContactsFromSharePoint();
+  loadTouchesFromSharePoint();
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshFromServer(); });
+window.addEventListener('focus', () => refreshFromServer());
+
 // On load: retry any writes that failed in a previous session, then pull both
 // directories fresh from SharePoint (contacts + touches).
 (async () => {
   await flushPendingWrites();
   loadContactsFromSharePoint();
   loadTouchesFromSharePoint();
+  _lastRefresh = Date.now();
 })();
+
+
 </script>
 </body>
 </html>
