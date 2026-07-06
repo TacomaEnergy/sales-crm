@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v12 · fast)</title>
+<title>Tacoma Energy — Sales CRM (v14 · fast)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -136,6 +136,23 @@
   .kpi.k-due::before { background: linear-gradient(var(--amber), #f3c04e); }
   .kpi.k-untouched::before { background: linear-gradient(var(--red), #f0766c); }
   .kpi.clickable { cursor: pointer; }
+  .kpi.sig-active { border-color: var(--blue-2); box-shadow: 0 0 0 3px rgba(19,149,211,.18); }
+  .dash-topline { background: linear-gradient(100deg, var(--navy) 0%, #11486b 100%); color: #fff; border-radius: var(--radius); padding: 14px 20px; margin-bottom: 18px; font-size: 14.5px; font-weight: 600; line-height: 1.55; box-shadow: var(--shadow-md); }
+  .dash-topline b { font-weight: 800; color: #7fd4ff; }
+  .dash-topline .warn { color: #ffd479; font-weight: 800; }
+  .perf-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 26px; align-items: start; }
+  .perf-title { font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+  .fn-row { display: grid; grid-template-columns: 108px 1fr 78px; align-items: center; gap: 10px; padding: 4px 0; }
+  .fn-label { font-size: 12.5px; font-weight: 700; color: var(--navy); white-space: nowrap; }
+  .fn-track { background: #eef3f7; border-radius: 7px; height: 26px; overflow: hidden; }
+  .fn-fill { height: 100%; border-radius: 7px; transition: width .45s cubic-bezier(.22,1,.36,1); min-width: 3px; }
+  .fn-val { font-size: 12.5px; font-weight: 800; color: var(--navy); text-align: right; white-space: nowrap; }
+  .fn-val .pct { color: var(--muted); font-weight: 700; font-size: 11px; }
+  .stat-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .stat-chip { background: #f6fafc; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .stat-chip .v { font-size: 19px; font-weight: 800; color: var(--navy); }
+  .stat-chip .l { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+  @media (max-width: 960px) { .perf-grid { grid-template-columns: 1fr; } }
   .kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .kpi label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 800; }
   .kpi-ico { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
@@ -229,6 +246,8 @@
   .touch.method-text { border-left-color: var(--green); }
   .touch.method-inperson { border-left-color: var(--amber); }
   .touch-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 5px; }
+  .touch-act { background: none; border: none; cursor: pointer; font-size: 13px; color: var(--muted); padding: 2px 4px; border-radius: 5px; line-height: 1; }
+  .touch-act:hover { background: var(--sky-light); color: var(--navy); }
   .touch-meta { font-size: 12px; font-weight: 800; color: var(--navy); }
   .touch-notes { font-size: 13px; color: #44515f; line-height: 1.5; font-weight: 500; }
   .touch-followup { font-size: 11px; color: #b9831a; font-weight: 800; margin-top: 6px; }
@@ -361,7 +380,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v12</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v14</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -414,11 +433,30 @@
       </div>
     </div>
 
+    <div class="dash-topline" id="dashTopline"></div>
+
     <div class="kpis" id="dashKpis"></div>
 
     <div class="panel" style="margin-bottom:22px">
       <div class="panel-head"><h3>Deal Signals</h3><span class="hint" id="dashSignalsHint"></span></div>
-      <div class="panel-body"><div class="signals" id="dashSignals"></div></div>
+      <div class="panel-body"><div class="signals" id="dashSignals"></div><div id="dashSignalDetail"></div></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:22px">
+      <div class="panel-head"><h3>Sales Performance</h3><span class="hint" id="dashPerfHint"></span></div>
+      <div class="panel-body">
+        <div class="perf-grid">
+          <div>
+            <div class="perf-title">Funnel &mdash; where activity goes</div>
+            <div id="dashFunnel"></div>
+          </div>
+          <div>
+            <div class="perf-title">12-Week Activity Trend</div>
+            <div id="dashTrend"></div>
+            <div class="stat-chips" id="dashPerfStats"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="cols">
@@ -560,6 +598,7 @@
           <option>Spoke with contact</option>
           <option>Pricing sent</option>
           <option>Meeting booked</option>
+          <option>Became customer</option>
           <option>Not interested</option>
           <option>Bad contact info</option>
         </select></div>
@@ -612,7 +651,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v12 (login gate + APP_KEY on all requests; readUsers slot + flow key-checks pending)");
+console.log("Tacoma CRM build: v14 (funnel+trend+topline, connect/follow-through/coverage stats, edit+delete touch, partial-read detection, Became customer)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -627,7 +666,9 @@ const POWER_AUTOMATE = {
   addContact:  'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c9786ec2549d444cb1400deda840418d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4EKyJtoxIy2rkKX9Nhf58latShrXHhD364FwqauDx74',   // appends to tblContacts
   editContact: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c4441cd721c34995aeb6fe5d0cb50fc5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pYlDA42Wc6CKKM-YS9Qpetc5k45XQbqCT73cW1C3Z6A',  // Flow 4 — updates tblContacts by contactId (maps all 12 columns; must send full record)
   readTouches: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/214a673ba2d2405ab64d3dc6cd38d04b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=STXVdvlW1smv0JiR-FnXNjywxD1add6BlNkW3cJdXGg',    // Flow 5 — reads tblTouches (POST, skip from body, 256/page)
-  readUsers:   ''    // TODO: paste the "Read Users" flow URL once built — reads tblUsers for the login roster
+  readUsers:   '',   // TODO: paste the "Read Users" flow URL once built — reads tblUsers for the login roster
+  editTouch:   '',   // TODO: Flow 6 — updates a row in tblTouches (built in the security session)
+  deleteTouch: ''    // TODO: Flow 7 — deletes a row in tblTouches (built in the security session)
 };
 
 // ---- Auth / access config ----
@@ -660,6 +701,9 @@ const REPS = ['N. Reynolds', 'C. Gaston', 'A. Palumbo', 'Unassigned'];
 // High-intent touch outcomes that auto-promote a contact to Hot (the lightweight
 // pipeline). Reps just pick the result; logging one of these flags the lead.
 const HOT_RESULTS = ['Meeting booked', 'Pricing sent'];
+// Funnel definitions (all derived from the Result reps already pick — no extra data entry):
+const WIN_RESULT = 'Became customer';
+const CONNECT_RESULTS = ['Spoke with contact', 'Pricing sent', 'Meeting booked', 'Became customer'];  // touches that reached a human
 const REP_COLOR = { 'N. Reynolds': '#06a951', 'C. Gaston': '#1395d3', 'A. Palumbo': '#f2622a', 'Unassigned': '#687d92' };
 function repColor(r) { return REP_COLOR[r] || '#687d92'; }
 
@@ -874,7 +918,15 @@ function pendingCount() { return getPending().length; }
 async function pushPA(action, payload, opts) {
   opts = opts || {};
   const url = POWER_AUTOMATE[action];
-  if (!url) { console.log(`[Power Automate stub] ${action}:`, payload); return true; }
+  if (!url) {
+    // Touch edits/deletes queue durably until their flows are built, so nothing
+    // is lost and the change flushes automatically once the URL is pasted in.
+    if (action === 'editTouch' || action === 'deleteTouch') {
+      if (!opts.noQueue) { const q = getPending(); q.push({ action, payload, ts: Date.now() }); setPending(q); updateSyncBadge(); }
+      return false;
+    }
+    console.log(`[Power Automate stub] ${action}:`, payload); return true;
+  }
   try {
     const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, key: APP_KEY }) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -961,9 +1013,42 @@ function setSyncStatus(st, count) {
     el.textContent = '✓ ' + (count || 0).toLocaleString() + ' contacts · just synced';
     el.style.color = 'var(--green-deep)';
     setTimeout(showSyncResting, 5000);
+  } else if (st === 'partial') {
+    el.innerHTML = '⚠ Partial sync — some rows may be missing <a href="#" onclick="refreshFromServer(true);return false" style="color:var(--blue-2);font-weight:800">Retry</a>';
+    el.style.color = 'var(--amber)';
   } else if (st === 'error') {
     el.textContent = '⚠ Sync failed — showing last-synced data'; el.style.color = 'var(--amber)';
   }
+}
+
+// Shared paged fetcher. Fires requests in waves (not all at once) to stay under
+// the Excel connector's throttle, retries failed pages once, and REPORTS which
+// pages still failed — so a throttled page can't silently drop 256 rows anymore.
+async function fetchPages(url, maxPages, pageSize) {
+  const WAVE = 8;
+  const results = new Array(maxPages).fill(null);   // null = failed / not fetched
+  async function fetchOne(i) {
+    try {
+      const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ skip: i * pageSize, key: APP_KEY }) });
+      if (!r.ok) return null;
+      const d = await r.json();
+      return Array.isArray(d) ? d : (d.value || []);
+    } catch(e) { return null; }
+  }
+  for (let start = 0; start < maxPages; start += WAVE) {
+    const idx = Array.from({ length: Math.min(WAVE, maxPages - start) }, (_, k) => start + k);
+    const out = await Promise.all(idx.map(fetchOne));
+    idx.forEach((i, k) => results[i] = out[k]);
+    // Stop early once we hit a fully-empty page — the table has ended.
+    const lastFull = results[start + idx.length - 1];
+    if (Array.isArray(lastFull) && lastFull.length === 0) break;
+  }
+  // One retry pass for failed pages (transient throttles usually clear)
+  const failedFirst = results.map((v, i) => v === null ? i : -1).filter(i => i >= 0);
+  for (const i of failedFirst) results[i] = await fetchOne(i);
+  const failedPages = results.map((v, i) => v === null ? i : -1).filter(i => i >= 0);
+  const rows = results.filter(Array.isArray).flat();
+  return { rows, failedPages };
 }
 
 async function loadContactsFromSharePoint() {
@@ -973,22 +1058,9 @@ async function loadContactsFromSharePoint() {
   const PAGE = 256;
   const MAX_PAGES = 25;  // 25 × 256 = 6,400 — covers current ~5,460 with room to grow
   try {
-    const pages = await Promise.all(
-      Array.from({ length: MAX_PAGES }, (_, i) =>
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ skip: i * PAGE, key: APP_KEY })
-        })
-          .then(async r => {
-            if (!r.ok) return [];
-            const d = await r.json();
-            return Array.isArray(d) ? d : (d.value || []);
-          })
-          .catch(() => [])
-      )
-    );
-    const rows = pages.flat().filter(r => r && r['Contact ID']);
+    const { rows: raw, failedPages } = await fetchPages(url, MAX_PAGES, PAGE);
+    const rows = raw.filter(r => r && r['Contact ID']);
+    if (failedPages.length && !rows.length) { setSyncStatus('error'); return; }
     if (!rows.length) { setSyncStatus('error'); return; }
     const existingMap = contactIndex();
     const contacts = rows.map(r => {
@@ -1021,7 +1093,7 @@ async function loadContactsFromSharePoint() {
     const deduped = [...seenC.values()];
     saveContacts(deduped);
     store.set('crm_contacts_source', 'live');
-    setSyncStatus('ok', deduped.length);
+    if (failedPages.length) setSyncStatus('partial', deduped.length); else setSyncStatus('ok', deduped.length);
     populateRepDropdowns();
     refreshHotCount();
     if      (state.view === 'dashboard') renderDashboard();
@@ -1044,23 +1116,10 @@ async function loadTouchesFromSharePoint() {
   const PAGE = 256;
   const MAX_PAGES = 40;  // 40 × 256 = 10,240 — covers current ~9k touches with growth room
   try {
-    const pages = await Promise.all(
-      Array.from({ length: MAX_PAGES }, (_, i) =>
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ skip: i * PAGE, key: APP_KEY })
-        })
-          .then(async r => {
-            if (!r.ok) return [];
-            const d = await r.json();
-            return Array.isArray(d) ? d : (d.value || []);
-          })
-          .catch(() => [])
-      )
-    );
-    const rows = pages.flat().filter(r => r && r['Touch ID'] && r['Contact ID']);
+    const { rows: raw, failedPages } = await fetchPages(url, MAX_PAGES, PAGE);
+    const rows = raw.filter(r => r && r['Touch ID'] && r['Contact ID']);
     if (!rows.length) return;   // keep whatever's cached (incl. seed) rather than blanking history
+    if (failedPages.length) setSyncStatus('partial');   // some touch pages failed — surface it
     let touches = rows.map(r => ({
       touchId:   String(r['Touch ID']),
       contactId: String(r['Contact ID']),
@@ -1083,6 +1142,18 @@ async function loadTouchesFromSharePoint() {
     for (const w of getPending()) {
       if (w.action === 'addTouch' && w.payload && !have.has(w.payload.contactId + '|' + w.payload.touchId)) {
         touches.push(w.payload);
+      }
+    }
+    // Overlay pending touch edits/deletes so local changes survive refreshes
+    // until their flows land them in SharePoint.
+    for (const w of getPending()) {
+      if (!w.payload) continue;
+      const k = w.payload.contactId + '|' + w.payload.touchId;
+      if (w.action === 'editTouch') {
+        const i = touches.findIndex(t => t.contactId + '|' + t.touchId === k);
+        if (i >= 0) touches[i] = { ...touches[i], ...w.payload };
+      } else if (w.action === 'deleteTouch') {
+        touches = touches.filter(t => t.contactId + '|' + t.touchId !== k);
       }
     }
     saveTouches(touches);
@@ -1280,6 +1351,37 @@ function trendBadge(cur, prev) {
   return '<span class="trend flat">▬ 0%</span>';
 }
 
+// Deal Signals drill-down: who (contact + builder) and where (city, state) behind each count.
+function toggleSignal(type) {
+  state.dashSignal = (state.dashSignal === type) ? null : type;
+  renderDashboard();
+}
+function renderSignalDetail(tch) {
+  const box = document.getElementById('dashSignalDetail');
+  if (!box) return;
+  const sig = state.dashSignal;
+  if (!sig) { box.innerHTML = ''; return; }
+  const label = sig === 'Meeting booked' ? 'Meetings booked' : 'Pricing sent';
+  const rows = tch.filter(t => t.result === sig)
+    .map(t => ({ t, c: contactById(t.contactId) }))
+    .filter(x => x.c)
+    .sort((a, b) => b.t.date.localeCompare(a.t.date));
+  if (!rows.length) { box.innerHTML = `<div class="empty" style="margin-top:12px">No ${label.toLowerCase()} in this window.</div>`; return; }
+  const builders = new Set(rows.map(x => x.c.company)).size;
+  box.innerHTML = `
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="font-size:12.5px;font-weight:800;color:var(--navy);margin-bottom:8px">${label} · ${rows.length} across ${builders} builder${builders===1?'':'s'}</div>
+      <div style="overflow:auto;max-height:340px"><table><thead><tr><th>Contact</th><th>Builder</th><th>Location</th><th>Date</th><th>Rep</th></tr></thead><tbody>
+      ${rows.map(({t, c}) => `<tr onclick="openContactFromDash('${c.contactId}')">
+        <td><div class="company">${esc(c.first)} ${esc(c.last)}</div></td>
+        <td>${esc(c.company)}</td>
+        <td>${esc(c.city)}, ${esc(c.state)}</td>
+        <td style="white-space:nowrap">${fmtDate(t.date)}</td>
+        <td>${repChip(t.rep)}</td>
+      </tr>`).join('')}
+      </tbody></table></div>
+    </div>`;
+}
 function renderDashboard() {
   const allTouches = getTouches();
   const summaries = contactSummaries();
@@ -1314,11 +1416,118 @@ function renderDashboard() {
   // Deal Signals — high-intent outcomes in the current window (respects rep + timeframe)
   const meetings = tch.filter(t => t.result === 'Meeting booked').length;
   const pricing  = tch.filter(t => t.result === 'Pricing sent').length;
-  document.getElementById('dashSignalsHint').textContent = rangeLabel + ' · ' + repLabel;
+  const sig = state.dashSignal || '';
+  document.getElementById('dashSignalsHint').textContent = rangeLabel + ' · ' + repLabel + ' · tap a card for who & where';
   document.getElementById('dashSignals').innerHTML = `
-    <div class="kpi k-meet"><div class="kpi-top"><label>Meetings Booked</label><span class="kpi-ico">📅</span></div><div class="num tnum" data-to="${meetings}">0</div><div class="sub">${rangeLabel}</div></div>
-    <div class="kpi k-price"><div class="kpi-top"><label>Pricing Sent</label><span class="kpi-ico">💲</span></div><div class="num tnum" data-to="${pricing}">0</div><div class="sub">${rangeLabel}</div></div>`;
+    <div class="kpi k-meet clickable${sig==='Meeting booked'?' sig-active':''}" onclick="toggleSignal('Meeting booked')"><div class="kpi-top"><label>Meetings Booked</label><span class="kpi-ico">📅</span></div><div class="num tnum" data-to="${meetings}">0</div><div class="sub">${rangeLabel} · tap for detail</div></div>
+    <div class="kpi k-price clickable${sig==='Pricing sent'?' sig-active':''}" onclick="toggleSignal('Pricing sent')"><div class="kpi-top"><label>Pricing Sent</label><span class="kpi-ico">💲</span></div><div class="num tnum" data-to="${pricing}">0</div><div class="sub">${rangeLabel} · tap for detail</div></div>`;
   document.querySelectorAll('#dashSignals .num').forEach(el => animateNum(el, el.dataset.to));
+  renderSignalDetail(tch);
+
+  // ---- Sales Performance: funnel, trend, and management stats ----
+  // Funnel (current window + rep filter) — every stage derived from Result.
+  const convos   = tch.filter(t => CONNECT_RESULTS.includes(t.result)).length;
+  const fPricing = tch.filter(t => t.result === 'Pricing sent').length;
+  const fMeet    = tch.filter(t => t.result === 'Meeting booked').length;
+  const fWins    = tch.filter(t => t.result === WIN_RESULT).length;
+  const stages = [
+    { l:'Reach-outs',    v: totalReachOuts, c:'linear-gradient(90deg,#1395d3,#42b4e6)' },
+    { l:'Conversations', v: convos,         c:'linear-gradient(90deg,#0e7fb5,#1395d3)' },
+    { l:'Pricing sent',  v: fPricing,       c:'linear-gradient(90deg,#e0a020,#f0bc4e)' },
+    { l:'Meetings',      v: fMeet,          c:'linear-gradient(90deg,#d86a2a,#eb8a4a)' },
+    { l:'New customers', v: fWins,          c:'linear-gradient(90deg,#1c8a3a,#2eb050)' }
+  ];
+  const fMax = Math.max(1, totalReachOuts);
+  document.getElementById('dashFunnel').innerHTML = stages.map((st, i) => {
+    const prev = i === 0 ? null : stages[i-1].v;
+    const pct = prev ? Math.round(st.v / Math.max(1, prev) * 100) : null;
+    return `<div class="fn-row">
+      <div class="fn-label">${st.l}</div>
+      <div class="fn-track"><div class="fn-fill" style="width:${Math.max(1, Math.round(st.v / fMax * 100))}%;background:${st.c}"></div></div>
+      <div class="fn-val">${st.v.toLocaleString()}${pct !== null ? ` <span class="pct">(${pct}%)</span>` : ''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('dashPerfHint').textContent = rangeLabel + ' · ' + repLabel;
+
+  // Management stats (rep filter applies; horizon noted per stat)
+  const repT = state.dashRep ? allTouches.filter(t => t.rep === state.dashRep) : allTouches;
+  const connectRate = totalReachOuts ? Math.round(convos / totalReachOuts * 100) : 0;
+  // Follow-through: of follow-ups that came due, % where the contact got a later touch
+  const today = todayISO();
+  let fuDueCount = 0, fuKept = 0;
+  const byContactDates = {};
+  repT.forEach(t => { (byContactDates[t.contactId] = byContactDates[t.contactId] || []).push(t.date); });
+  repT.forEach(t => {
+    if (!t.followUp || t.followUp > today) return;
+    fuDueCount++;
+    if ((byContactDates[t.contactId] || []).some(d => d >= t.followUp)) fuKept++;
+  });
+  const followThrough = fuDueCount ? Math.round(fuKept / fuDueCount * 100) : null;
+  // Persistence: avg touches a contact needed before its first high-intent outcome
+  const firstSignal = {};
+  repT.forEach(t => {
+    if (HOT_RESULTS.includes(t.result) || t.result === WIN_RESULT) {
+      if (!firstSignal[t.contactId] || t.date < firstSignal[t.contactId]) firstSignal[t.contactId] = t.date;
+    }
+  });
+  const sigCids = Object.keys(firstSignal);
+  const avgTouches = sigCids.length
+    ? (sigCids.reduce((n, cid) => n + (byContactDates[cid] || []).filter(d => d <= firstSignal[cid]).length, 0) / sigCids.length)
+    : null;
+  // Coverage: % of builders touched in the last 90 days
+  const cov = (() => {
+    const cut = cutoffFor(90);
+    const all = new Set(), hit = new Set();
+    summaries.forEach(sm => {
+      const co = sm.c.company; if (!co) return;
+      all.add(co);
+      const lt = lastTouch(sm.c.contactId);
+      if (lt && lt.date >= cut) hit.add(co);
+    });
+    return all.size ? Math.round(hit.size / all.size * 100) : 0;
+  })();
+  document.getElementById('dashPerfStats').innerHTML = `
+    <div class="stat-chip"><div class="v">${connectRate}%</div><div class="l">Connect rate<br>(reached a human)</div></div>
+    <div class="stat-chip"><div class="v">${followThrough === null ? '—' : followThrough + '%'}</div><div class="l">Follow-ups<br>completed</div></div>
+    <div class="stat-chip"><div class="v">${avgTouches === null ? '—' : avgTouches.toFixed(1)}</div><div class="l">Avg touches to<br>pricing/meeting</div></div>
+    <div class="stat-chip"><div class="v">${cov}%</div><div class="l">Builders touched<br>last 90 days</div></div>`;
+
+  // 12-week trend: weekly reach-outs (bars) + high-intent outcomes (dots)
+  (() => {
+    const weeks = 12, wMs = 7 * 86400000;
+    const now = new Date(todayISO() + 'T00:00:00').getTime() + 86400000;  // include today
+    const counts = new Array(weeks).fill(0), sigs = new Array(weeks).fill(0);
+    repT.forEach(t => {
+      const ts = new Date(t.date + 'T00:00:00').getTime();
+      const idx = Math.floor((now - ts - 1) / wMs);
+      if (idx >= 0 && idx < weeks) {
+        counts[weeks - 1 - idx]++;
+        if (HOT_RESULTS.includes(t.result) || t.result === WIN_RESULT) sigs[weeks - 1 - idx]++;
+      }
+    });
+    const W = 480, H = 130, pad = 6, bw = (W - pad*2) / weeks;
+    const max = Math.max(1, ...counts);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">`;
+    counts.forEach((v, i) => {
+      const h = Math.round(v / max * (H - 34));
+      const x = pad + i * bw, y = H - 18 - h;
+      const cur = i === weeks - 1;
+      svg += `<rect x="${(x + 2).toFixed(1)}" y="${y}" width="${(bw - 4).toFixed(1)}" height="${Math.max(h, 2)}" rx="3" fill="${cur ? 'var(--blue-2)' : '#bcd9ea'}"><title>${v} reach-outs</title></rect>`;
+      if (v) svg += `<text x="${(x + bw/2).toFixed(1)}" y="${y - 4}" font-size="9" font-weight="700" fill="#5a7185" text-anchor="middle">${v}</text>`;
+      if (sigs[i]) svg += `<circle cx="${(x + bw/2).toFixed(1)}" cy="${H - 8}" r="3.4" fill="var(--amber)"><title>${sigs[i]} pricing/meeting/win</title></circle>`;
+    });
+    svg += `</svg><div style="font-size:10.5px;color:var(--muted);font-weight:600;margin-top:2px">Bars: weekly reach-outs ${'·'} <span style="color:var(--amber)">&#9679;</span> weeks with pricing / meetings / wins ${'·'} ${repLabel}</div>`;
+    document.getElementById('dashTrend').innerHTML = svg;
+  })();
+
+  // Plain-English topline the leadership can read in five seconds
+  const fusOverdue = summaries.reduce((n, sm) => n + ((sm.nextFu && daysBetween(sm.nextFu) > 0 && (!state.dashRep || sm.lastRep === state.dashRep)) ? 1 : 0), 0);
+  document.getElementById('dashTopline').innerHTML =
+    `${rangeLabel.charAt(0).toUpperCase() + rangeLabel.slice(1)} ${'·'} ${repLabel}: ` +
+    `<b>${totalReachOuts.toLocaleString()}</b> reach-outs ${'→'} <b>${convos.toLocaleString()}</b> conversations ${'→'} ` +
+    `<b>${fPricing.toLocaleString()}</b> pricing sent ${'→'} <b>${fMeet.toLocaleString()}</b> meetings` +
+    `${fWins ? ` ${'→'} <b>${fWins.toLocaleString()}</b> new customer${fWins>1?'s':''}` : ''}` +
+    `${fusOverdue ? ` <span class="warn">${'·'} ${fusOverdue} follow-up${fusOverdue>1?'s':''} overdue</span>` : ` ${'·'} no overdue follow-ups`}`;
 
   // by rep (ignores rep filter; respects timeframe)
   const repCutoff = cutoffFor(state.dashRange);
@@ -1543,7 +1752,7 @@ function renderContactDetail(cid) {
       <div class="panel-head" style="padding:0 0 11px;border:none"><h3>Touch History</h3><span class="hint">${history.length} logged</span></div>
       ${history.length ? `<div class="timeline">${history.map(t => `
         <div class="touch method-${t.method.toLowerCase().replace(' ','')}">
-          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${esc(t.method)}</span>${repChip(t.rep)}</div>
+          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${esc(t.method)}</span><span style="display:flex;align-items:center;gap:8px">${repChip(t.rep)}<button class="touch-act" title="Edit this touch" onclick="openTouchModal('${c.contactId}|${t.touchId}')">✎</button><button class="touch-act" title="Delete this touch" onclick="deleteTouchEntry('${c.contactId}','${t.touchId}')">🗑</button></span></div>
           <div class="touch-notes"><b>${esc(t.result)}.</b> ${esc(t.notes||'')}</div>
           ${t.followUp ? `<div class="touch-followup">⏰ Follow up ${fmtDate(t.followUp)}</div>` : ''}
         </div>`).join('')}</div>`
@@ -1675,16 +1884,30 @@ function changeTouchContact() {
   refreshTouchContext();
   const s = document.getElementById('tmContactSearch'); s.value = ''; s.focus();
 }
-function openTouchModal() {
+let editingTouchKey = null;   // "contactId|touchId" while editing an existing touch
+function openTouchModal(editKey) {
+  editingTouchKey = editKey || null;
   document.getElementById('tmContactSearch').value = '';
   document.getElementById('tmContactResults').innerHTML = '';
+  const t = editKey ? getTouches().find(x => x.contactId + '|' + x.touchId === editKey) : null;
+  if (t) {
+    state.selectedContact = t.contactId;
+    document.getElementById('tmDate').value = t.date || todayISO();
+    document.getElementById('tmRep').value = REPS.includes(t.rep) ? t.rep : (state.actingRep || REPS[0]);
+    document.getElementById('tmMethod').value = t.method || 'Call';
+    document.getElementById('tmResult').value = t.result || 'Left voicemail';
+    document.getElementById('tmFollowup').value = t.followUp || '';
+    document.getElementById('tmNotes').value = t.notes || '';
+  } else {
+    document.getElementById('tmDate').value = todayISO();
+    document.getElementById('tmRep').value = state.actingRep || REPS[0];
+    document.getElementById('tmMethod').value = 'Call';
+    document.getElementById('tmResult').value = 'Left voicemail';
+    document.getElementById('tmFollowup').value = followUpDefault('Left voicemail');
+    document.getElementById('tmNotes').value = '';
+  }
   refreshTouchContext();
-  document.getElementById('tmDate').value = todayISO();
-  document.getElementById('tmRep').value = state.actingRep || REPS[0];
-  document.getElementById('tmMethod').value = 'Call';
-  document.getElementById('tmResult').value = 'Left voicemail';
-  document.getElementById('tmFollowup').value = followUpDefault('Left voicemail');
-  document.getElementById('tmNotes').value = '';
+  document.querySelector('#touchModal .modal-head h3').textContent = t ? 'Edit Touch' : 'Add Sales Touch';
   document.getElementById('touchModal').classList.add('open');
 }
 function closeTouchModal() { document.getElementById('touchModal').classList.remove('open'); }
@@ -1727,17 +1950,33 @@ async function saveTouch() {
   const cid = state.selectedContact;
   if (!cid) { toast('Select a contact first'); return; }
   const touches = getTouches();
-  const entry = {
-    touchId: nextTouchId(cid),
-    contactId: cid,
-    date: document.getElementById('tmDate').value || todayISO(),
-    rep: document.getElementById('tmRep').value,
-    method: document.getElementById('tmMethod').value,
-    result: document.getElementById('tmResult').value,
-    notes: document.getElementById('tmNotes').value.trim(),
-    followUp: document.getElementById('tmFollowup').value || ''
-  };
-  touches.push(entry);
+  const isEdit = !!editingTouchKey;
+  let entry;
+  if (isEdit) {
+    const i = touches.findIndex(x => x.contactId + '|' + x.touchId === editingTouchKey);
+    if (i < 0) { toast('Touch not found'); editingTouchKey = null; return; }
+    entry = { ...touches[i],
+      date: document.getElementById('tmDate').value || touches[i].date,
+      rep: document.getElementById('tmRep').value,
+      method: document.getElementById('tmMethod').value,
+      result: document.getElementById('tmResult').value,
+      notes: document.getElementById('tmNotes').value.trim(),
+      followUp: document.getElementById('tmFollowup').value || ''
+    };
+    touches[i] = entry;
+  } else {
+    entry = {
+      touchId: nextTouchId(cid),
+      contactId: cid,
+      date: document.getElementById('tmDate').value || todayISO(),
+      rep: document.getElementById('tmRep').value,
+      method: document.getElementById('tmMethod').value,
+      result: document.getElementById('tmResult').value,
+      notes: document.getElementById('tmNotes').value.trim(),
+      followUp: document.getElementById('tmFollowup').value || ''
+    };
+    touches.push(entry);
+  }
   saveTouches(touches);
 
   // a fresh touch creates a new follow-up date, which supersedes any prior snooze/dismiss
@@ -1764,14 +2003,34 @@ async function saveTouch() {
   }
 
   closeTouchModal();
-  toast(autoHot ? ('\u{1F525} Logged \u2014 flagged Hot (' + entry.result + ')') : 'Touch logged');
+  toast(autoHot ? ('🔥 Logged — flagged Hot (' + entry.result + ')') : (isEdit ? 'Touch updated' : 'Touch logged'));
   if (state.view==='contacts') { renderContacts(); renderContactDetail(cid); }
   if (state.view==='dashboard') renderDashboard();
   if (state.view==='followups') renderFollowups();
   if (state.view==='hotleads') renderHotLeads();
   if (state.view==='activity') renderActivity();
 
-  pushPA('addTouch', entry);
+  pushPA(isEdit ? 'editTouch' : 'addTouch', entry);
+  editingTouchKey = null;
+}
+
+// Delete a touch: removed locally right away; queued for SharePoint delete
+// (Flow 7) so it flushes once that flow is wired.
+function deleteTouchEntry(cid, tid) {
+  if (!confirm('Delete this touch? This removes it from the activity log.')) return;
+  let touches = getTouches();
+  const t = touches.find(x => x.contactId === cid && x.touchId === tid);
+  if (!t) return;
+  touches = touches.filter(x => !(x.contactId === cid && x.touchId === tid));
+  saveTouches(touches);
+  pushPA('deleteTouch', { contactId: cid, touchId: tid });
+  toast('Touch deleted');
+  refreshHotCount();
+  if (state.view==='contacts') { renderContacts(); renderContactDetail(cid); }
+  if (state.view==='dashboard') renderDashboard();
+  if (state.view==='followups') renderFollowups();
+  if (state.view==='hotleads') renderHotLeads();
+  if (state.view==='activity') renderActivity();
 }
 
 // ============================================================
