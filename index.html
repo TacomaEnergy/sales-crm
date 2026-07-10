@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v14 · fast)</title>
+<title>Tacoma Energy — Sales CRM (v16 · fast)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -380,7 +380,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v14</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v16</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -651,7 +651,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v14 (funnel+trend+topline, connect/follow-through/coverage stats, edit+delete touch, partial-read detection, Became customer)");
+console.log("Tacoma CRM build: v16 (readUsers wired: login roster from tblUsers; includes v15 date+sync fixes)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -666,7 +666,7 @@ const POWER_AUTOMATE = {
   addContact:  'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c9786ec2549d444cb1400deda840418d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4EKyJtoxIy2rkKX9Nhf58latShrXHhD364FwqauDx74',   // appends to tblContacts
   editContact: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c4441cd721c34995aeb6fe5d0cb50fc5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pYlDA42Wc6CKKM-YS9Qpetc5k45XQbqCT73cW1C3Z6A',  // Flow 4 — updates tblContacts by contactId (maps all 12 columns; must send full record)
   readTouches: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/214a673ba2d2405ab64d3dc6cd38d04b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=STXVdvlW1smv0JiR-FnXNjywxD1add6BlNkW3cJdXGg',    // Flow 5 — reads tblTouches (POST, skip from body, 256/page)
-  readUsers:   '',   // TODO: paste the "Read Users" flow URL once built — reads tblUsers for the login roster
+  readUsers:   'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/69c468d04f284d8ca3c935f67abdc467/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=TVJv2cnZfkZHlcvADlt9PUfPgYWY6on7S6BSZyze1Ho',   // Flow 8 — reads tblUsers for the login roster
   editTouch:   '',   // TODO: Flow 6 — updates a row in tblTouches (built in the security session)
   deleteTouch: ''    // TODO: Flow 7 — deletes a row in tblTouches (built in the security session)
 };
@@ -803,9 +803,14 @@ function followUpDefault(result) {
 }
 function fmtDate(iso) {
   if (!iso) return '—';
-  const [y,m,d] = iso.split('-');
+  const n = normDate(iso);
+  const parts = n.split('-');
+  if (parts.length < 3) return String(iso);   // unrecognized — show raw, never "undefined NaN"
+  const [y,m,d] = parts;
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${months[parseInt(m)-1]} ${parseInt(d)}, ${y}`;
+  const mm = months[parseInt(m)-1], dd = parseInt(d);
+  if (!mm || isNaN(dd)) return String(iso);
+  return `${mm} ${dd}, ${y}`;
 }
 function daysBetween(iso) {
   if (!iso) return null;
@@ -929,7 +934,7 @@ async function pushPA(action, payload, opts) {
   }
   try {
     const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, key: APP_KEY }) });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if (r.status !== 200) throw new Error('HTTP ' + r.status + (r.status === 202 ? ' (accepted but not run — likely key rejected)' : ''));
     return true;
   } catch(e) {
     console.error('Power Automate push failed:', action, e);
@@ -1021,6 +1026,27 @@ function setSyncStatus(st, count) {
   }
 }
 
+// Excel sometimes returns dates as serial numbers (days since 1900) instead of
+// text — rows typed or bulk-pasted directly into the workbook do this, while
+// app-written rows are text. Normalize everything to YYYY-MM-DD on ingest so
+// display, sorting, and follow-up math all behave.
+function normDate(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);          // already ISO
+  if (/^\d{1,6}(\.\d+)?$/.test(s)) {                                  // Excel serial
+    const serial = parseFloat(s);
+    if (serial > 20000 && serial < 80000) {                            // sane date range 1954–2118
+      return new Date(Math.round((serial - 25569) * 86400000)).toISOString().slice(0, 10);
+    }
+  }
+  if (/\d/.test(s) && /[\/\-., ]/.test(s)) {                         // last resort: date-looking text only
+    const d = new Date(s);
+    if (!isNaN(d)) return d.toISOString().slice(0, 10);
+  }
+  return s;                                                            // unrecognized — pass through untouched
+}
+
 // Shared paged fetcher. Fires requests in waves (not all at once) to stay under
 // the Excel connector's throttle, retries failed pages once, and REPORTS which
 // pages still failed — so a throttled page can't silently drop 256 rows anymore.
@@ -1081,8 +1107,8 @@ async function loadContactsFromSharePoint() {
         email:      r['Email']        || '',
         phone:      r['Phone']        || '',
         active:     r['Active'] === 'Yes',
-        dateAdded:  r['Date Added']   || '',
-        lastEdited: r['Last Edited']  || '',
+        dateAdded:  normDate(r['Date Added']),
+        lastEdited: normDate(r['Last Edited']),
         hot:        isHot
       };
     });
@@ -1123,12 +1149,12 @@ async function loadTouchesFromSharePoint() {
     let touches = rows.map(r => ({
       touchId:   String(r['Touch ID']),
       contactId: String(r['Contact ID']),
-      date:      r['Date']           || '',
+      date:      normDate(r['Date']),
       rep:       r['Rep']            || '',
       method:    r['Method']         || '',
       result:    r['Result']         || '',
       notes:     r['Notes']          || '',
-      followUp:  r['Follow-Up Date'] || ''
+      followUp:  normDate(r['Follow-Up Date'])
     }));
     // Dedupe by contactId+touchId — a retried addTouch that had actually
     // succeeded could duplicate a row; collapse to one.
@@ -2225,6 +2251,23 @@ populateRepDropdowns();
 refreshHotCount();
 renderDashboard();
 updateSyncBadge();
+// Pull the login roster from tblUsers (tiny table — one page). Falls back to
+// the built-in rep list until this succeeds once.
+async function loadUsersFromSharePoint() {
+  const url = POWER_AUTOMATE.readUsers;
+  if (!url) return;
+  try {
+    const { rows } = await fetchPages(url, 1, 256);
+    const users = rows.filter(r => r && r['Name']).map(r => ({
+      name:   String(r['Name']).trim(),
+      email:  (r['Email'] || '').toString().trim(),
+      role:   (r['Role']  || '').toString().trim(),
+      active: r['Active'] === 'Yes'
+    }));
+    if (users.length) store.set('crm_users', JSON.stringify(users));
+  } catch(e) { console.error('Read Users failed:', e); }
+}
+
 // ---- Auth (pragmatic login gate) ----
 function getRoster() {
   // Active users from tblUsers once "Read Users" is wired; otherwise the rep list.
@@ -2284,6 +2327,7 @@ async function startApp() {
   await flushPendingWrites();
   loadContactsFromSharePoint();
   loadTouchesFromSharePoint();
+  loadUsersFromSharePoint();
   _lastRefresh = Date.now();
 }
 
@@ -2293,6 +2337,7 @@ if (authOK()) {
   populateRepDropdowns();
   startApp();
 } else {
+  loadUsersFromSharePoint().then(() => { if (!authOK()) showLoginGate(); });
   showLoginGate();
 }
 
