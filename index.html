@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v16 · fast)</title>
+<title>Tacoma Energy — Sales CRM (v17 · touch sync)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -380,7 +380,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v16</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v17</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -651,7 +651,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v16 (readUsers wired: login roster from tblUsers; includes v15 date+sync fixes)");
+console.log("Tacoma CRM build: v17 (Flows 6+7 wired: edit/delete touch by Touch ID; globally-unique touch IDs; legacy-ID gating on ✎/🗑; queue hygiene for unsafe touch writes)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -667,8 +667,8 @@ const POWER_AUTOMATE = {
   editContact: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c4441cd721c34995aeb6fe5d0cb50fc5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pYlDA42Wc6CKKM-YS9Qpetc5k45XQbqCT73cW1C3Z6A',  // Flow 4 — updates tblContacts by contactId (maps all 12 columns; must send full record)
   readTouches: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/214a673ba2d2405ab64d3dc6cd38d04b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=STXVdvlW1smv0JiR-FnXNjywxD1add6BlNkW3cJdXGg',    // Flow 5 — reads tblTouches (POST, skip from body, 256/page)
   readUsers:   'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/69c468d04f284d8ca3c935f67abdc467/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=TVJv2cnZfkZHlcvADlt9PUfPgYWY6on7S6BSZyze1Ho',   // Flow 8 — reads tblUsers for the login roster
-  editTouch:   '',   // TODO: Flow 6 — updates a row in tblTouches (built in the security session)
-  deleteTouch: ''    // TODO: Flow 7 — deletes a row in tblTouches (built in the security session)
+  editTouch:   'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/11/workflows/f7950dc140cd41a4ae2093c423c94310/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=S-2C9zu7LBOHfQbHoTK9V-aUTjwgv9AJXoIYBKfs-bY',  // Flow 6 — updates a row in tblTouches by Touch ID (probe-verified end-to-end)
+  deleteTouch: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/03/workflows/aedf5b33a37846febd292ca419ed7644/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=aJRCEAsikXqsnLPwSylkddSf29X7S0XT8tQk18-glWw'   // Flow 7 — deletes a row in tblTouches by Touch ID (probe-verified: 200 keyed delete, 202 keyless no-op)
 };
 
 // ---- Auth / access config ----
@@ -951,8 +951,18 @@ async function pushPA(action, payload, opts) {
 
 // Retry everything queued from earlier failed writes. Runs once on load.
 async function flushPendingWrites() {
-  const q = getPending();
+  let q = getPending();
   if (!q.length) return;
+  // Safety: edit/delete-touch writes queued under v16 may reference legacy
+  // duplicate Touch IDs. Flushing those would hit the FIRST matching row in
+  // the sheet — possibly a different contact's touch. Drop them here.
+  const unsafe = q.filter(w => (w.action === 'editTouch' || w.action === 'deleteTouch') && !touchIdUnique(w.payload && w.payload.touchId));
+  if (unsafe.length) {
+    q = q.filter(w => !unsafe.includes(w));
+    setPending(q);
+    console.warn('Dropped ' + unsafe.length + ' queued touch write(s) with non-unique legacy Touch IDs (unsafe to sync):', unsafe);
+  }
+  if (!q.length) { updateSyncBadge(); return; }
   const still = [];
   for (const w of q) {
     const ok = await pushPA(w.action, w.payload, { noQueue:true });
@@ -1778,7 +1788,7 @@ function renderContactDetail(cid) {
       <div class="panel-head" style="padding:0 0 11px;border:none"><h3>Touch History</h3><span class="hint">${history.length} logged</span></div>
       ${history.length ? `<div class="timeline">${history.map(t => `
         <div class="touch method-${t.method.toLowerCase().replace(' ','')}">
-          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${esc(t.method)}</span><span style="display:flex;align-items:center;gap:8px">${repChip(t.rep)}<button class="touch-act" title="Edit this touch" onclick="openTouchModal('${c.contactId}|${t.touchId}')">✎</button><button class="touch-act" title="Delete this touch" onclick="deleteTouchEntry('${c.contactId}','${t.touchId}')">🗑</button></span></div>
+          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${esc(t.method)}</span><span style="display:flex;align-items:center;gap:8px">${repChip(t.rep)}${touchIdUnique(t.touchId) ? `<button class="touch-act" title="Edit this touch" onclick="openTouchModal('${c.contactId}|${t.touchId}')">✎</button><button class="touch-act" title="Delete this touch" onclick="deleteTouchEntry('${c.contactId}','${t.touchId}')">🗑</button>` : `<span class="touch-act" style="opacity:.35;cursor:help" title="Legacy touch — its ID is shared with touches on other contacts, so server edits/deletes can't target it safely. New touches don't have this limit.">🔒</span>`}</span></div>
           <div class="touch-notes"><b>${esc(t.result)}.</b> ${esc(t.notes||'')}</div>
           ${t.followUp ? `<div class="touch-followup">⏰ Follow up ${fmtDate(t.followUp)}</div>` : ''}
         </div>`).join('')}</div>`
@@ -1964,12 +1974,29 @@ function nextContactId() {
   }
   return String(max + 1);
 }
-// Touch ID: per-contact sequence ("T-1", "T-2", ...) — counts existing touches
-// for THIS contact and adds one. Touch IDs are only unique within a contact,
-// which matches the sheet (every contact's first touch is "T-1").
+// Touch ID (v17): globally unique. Legacy IDs were per-contact ("T-1", "T-2", ...)
+// which collide across contacts — unsafe for Excel's key-column Update/Delete
+// (they hit the FIRST matching row in the whole table). New IDs are
+// timestamp+random ("T-MDA3KQZ9X4F"), which can never collide with the legacy
+// "T-<number>" pattern or with each other.
+let __tidSeq = 0;
 function nextTouchId(cid) {
-  const n = getTouches().filter(t => t.contactId === cid).length;
-  return 'T-' + (n + 1);
+  // timestamp + per-session counter + 4 random chars; regenerate on the
+  // (vanishingly rare) collision with anything already loaded.
+  let id;
+  do {
+    __tidSeq = (__tidSeq + 1) % 1296;
+    id = 'T-' + Date.now().toString(36).toUpperCase()
+       + __tidSeq.toString(36).toUpperCase().padStart(2, '0')
+       + Math.random().toString(36).slice(2, 6).toUpperCase();
+  } while (getTouches().some(t => t.touchId === id));
+  return id;
+}
+// A touch can only be safely edited/deleted on the server if its Touch ID is
+// globally unique in the table (the sync flows key on Touch ID alone). Legacy
+// duplicate IDs stay view-only; every touch logged from v17 on qualifies.
+function touchIdUnique(tid) {
+  return getTouches().filter(t => t.touchId === tid).length === 1;
 }
 
 async function saveTouch() {
@@ -1981,6 +2008,7 @@ async function saveTouch() {
   if (isEdit) {
     const i = touches.findIndex(x => x.contactId + '|' + x.touchId === editingTouchKey);
     if (i < 0) { toast('Touch not found'); editingTouchKey = null; return; }
+    if (!touchIdUnique(touches[i].touchId)) { toast('This legacy touch can\'t be edited — its ID is shared with other touches'); editingTouchKey = null; closeTouchModal(); return; }
     entry = { ...touches[i],
       date: document.getElementById('tmDate').value || touches[i].date,
       rep: document.getElementById('tmRep').value,
@@ -2043,6 +2071,7 @@ async function saveTouch() {
 // Delete a touch: removed locally right away; queued for SharePoint delete
 // (Flow 7) so it flushes once that flow is wired.
 function deleteTouchEntry(cid, tid) {
+  if (!touchIdUnique(tid)) { toast('This legacy touch can\'t be deleted — its ID is shared with other touches'); return; }
   if (!confirm('Delete this touch? This removes it from the activity log.')) return;
   let touches = getTouches();
   const t = touches.find(x => x.contactId === cid && x.touchId === tid);
