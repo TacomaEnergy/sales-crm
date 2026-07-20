@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v21 · drilldowns)</title>
+<title>Tacoma Energy — Sales CRM (v23 · results cleanup)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -389,7 +389,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v21</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v23</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -612,7 +612,7 @@
           <option>Sent info</option>
           <option>Spoke with contact</option>
           <option>Pricing sent</option>
-          <option>Meeting booked</option>
+          
           <option>Became customer</option>
           <option>Not interested</option>
           <option>Bad contact info</option>
@@ -666,7 +666,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v21 (breakdown panel drill-down: click a builder for its city/state split, or a state/city for builders there)");
+console.log("Tacoma CRM build: v23 (removed 'Meeting booked' from result dropdown + Hot trigger; Contacts Reached counts unique people actually reached; added 'Not interested' to reached set)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -715,10 +715,10 @@ const STATE_LIST = Object.keys(LOCATIONS);
 const REPS = ['N. Reynolds', 'C. Gaston', 'A. Palumbo', 'Unassigned'];
 // High-intent touch outcomes that auto-promote a contact to Hot (the lightweight
 // pipeline). Reps just pick the result; logging one of these flags the lead.
-const HOT_RESULTS = ['Meeting booked', 'Pricing sent'];
+const HOT_RESULTS = ['Pricing sent'];
 // Funnel definitions (all derived from the Result reps already pick — no extra data entry):
 const WIN_RESULT = 'Became customer';
-const CONNECT_RESULTS = ['Spoke with contact', 'Pricing sent', 'Meeting booked', 'Became customer'];  // touches that reached a human
+const CONNECT_RESULTS = ['Spoke with contact', 'Pricing sent', 'Meeting booked', 'Became customer', 'Not interested'];  // touches that reached a human
 const REP_COLOR = { 'N. Reynolds': '#06a951', 'C. Gaston': '#1395d3', 'A. Palumbo': '#f2622a', 'Unassigned': '#687d92' };
 function repColor(r) { return REP_COLOR[r] || '#687d92'; }
 
@@ -1107,7 +1107,7 @@ async function loadContactsFromSharePoint() {
   if (!url) return;
   setSyncStatus('syncing');
   const PAGE = 256;
-  const MAX_PAGES = 25;  // 25 × 256 = 6,400 — covers current ~5,460 with room to grow
+  const MAX_PAGES = 40;  // 25 × 256 = 6,400 — covers current ~5,460 with room to grow
   try {
     const { rows: raw, failedPages } = await fetchPages(url, MAX_PAGES, PAGE);
     const rows = raw.filter(r => r && r['Contact ID']);
@@ -1463,8 +1463,9 @@ function renderSignalDetail(tch) {
   if (!box) return;
   const sig = state.dashSignal;
   if (!sig) { box.innerHTML = ''; return; }
-  const label = sig === 'Meeting booked' ? 'Meetings booked' : 'Pricing sent';
-  const rows = tch.filter(t => t.result === sig)
+  const isMeet = sig === 'InPersonMeeting';
+  const label = isMeet ? 'In-person meetings' : 'Pricing sent';
+  const rows = tch.filter(t => isMeet ? t.method === 'In Person' : t.result === sig)
     .map(t => ({ t, c: contactById(t.contactId) }))
     .filter(x => x.c)
     .sort((a, b) => b.t.date.localeCompare(a.t.date));
@@ -1493,7 +1494,7 @@ function renderDashboard() {
 
   // KPIs (derived from the prebuilt summaries — cheap on every toggle)
   const totalReachOuts = tch.length;
-  const contactsReached = new Set(tch.map(t => t.contactId)).size;
+  const contactsReached = new Set(tch.filter(t => CONNECT_RESULTS.includes(t.result)).map(t => t.contactId)).size;
   const hotCount = summaries.reduce((n, s) => n + (s.c.hot ? 1 : 0), 0);
   const fusDue = summaries.reduce((n, s) => n + ((s.nextFu && daysBetween(s.nextFu) >= 0 && (!state.dashRep || s.lastRep === state.dashRep)) ? 1 : 0), 0);
   const untouched = summaries.reduce((n, s) => n + (s.hasTouch ? 0 : 1), 0);
@@ -1509,19 +1510,19 @@ function renderDashboard() {
 
   document.getElementById('dashKpis').innerHTML = `
     <div class="kpi k-reach"><div class="kpi-top"><label>Reach-Outs</label><span class="kpi-ico">📈</span></div><div class="num tnum" data-to="${totalReachOuts}">0</div><div class="sub">${trend} <span>${state.dashRange==='ytd' ? 'year to date' : 'vs prior ' + (state.dashRange ? state.dashRange+'d' : '—')}</span></div></div>
-    <div class="kpi k-reached"><div class="kpi-top"><label>Contacts Reached</label><span class="kpi-ico">🤝</span></div><div class="num tnum" data-to="${contactsReached}">0</div><div class="sub">unique people · ${rangeLabel}</div></div>
+    <div class="kpi k-reached"><div class="kpi-top"><label>Contacts Reached</label><span class="kpi-ico">🤝</span></div><div class="num tnum" data-to="${contactsReached}">0</div><div class="sub">people reached · ${rangeLabel}</div></div>
     <div class="kpi k-hot clickable" onclick="switchView('hotleads')"><div class="kpi-top"><label>Hot Leads</label><span class="kpi-ico">🔥</span></div><div class="num tnum" data-to="${hotCount}">0</div><div class="sub">close to closing →</div></div>
     <div class="kpi k-due"><div class="kpi-top"><label>Follow-Ups Due</label><span class="kpi-ico">⏰</span></div><div class="num tnum" data-to="${fusDue}">0</div><div class="sub">${repLabel}</div></div>
     <div class="kpi k-untouched"><div class="kpi-top"><label>Coverage %</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${(function(){var _t=getContacts().filter(function(x){return x.active;}).length;return _t?Math.round((_t-untouched)/_t*100):0;})()}">0</div><div class="sub">${(getContacts().filter(function(x){return x.active;}).length-untouched).toLocaleString()} of ${getContacts().filter(function(x){return x.active;}).length.toLocaleString()} ever touched</div></div>`;
   document.querySelectorAll('#dashKpis .num').forEach(el => animateNum(el, el.dataset.to));
 
   // Deal Signals — high-intent outcomes in the current window (respects rep + timeframe)
-  const meetings = tch.filter(t => t.result === 'Meeting booked').length;
+  const meetings = tch.filter(t => t.method === 'In Person').length;
   const pricing  = tch.filter(t => t.result === 'Pricing sent').length;
   const sig = state.dashSignal || '';
   document.getElementById('dashSignalsHint').textContent = rangeLabel + ' · ' + repLabel + ' · tap a card for who & where';
   document.getElementById('dashSignals').innerHTML = `
-    <div class="kpi k-meet clickable${sig==='Meeting booked'?' sig-active':''}" onclick="toggleSignal('Meeting booked')"><div class="kpi-top"><label>Meetings Booked</label><span class="kpi-ico">📅</span></div><div class="num tnum" data-to="${meetings}">0</div><div class="sub">${rangeLabel} · tap for detail</div></div>
+    <div class="kpi k-meet clickable${sig==='InPersonMeeting'?' sig-active':''}" onclick="toggleSignal('InPersonMeeting')"><div class="kpi-top"><label>Meetings</label><span class="kpi-ico">📅</span></div><div class="num tnum" data-to="${meetings}">0</div><div class="sub">${rangeLabel} · tap for detail</div></div>
     <div class="kpi k-price clickable${sig==='Pricing sent'?' sig-active':''}" onclick="toggleSignal('Pricing sent')"><div class="kpi-top"><label>Pricing Sent</label><span class="kpi-ico">💲</span></div><div class="num tnum" data-to="${pricing}">0</div><div class="sub">${rangeLabel} · tap for detail</div></div>`;
   document.querySelectorAll('#dashSignals .num').forEach(el => animateNum(el, el.dataset.to));
   renderSignalDetail(tch);
@@ -1530,7 +1531,7 @@ function renderDashboard() {
   // Funnel (current window + rep filter) — every stage derived from Result.
   const convos   = tch.filter(t => CONNECT_RESULTS.includes(t.result)).length;
   const fPricing = tch.filter(t => t.result === 'Pricing sent').length;
-  const fMeet    = tch.filter(t => t.result === 'Meeting booked').length;
+  const fMeet    = tch.filter(t => t.method === 'In Person').length;
   const fWins    = tch.filter(t => t.result === WIN_RESULT).length;
   const stages = [
     { l:'Reach-outs',    v: totalReachOuts, c:'linear-gradient(90deg,#1395d3,#42b4e6)' },
