@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v19 · filters+coverage)</title>
+<title>Tacoma Energy — Sales CRM (v21 · drilldowns)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -356,7 +356,14 @@
     .seg { flex-wrap: wrap; }
   }
   @media (max-width: 560px) { .kpis { grid-template-columns: 1fr; } .signals { grid-template-columns: 1fr; } .filters-2row { grid-template-columns: 1fr; } .bd-row { grid-template-columns: 110px 1fr 40px; } }
-</style>
+    .dash-sticky { position: sticky; top: 66px; z-index: 20; background: var(--bg); padding: 8px 0 6px; box-shadow: 0 6px 10px -8px rgba(0,0,0,.18); }
+    .dash-sticky .dash-controls { margin-bottom: 10px; }
+      .bd-drill .bd-click { cursor: pointer; border-radius: 6px; }
+    .bd-drill .bd-click:hover { background: rgba(0,0,0,.035); }
+    .bd-caret { display:inline-block; width:14px; font-size:9px; color: var(--muted); }
+    .bd-sub { padding: 2px 0 10px 22px; }
+    .bd-sub .bd-row { margin: 2px 0; }
+  </style>
 </head>
 <body>
 
@@ -382,7 +389,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v19</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v21</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -425,6 +432,7 @@
       </div>
     </div>
 
+    <div class="dash-sticky">
     <div class="dash-controls">
       <div class="seg" id="dashRepSeg"></div>
       <div class="seg" id="dashRangeSeg">
@@ -438,6 +446,7 @@
     </div>
 
     <div class="dash-topline" id="dashTopline"></div>
+    </div>
 
     <div class="kpis" id="dashKpis"></div>
 
@@ -505,7 +514,8 @@
       <div class="btn-row"><button class="btn ghost" onclick="switchView('contacts')">Browse all contacts</button></div>
     </div>
     <div id="hotBanner"></div>
-    <div class="hot-grid" id="hotGrid"></div>
+    <div style="margin-bottom:14px"><select id="hotRepFilter" onchange="renderHotLeads()" style="max-width:240px"><option value="">All reps</option></select></div>
+      <div class="hot-grid" id="hotGrid"></div>
   </section>
 
   <!-- CONTACTS -->
@@ -656,7 +666,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v19 (contacts filters: killed stale, added New & untouched 90d, Recently touched now true 30d; Coverage % KPI; snooze/dismiss sync via editTouch; Edit-date button on follow-ups; rep chip on hot cards)");
+console.log("Tacoma CRM build: v21 (breakdown panel drill-down: click a builder for its city/state split, or a state/city for builders there)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -1311,7 +1321,9 @@ function rerenderFollowupSurfaces() {
 }
 
 function renderHotLeads() {
-  const hot = getContacts().filter(c => c.active && c.hot);
+  (function(){ const _s=document.getElementById('hotRepFilter'); if(_s && _s.dataset.built!=='1'){ _s.innerHTML=['<option value="">All reps</option>'].concat(REPS.map(function(r){return '<option value="'+esc(r)+'">'+esc(r)+'</option>';})).join(''); _s.dataset.built='1'; } })();
+  const _hf=(document.getElementById('hotRepFilter')||{}).value||'';
+  const hot = getContacts().filter(c => c.active && c.hot && (!_hf || (function(){ const _lt=lastTouch(c.contactId); return _lt && _lt.rep===_hf; })()));
   const banner = document.getElementById('hotBanner');
   const grid = document.getElementById('hotGrid');
   if (!hot.length) {
@@ -1384,6 +1396,30 @@ function dashTouches() {
   });
 }
 
+function renderBreakdownRows(counts, subMap){
+  const entries = Object.entries(counts).filter(function(e){return e[1]>0;}).sort(function(a,b){return b[1]-a[1];});
+  if(!entries.length) return `<div class='bd-empty'>No reach-outs in this window.</div>`;
+  const max = Math.max.apply(null, entries.map(function(e){return e[1];}));
+  const shown = entries.slice(0,10);
+  window.__bdKeys = shown.map(function(e){return e[0];});
+  const g = window.__bdGreen ? 'g' : '';
+  return shown.map(function(pair,idx){ const label=pair[0], val=pair[1]; const w=Math.round(val/max*100);
+    return `<div class='bd-drill'><div class='bd-row bd-click' data-k='${idx}' onclick='drillBreakdown(this)'><div class='bd-label'><span class='bd-caret'>\u25b8</span>${esc(label)}</div><div class='bd-track'><div class='bd-fill ${g}' data-w='${w}'></div></div><div class='bd-val tnum'>${val}</div></div><div class='bd-sub' style='display:none'></div></div>`;
+  }).join('');
+}
+function drillBreakdown(el){
+  const idx = +el.getAttribute('data-k');
+  const key = (window.__bdKeys||[])[idx];
+  const wrap = el.parentElement;
+  const sub = wrap.querySelector('.bd-sub');
+  const caret = el.querySelector('.bd-caret');
+  if(sub.style.display !== 'none'){ sub.style.display='none'; sub.innerHTML=''; if(caret) caret.textContent='\u25b8'; return; }
+  const subCounts = (window.__bdSub && window.__bdSub[key]) || {};
+  sub.innerHTML = `<div class='bd-substack'>${barRows(subCounts,{limit:12})}</div>`;
+  sub.style.display='block';
+  if(caret) caret.textContent='\u25be';
+  sub.querySelectorAll('.bd-fill').forEach(function(bar){ const wv=bar.getAttribute('data-w'); if(wv) bar.style.width=wv+'%'; });
+}
 function barRows(counts, opts) {
   opts = opts || {};
   const entries = Object.entries(counts).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
@@ -1614,16 +1650,19 @@ function renderDashboard() {
   document.getElementById('dashBreakdownTitle').textContent = 'Activity by ' + (mode==='builder'?'Builder':mode==='state'?'State':'City');
   const allContacts = getContacts();
   const bdCounts = {};
+  const bdSub = {};
   tch.forEach(t => {
     const c = contactById(t.contactId);
     if (!c) return;
     let key;
     if (mode==='builder') key = c.company || '—';
-    else if (mode==='city') key = `${esc(c.city)}, ${esc(c.state)}`;
+    else if (mode==='city') key = (c.city||'\u2014')+', '+(c.state||'\u2014');
     else key = c.state || '—';
     bdCounts[key] = (bdCounts[key]||0)+1;
+    var _sk = (mode==='builder') ? ((c.city||'\u2014')+', '+(c.state||'\u2014')) : (c.company||'\u2014');
+    (bdSub[key] = bdSub[key] || {}); bdSub[key][_sk] = (bdSub[key][_sk]||0)+1;
   });
-  document.getElementById('dashBreakdown').innerHTML = barRows(bdCounts, { green: mode==='builder', limit: 10 });
+  window.__bdGreen = (mode==='builder'); window.__bdSub = bdSub; document.getElementById('dashBreakdown').innerHTML = renderBreakdownRows(bdCounts, bdSub);
   animateBars('dashBreakdown');
 
   // follow-ups due (sort, then render only the top 40)
