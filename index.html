@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v18 · activity+sync)</title>
+<title>Tacoma Energy — Sales CRM (v19 · filters+coverage)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -382,7 +382,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v18</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v19</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -525,8 +525,8 @@
         <option value="hot">🔥 Hot leads</option>
         <option value="never">Needs first touch</option>
         <option value="due">Follow-up due</option>
-        <option value="active">Recently touched</option>
-        <option value="stale">Stale — verify info</option>
+        <option value="new">New & untouched (90 days)</option>
+        <option value="active">Recently touched (30 days)</option>
       </select>
     </div>
     <div class="cols">
@@ -656,7 +656,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v18 (activity: builder filter + city/state + fixed widths; dashboard: 14d + YTD; background touch polling + click-to-sync; login roster fix; mobile nav tabs)");
+console.log("Tacoma CRM build: v19 (contacts filters: killed stale, added New & untouched 90d, Recently touched now true 30d; Coverage % KPI; snooze/dismiss sync via editTouch; Edit-date button on follow-ups; rep chip on hot cards)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -885,7 +885,7 @@ function contactFreshness(c) {
   if (!d) return { label:'—', stale:false, days:null };
   const days = daysBetween(d);
   if (days === null) return { label:'—', stale:false, days:null };
-  const stale = days > 180;
+  const stale = false; // v19: stale/verify concept retired per ops feedback
   let label;
   if (days <= 30) label = 'Updated recently';
   else if (days <= 180) label = `Updated ${Math.round(days/30)} mo ago`;
@@ -1252,31 +1252,56 @@ function toggleHot(cid) {
   pushPA('editContact', editPayload(c));   // full record — Flow 4 maps all 12 columns, partial would blank the rest
 }
 
+function followUpTouch(cid) {
+  const a = touchIndex().get(cid);
+  if (!a) return null;
+  let best = null;
+  for (const t of a) { if (t.followUp && (!best || t.followUp > best.followUp)) best = t; }
+  return best;
+}
+// v19: snooze/dismiss edit the underlying follow-up touch and SYNC team-wide via
+// the existing editTouch flow, instead of a local-only per-device view tweak.
+function applyFollowUpChange(cid, newDate, verb) {
+  const ft = followUpTouch(cid);
+  if (!ft) { toast('No follow-up to change'); return; }
+  if (touchIdUnique(ft.touchId)) {
+    const touches = getTouches();
+    const i = touches.findIndex(x => x.touchId === ft.touchId && x.contactId === cid);
+    if (i < 0) { toast('Follow-up touch not found'); return; }
+    const entry = Object.assign({}, touches[i], { followUp: newDate || '' });
+    touches[i] = entry;
+    saveTouches(touches);
+    const contacts = getContacts();
+    const c = contacts.find(x => x.contactId === cid);
+    if (c && c.fuAdjust) { delete c.fuAdjust; saveContacts(contacts); }
+    toast(newDate ? (verb + ' → ' + fmtDate(newDate) + ', syncing…') : 'Follow-up cleared, syncing…');
+    rerenderFollowupSurfaces();
+    pushPA('editTouch', entry);
+  } else {
+    const base = rawNextFollowUp(cid);
+    const contacts = getContacts();
+    const c = contacts.find(x => x.contactId === cid);
+    c.fuAdjust = { from: base, date: newDate || null };
+    saveContacts(contacts);
+    toast((newDate ? verb : 'Dismissed') + ' on this device only (legacy touch — re-ID to sync)');
+    rerenderFollowupSurfaces();
+  }
+}
+function editFollowUp(cid) {
+  const ft = followUpTouch(cid);
+  if (!ft) { toast('No follow-up touch to edit'); return; }
+  if (!touchIdUnique(ft.touchId)) { toast('Legacy touch — re-ID first to edit its date'); return; }
+  state.selectedContact = cid;
+  openTouchModal(cid + '|' + ft.touchId);
+}
 function snoozeFollowUp(cid) {
-  const base = rawNextFollowUp(cid);
-  if (!base) { toast('No follow-up to snooze'); return; }
-  const cur = nextFollowUp(cid) || base;
-  const newDate = addDays(cur, 7);
-  const contacts = getContacts();
-  const c = contacts.find(x => x.contactId === cid);
-  c.fuAdjust = { from: base, date: newDate };
-  saveContacts(contacts);
-  toast('Snoozed 1 week → ' + fmtDate(newDate));
-  rerenderFollowupSurfaces();
-  // Snooze is a local-only view adjustment (fuAdjust). There is no Follow-Up
-  // snooze column in tblContacts, so nothing is synced — sending a partial edit
-  // here would only blank the mapped columns in SharePoint.
+  const ft = followUpTouch(cid);
+  if (!ft) { toast('No follow-up to snooze'); return; }
+  const cur = nextFollowUp(cid) || ft.followUp;
+  applyFollowUpChange(cid, addDays(cur, 7), 'Snoozed 1 week');
 }
 function dismissFollowUp(cid) {
-  const base = rawNextFollowUp(cid);
-  if (!base) return;
-  const contacts = getContacts();
-  const c = contacts.find(x => x.contactId === cid);
-  c.fuAdjust = { from: base, date: null };
-  saveContacts(contacts);
-  toast('Follow-up dismissed');
-  rerenderFollowupSurfaces();
-  // Dismiss is a local-only view adjustment (fuAdjust) — no column to sync to.
+  applyFollowUpChange(cid, '', 'Dismissed');
 }
 function rerenderFollowupSurfaces() {
   if (state.view==='followups') renderFollowups();
@@ -1313,7 +1338,7 @@ function renderHotLeads() {
     const fuChip = fu ? (d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Due today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`) : '<span class="chip gray">No follow-up set</span>';
     return `<div class="hot-card" onclick="openContactFromDash('${c.contactId}')">
       <div class="hot-card-top">
-        <div><div class="hot-card-name">${esc(c.first)} ${esc(c.last)}</div><div class="hot-card-co">${esc(c.title||'—')} · ${esc(c.company)}</div>${why?`<div style="font-size:11.5px;font-weight:800;color:var(--red);margin-top:3px">🔥 ${esc(why.result)} · ${fmtDate(why.date)}</div>`:''}</div>
+        <div><div class="hot-card-name">${esc(c.first)} ${esc(c.last)}</div><div class="hot-card-co">${esc(c.title||'—')} · ${esc(c.company)}</div><div style="margin-top:4px">${lt?repChip(lt.rep):'<span class="chip gray">Unassigned</span>'}</div>${why?`<div style="font-size:11.5px;font-weight:800;color:var(--red);margin-top:3px">🔥 ${esc(why.result)} · ${fmtDate(why.date)}</div>`:''}</div>
         ${flameIcon(c, 17)}
       </div>
       <div class="hot-card-meta">
@@ -1451,7 +1476,7 @@ function renderDashboard() {
     <div class="kpi k-reached"><div class="kpi-top"><label>Contacts Reached</label><span class="kpi-ico">🤝</span></div><div class="num tnum" data-to="${contactsReached}">0</div><div class="sub">unique people · ${rangeLabel}</div></div>
     <div class="kpi k-hot clickable" onclick="switchView('hotleads')"><div class="kpi-top"><label>Hot Leads</label><span class="kpi-ico">🔥</span></div><div class="num tnum" data-to="${hotCount}">0</div><div class="sub">close to closing →</div></div>
     <div class="kpi k-due"><div class="kpi-top"><label>Follow-Ups Due</label><span class="kpi-ico">⏰</span></div><div class="num tnum" data-to="${fusDue}">0</div><div class="sub">${repLabel}</div></div>
-    <div class="kpi k-untouched"><div class="kpi-top"><label>Untouched Leads</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${untouched}">0</div><div class="sub">no touch ever</div></div>`;
+    <div class="kpi k-untouched"><div class="kpi-top"><label>Coverage %</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${(function(){var _t=getContacts().filter(function(x){return x.active;}).length;return _t?Math.round((_t-untouched)/_t*100):0;})()}">0</div><div class="sub">${(getContacts().filter(function(x){return x.active;}).length-untouched).toLocaleString()} of ${getContacts().filter(function(x){return x.active;}).length.toLocaleString()} ever touched</div></div>`;
   document.querySelectorAll('#dashKpis .num').forEach(el => animateNum(el, el.dataset.to));
 
   // Deal Signals — high-intent outcomes in the current window (respects rep + timeframe)
@@ -1666,7 +1691,8 @@ function renderContacts() {
     if (repF && !getTouches().some(t => t.contactId === c.contactId && t.rep === repF)) return false;
     if (statusF) {
       if (statusF === 'hot') { if (!c.hot) return false; }
-      else if (statusF === 'stale') { if (!contactFreshness(c).stale) return false; }
+      else if (statusF === 'new') { if (lastTouch(c.contactId)) return false; const _ad = contactEdited(c); if (!_ad || daysBetween(_ad) > 90) return false; }
+      else if (statusF === 'active') { const _lt = lastTouch(c.contactId); if (!_lt || daysBetween(_lt.date) > 30) return false; }
       else if (contactStatus(c.contactId).key !== statusF) return false;
     }
     if (q) {
@@ -1842,8 +1868,9 @@ function renderFollowups() {
           <td><div class="company">${c.hot?'🔥 ':''}${esc(c.first)} ${esc(c.last)}</div><div class="sub">${esc(c.company)} · ${esc(c.city)}, ${esc(c.state)}</div></td>
           <td style="width:120px">${lt?repChip(lt.rep):'—'}</td>
           <td class="sub">${esc((lt&&lt.notes)||'')}</td>
-          <td onclick="event.stopPropagation()" style="width:240px"><div class="btn-row">
+          <td onclick="event.stopPropagation()" style="width:300px"><div class="btn-row">
             <button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button>
+            <button class="btn ghost sm" onclick="editFollowUp('${c.contactId}')">Edit date</button>
             <button class="btn ghost sm" onclick="snoozeFollowUp('${c.contactId}')">Snooze 1wk</button>
             <button class="btn ghost sm" onclick="dismissFollowUp('${c.contactId}')">Dismiss</button>
           </div></td>
