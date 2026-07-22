@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v24a · followup fixes)</title>
+<title>Tacoma Energy — Sales CRM (v24b · formatting)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -389,7 +389,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v24a</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v24b</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -1787,7 +1787,7 @@ function renderContacts() {
     if (!groups[key]) groups[key] = { company:c.company, city:c.city, state:c.state, contacts:[] };
     groups[key].contacts.push(c);
   });
-  const builders = Object.values(groups).sort((a,b) => a.company.localeCompare(b.company) || a.city.localeCompare(b.city));
+  const builders = Object.values(groups).sort((a,b) => { const aClean = /^[A-Za-z0-9]/.test(a.company); const bClean = /^[A-Za-z0-9]/.test(b.company); if (aClean !== bClean) return aClean ? -1 : 1; return a.company.localeCompare(b.company) || a.city.localeCompare(b.city); });
 
   document.getElementById('contactCount').textContent =
     `${builders.length} builder${builders.length===1?'':'s'} · ${contacts.length} contact${contacts.length===1?'':'s'}`;
@@ -2283,9 +2283,10 @@ function checkDup() {
   } else { warn.classList.remove('show'); }
 }
 
+function capName(s) { return (s||'').trim().toLowerCase().replace(/\b\w/g, function(c){return c.toUpperCase();}); }
 async function saveContact() {
-  const first = document.getElementById('cmFirst').value.trim();
-  const last = document.getElementById('cmLast').value.trim();
+  const first = capName(document.getElementById('cmFirst').value);
+  const last = capName(document.getElementById('cmLast').value);
   const company = document.getElementById('cmCompany').value.trim();
   if (!first || !last || !company) { toast('Name and company are required'); return; }
 
