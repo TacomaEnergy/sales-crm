@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v23 · results cleanup)</title>
+<title>Tacoma Energy — Sales CRM (v24 · contact UX)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -389,7 +389,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v23</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v24</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -526,6 +526,7 @@
     </div>
     <div class="filters filters-2row">
       <input type="text" id="contactSearch" placeholder="Search name, company, email, city, title..." oninput="renderContacts()" />
+      <button class="btn ghost sm" onclick="clearContactFilters()" title="Reset all filters">Clear filters</button>
       <select id="contactCompanyFilter" onchange="renderContacts()"><option value="">All builders</option></select>
       <select id="contactStateFilter" onchange="onContactStateChange()"><option value="">All states</option></select>
       <select id="contactCityFilter" onchange="renderContacts()"><option value="">All cities</option></select>
@@ -623,6 +624,7 @@
       <div><label class="fld">Notes</label><textarea id="tmNotes" placeholder="Response, follow-up details, pricing questions, etc."></textarea></div>
     </div>
     <div class="modal-foot">
+      <label style="display:flex;align-items:center;gap:6px;margin-right:auto;font-size:13px;cursor:pointer;font-weight:600"><input type="checkbox" id="tmHot" /> 🔥 Flag as Hot Lead</label>
       <button class="btn ghost" onclick="closeTouchModal()">Cancel</button>
       <button class="btn green" onclick="saveTouch()">Save Touch</button>
     </div>
@@ -636,12 +638,12 @@
     <div class="modal-body">
       <div class="dup-warn" id="cmDupWarn"></div>
       <div class="frow">
-        <div><label class="fld">First Name</label><input type="text" id="cmFirst" oninput="checkDup()" /></div>
-        <div><label class="fld">Last Name</label><input type="text" id="cmLast" oninput="checkDup()" /></div>
+        <div><label class="fld">First Name</label><input type="text" id="cmFirst" oninput="checkDup();maybeGuessEmail()" /></div>
+        <div><label class="fld">Last Name</label><input type="text" id="cmLast" oninput="checkDup();maybeGuessEmail()" /></div>
       </div>
       <div>
         <label class="fld">Company / Builder</label>
-        <input type="text" id="cmCompany" list="cmCompanyList" oninput="checkDup()" placeholder="Search or type a new builder" />
+        <input type="text" id="cmCompany" list="cmCompanyList" oninput="checkDup();maybeGuessEmail()" placeholder="Search or type a new builder" />
         <datalist id="cmCompanyList"></datalist>
         <div class="new-hint" id="cmNewHint">✓ New builder — will be added to the directory</div>
       </div>
@@ -666,7 +668,7 @@
 
 <div class="toast" id="toast"></div>
 <script>
-console.log("Tacoma CRM build: v23 (removed 'Meeting booked' from result dropdown + Hot trigger; Contacts Reached counts unique people actually reached; added 'Not interested' to reached set)");
+console.log("Tacoma CRM build: v24 (one-tap Hot flag on Log-a-Touch; state dropdown sorted by code; contacts now in background poll; Clear-filters button; builder-based email auto-fill)");
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -711,7 +713,7 @@ const LOCATIONS = {
   'UT': ['Salt Lake City'],'VT': ['Burlington'],'VA': ['Richmond','Virginia Beach'],'WA': ['Seattle'],'WV': ['Beckley'],
   'WI': ['Milwaukee'],'WY': ['Cheyenne'],'CAN': ['Toronto']
 };
-const STATE_LIST = Object.keys(LOCATIONS);
+const STATE_LIST = Object.keys(LOCATIONS).sort();
 const REPS = ['N. Reynolds', 'C. Gaston', 'A. Palumbo', 'Unassigned'];
 // High-intent touch outcomes that auto-promote a contact to Hot (the lightweight
 // pipeline). Reps just pick the result; logging one of these flags the lead.
@@ -1715,6 +1717,43 @@ function quickTouch(cid) { state.selectedContact = cid; openTouchModal(); }
 // ============================================================
 //  CONTACTS
 // ============================================================
+function clearContactFilters() {
+  ['contactSearch','contactCompanyFilter','contactStateFilter','contactCityFilter','contactRepFilter','contactStatusFilter'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  try { if (typeof onContactStateChange === 'function') onContactStateChange(); } catch(e){}
+  renderContacts();
+}
+function guessEmail(company, first, last){
+  company=(company||'').trim(); first=(first||'').trim(); last=(last||'').trim();
+  if(!company||!first||!last) return '';
+  var rows=getContacts().filter(function(c){ return c.company===company && c.email && c.email.indexOf('@')>-1; });
+  if(rows.length<2) return '';
+  var f=first.toLowerCase(), l=last.toLowerCase();
+  var counts={}, domain=null;
+  rows.forEach(function(c){
+    var parts=c.email.toLowerCase().split('@'); var local=parts[0]; domain=parts[1];
+    var cf=(c.first||'').trim().toLowerCase(), cl=(c.last||'').trim().toLowerCase();
+    if(!cf||!cl) return;
+    var pat=null;
+    if(local===cf+'.'+cl) pat='first.last';
+    else if(local===cf[0]+cl) pat='flast';
+    else if(local===cf+cl[0]) pat='firstl';
+    else if(local===cf+cl) pat='firstlast';
+    else if(local===cl+'.'+cf) pat='last.first';
+    else if(local===cl+cf[0]) pat='lastf';
+    if(pat) counts[pat]=(counts[pat]||0)+1;
+  });
+  var best=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];})[0];
+  if(!best || counts[best]<2 || !domain) return '';
+  var build={'first.last':f+'.'+l,'flast':f[0]+l,'firstl':f+l[0],'firstlast':f+l,'last.first':l+'.'+f,'lastf':l+f[0]};
+  return (build[best]||'')+'@'+domain;
+}
+function maybeGuessEmail(){
+  var em=document.getElementById('cmEmail'); if(!em) return;
+  var cur=em.value.trim();
+  if(cur && cur!==window.__lastGuess) return;
+  var g=guessEmail(document.getElementById('cmCompany').value, document.getElementById('cmFirst').value, document.getElementById('cmLast').value);
+  if(g){ em.value=g; window.__lastGuess=g; }
+}
 function renderContacts() {
   const q = (document.getElementById('contactSearch').value || '').toLowerCase();
   const companyF = document.getElementById('contactCompanyFilter').value;
@@ -2007,6 +2046,7 @@ function changeTouchContact() {
 let editingTouchKey = null;   // "contactId|touchId" while editing an existing touch
 function openTouchModal(editKey) {
   editingTouchKey = editKey || null;
+  { var _h=document.getElementById('tmHot'); if(_h) _h.checked=false; }
   document.getElementById('tmContactSearch').value = '';
   document.getElementById('tmContactResults').innerHTML = '';
   const t = editKey ? getTouches().find(x => x.contactId + '|' + x.touchId === editKey) : null;
@@ -2149,6 +2189,7 @@ async function saveTouch() {
   if (state.view==='activity') renderActivity();
 
   pushPA(isEdit ? 'editTouch' : 'addTouch', entry);
+  try { var _hb=document.getElementById('tmHot'); if(_hb && _hb.checked){ var _cs=getContacts(); var _c=_cs.find(function(x){return x.contactId===cid;}); if(_c && !_c.hot){ _c.hot=true; _c.hotSince=todayISO(); saveContacts(_cs); pushPA('editContact', editPayload(_c)); if(typeof refreshHotCount==='function') refreshHotCount(); } } } catch(e){}
   editingTouchKey = null;
 }
 
@@ -2442,6 +2483,7 @@ setInterval(() => {
   try { if (!authOK()) return; } catch(e) { return; }
   _lastPoll = Date.now();
   loadTouchesFromSharePoint();
+  if (Date.now() - (window._lastContactPoll||0) > 230000) { window._lastContactPoll = Date.now(); loadContactsFromSharePoint(); }
 }, 120000);
 
 // ---- App start: runs once the user is signed in ----
