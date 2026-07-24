@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v31 · report polish)</title>
+<title>Tacoma Energy — Sales CRM (v32 · report trim)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -363,7 +363,7 @@
     .bd-caret { display:inline-block; width:14px; font-size:9px; color: var(--muted); }
     .bd-sub { padding: 2px 0 10px 22px; }
     .bd-sub .bd-row { margin: 2px 0; }
-  @media print { @page { margin: 14mm; size: letter; } .nav { display:none !important; } #view-report .page-head { display:none !important; } .view:not(.active){ display:none !important; } body { background:#fff !important; } #reportBody, #reportBody * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; } #reportBody table, #reportBody ul, #reportBody h3 { page-break-inside:avoid; } }
+  @media print { @page { margin: 14mm; size: letter; } .nav { display:none !important; } #view-report .page-head { display:none !important; } .view:not(.active){ display:none !important; } body { background:#fff !important; } #reportBody, #reportBody * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; } #reportBody table, #reportBody ul, #reportBody h3 { page-break-inside:avoid; } #reportBody { overflow:hidden; } #reportBody > div { max-width:none !important; } #reportBody > div > *:last-child { margin-bottom:0 !important; } #reportBody table:last-child { page-break-after:avoid !important; } }
   </style>
 </head>
 <body>
@@ -390,7 +390,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v31</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v32</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -1302,7 +1302,7 @@ function buildReportHTML(){
   var cov=totC?Math.round(touchedEver/totC*100):0;
   var realReps=REPS.filter(function(r){return r!=='Unassigned';});
   var activeThisWeek=realReps.filter(function(r){return all.filter(function(t){return t.rep===r && t.date>=cutoffFor(7);}).length>0;}).length;
-  function statBlock(touches, extra){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows=[mk('Reach-outs','reach'),mk('Contacts reached','reached'),mk('Meetings (in person)','meet'),mk('Pricing sent','price')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
+  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Contacts reached','reached'),mk('Meetings (in person)','meet'),mk('Pricing sent','price')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
   var html=`<div style='font-family:Arial,sans-serif;color:#12263a;max-width:720px'>`;
   html+=`<table width='100%' style='border-collapse:collapse;margin-bottom:12px'><tr><td bgcolor='#0e2f4a' style='background:#0e2f4a;padding:18px 22px'><div style='font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.5px'>TACOMA ENERGY</div><div style='font-size:13px;color:#a9c7de;margin-top:3px;letter-spacing:.3px'>WEEKLY SALES REPORT</div></td></tr></table>`;
@@ -1326,7 +1326,7 @@ function buildReportHTML(){
     html+=_summaryBlock(rt, cutoffFor(30), 'Last 30 days', false);
     html+=`<div style='font-size:12px;font-weight:700;margin:6px 0 0'>Pricing sent (last 30 days):</div>`+_detailList(rep,'price');
     html+=`<div style='font-size:12px;font-weight:700;margin:2px 0 0'>Meetings \u2014 in person (last 30 days):</div>`+_detailList(rep,'meet');
-    html+=statBlock(rt, null);
+    html+=statBlock(rt, null, true);
   });
   html+=`<h3 style='color:#0c2d47;border-bottom:2px solid #f2622a;padding-bottom:5px;font-size:16px;margin-top:24px;page-break-before:always'>Where the Team Is Working <span style='font-size:12px;color:#687d92;font-weight:400'>(all reps combined)</span></h3>`;
   var buildersTbl=`<div style='font-size:13px;font-weight:700;margin:6px 0 2px;color:#0c2d47'>Top 25 Builders</div>`+_breakdownTable(function(c){return c.company;}, 'Builder', 25);
