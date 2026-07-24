@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v28 · report v2)</title>
+<title>Tacoma Energy — Sales CRM (v29 · report v3)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -389,7 +389,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v28</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v29</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -590,7 +590,7 @@
   </section>
   <section class="view" id="view-report">
     <div class="page-head">
-      <div><h2>Weekly Report</h2><p>Team overview and per-rep breakdown — last 7 days, this month, and year to date. Built to paste straight into your Thursday email.</p></div>
+      <div><h2>Weekly Report</h2><p>Team overview and per-rep breakdown — last 7 days, last 30 days, and year to date. Built to paste straight into your Thursday email.</p></div>
       <div class="btn-row"><button class="btn green" onclick="copyReportEmail()">Copy for email</button></div>
     </div>
     <div id="reportBody"></div>
@@ -1257,10 +1257,24 @@ function _detailList(rep, kind){
   var cut=cutoffFor(30); var byId={}; getContacts().forEach(function(c){byId[c.contactId]=c;});
   var rows=getTouches().filter(function(t){ return t.rep===rep && t.date>=cut && (kind==='price'?t.result==='Pricing sent':t.method==='In Person'); }).sort(function(a,b){return b.date.localeCompare(a.date);});
   if(!rows.length) return `<div style='color:#a9b7c6;font-size:12px;margin:2px 0 8px 16px'>none in last 30 days</div>`;
-  var shown=rows.slice(0,5);
-  var li=shown.map(function(t){ var c=byId[t.contactId]||{}; var nm=((c.first||'')+' '+(c.last||'')).trim()||'(unknown)'; var co=c.company||''; var note=(t.notes||'').trim(); var noteHtml= note? `<span style='color:#12263a'>\u2014 ${esc(note)}</span>` : `<span style='color:#d64545;font-style:italic'>\u2014 (no note logged)</span>`; return `<li style='margin:1px 0'>${esc(t.date)} \u00b7 <b>${esc(nm)}</b>${co?` (${esc(co)})`:''} ${noteHtml}</li>`; }).join('');
+  var li=rows.slice(0,5).map(function(t){ var c=byId[t.contactId]||{}; var nm=((c.first||'')+' '+(c.last||'')).trim()||'(unknown)'; var co=c.company||''; var loc=[c.city,c.state].filter(Boolean).join(', '); var note=(t.notes||'').trim(); var noteHtml= note? `<span style='color:#12263a'>\u2014 ${esc(note)}</span>` : `<span style='color:#d64545;font-style:italic'>\u2014 (no note logged)</span>`; return `<li style='margin:1px 0'>${esc(t.date)} \u00b7 <b>${esc(nm)}</b>${co?` (${esc(co)})`:''}${loc?` \u00b7 ${esc(loc)}`:''} ${noteHtml}</li>`; }).join('');
   var more=rows.length>5?`<li style='color:#687d92;list-style:none'>+${rows.length-5} more</li>`:'';
   return `<ul style='font-size:12px;margin:2px 0 8px 16px;padding-left:16px'>${li}${more}</ul>`;
+}
+function _bizDays(fromISO){ var from=new Date(fromISO+'T00:00:00'); var to=new Date(); var n=0; var d=new Date(from); while(d<=to){ var wd=d.getDay(); if(wd>=1&&wd<=5) n++; d.setDate(d.getDate()+1); } return n||1; }
+function _hotList(){
+  var hot=getContacts().filter(function(c){return c.active && c.hot;});
+  if(!hot.length) return `<div style='color:#a9b7c6;font-size:12px;margin:2px 0 10px'>none currently flagged</div>`;
+  var li=hot.slice(0,20).map(function(c){ var nm=((c.first||'')+' '+(c.last||'')).trim()||'(unknown)'; var lt=lastTouch(c.contactId); var rep=lt?lt.rep:'Unassigned'; var loc=[c.city,c.state].filter(Boolean).join(', '); return `<li style='margin:1px 0'><b>${esc(nm)}</b>${c.company?` (${esc(c.company)})`:''}${loc?` \u00b7 ${esc(loc)}`:''} <span style='color:#687d92'>\u2014 ${esc(rep)}</span></li>`; }).join('');
+  var more=hot.length>20?`<li style='color:#687d92;list-style:none'>+${hot.length-20} more</li>`:'';
+  return `<ul style='font-size:12px;margin:2px 0 10px 16px;padding-left:16px'>${li}${more}</ul>`;
+}
+function _summaryBlock(touches, cutoff, label, showDelta){
+  var reach=touches.filter(function(t){return t.date>=cutoff;}).length;
+  var biz=_bizDays(cutoff); var avg=reach/biz;
+  var col=avg>=2?'#06a951':(avg>0?'#e8a13a':'#d64545');
+  var deltaHtml= showDelta ? ` \u00b7 ${_deltaBadge(reach,_priorWeek(touches))}` : '';
+  return `<div style='margin:8px 0 2px'><span style='font-size:13px;color:#687d92'>${label}:</span> <b style='font-size:14px'>${reach} reach-outs</b>${deltaHtml}</div>`+`<div style='margin:0 0 6px'><span style='font-size:24px;font-weight:800;color:${col}'>${avg.toFixed(1)}</span> <span style='font-size:12px;color:#687d92'>reach-outs / business day</span></div>`;
 }
 function buildReportHTML(){
   var all=getTouches();
@@ -1277,29 +1291,30 @@ function buildReportHTML(){
   var tdL='padding:6px 10px;border:1px solid #d9e2ec;text-align:left;font-weight:600';
   function rowFn(label, fn){ return `<tr><td style='${tdL}'>${label}</td>`+wins.map(function(w){return `<td style='${tdC}'>${fn(w[1])}</td>`;}).join('')+`</tr>`; }
   function statTable(touches, extra){ return `<table style='border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;margin:6px 0 12px'>`+`<tr><th style='${thL}'>Metric</th>`+wins.map(function(w){return `<th style='${thC}'>${w[0]}</th>`;}).join('')+`</tr>`+rowFn('Reach-outs', function(c){return _repStats(touches,c).reach;})+rowFn('Contacts reached', function(c){return _repStats(touches,c).reached;})+rowFn('Meetings (in person)', function(c){return _repStats(touches,c).meet;})+rowFn('Pricing sent', function(c){return _repStats(touches,c).price;})+(extra||'')+`</table>`; }
-  function summaryLine(touches, color){ var r7=touches.filter(function(t){return t.date>=cutoffFor(7);}).length; var prev=_priorWeek(touches); var avg=(r7/5).toFixed(1); return `<div style='margin:6px 0;font-size:13px'>This week: <b style='color:${color}'>${r7} reach-outs</b> \u00b7 ${_deltaBadge(r7,prev)} \u00b7 <span style='color:#687d92'>${avg}/workday</span></div>`; }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
   var html=`<div style='font-family:Arial,sans-serif;color:#12263a;max-width:720px'>`;
   html+=`<h2 style='color:#0c2d47;margin:0 0 2px'>Tacoma Energy \u2014 Weekly Sales Report</h2>`;
   html+=`<div style='background:#eef4fa;border-left:3px solid #1395d3;padding:8px 12px;font-size:12px;color:#12263a;margin-bottom:10px'><b>Data as of ${_stamp}.</b> Touches logged after this time are not included in this report.</div>`;
   html+=`<div style='color:#687d92;font-size:12px;margin-bottom:14px'>Coverage: ${cov}% of ${totC.toLocaleString()} active contacts ever touched \u00b7 Reps active this week: <b style='color:${activeThisWeek<realReps.length?"#d64545":"#06a951"}'>${activeThisWeek} of ${realReps.length}</b></div>`;
   html+=`<h3 style='color:#0c2d47;border-bottom:2px solid #06a951;padding-bottom:4px'>Team Overview</h3>`;
-  html+=summaryLine(all, '#0c2d47');
-  html+=`<div style='font-size:13px;margin:2px 0 6px'>\ud83d\udd25 Hot leads (current): <b>${_hotFor(null)}</b></div>`;
+  html+=_summaryBlock(all, cutoffFor(7), 'This week', true);
+  html+=_summaryBlock(all, cutoffFor(30), 'Last 30 days', false);
+  html+=`<div style='font-size:13px;font-weight:700;margin:8px 0 0'>\ud83d\udd25 Hot leads (current \u2014 ${_hotFor(null)}):</div>`+_hotList();
   var newRow=rowFn('New contacts added', function(c){return contacts.filter(function(x){return (x.dateAdded||'')>=c;}).length;});
   html+=statTable(all, newRow);
   html+=`<h3 style='color:#0c2d47;border-bottom:2px solid #1395d3;padding-bottom:4px;margin-top:22px'>By Rep</h3>`;
   REPS.forEach(function(rep){
+    if(rep==='Unassigned') return;
     var rt=all.filter(function(t){return t.rep===rep;});
-    if(rt.length===0 && rep==='Unassigned') return;
     var col=REP_COLOR[rep]||'#12263a';
     var r7=rt.filter(function(t){return t.date>=cutoffFor(7);}).length;
     var badge = r7>0 ? `<span style='background:#06a951;color:#fff;font-size:10px;padding:1px 7px;border-radius:8px;font-weight:700'>ACTIVE</span>` : `<span style='background:#d64545;color:#fff;font-size:10px;padding:1px 7px;border-radius:8px;font-weight:700'>NO ACTIVITY THIS WEEK</span>`;
-    html+=`<div style='margin:16px 0 2px'><span style='display:inline-block;width:11px;height:11px;border-radius:50%;background:${col};margin-right:6px'></span><b style='color:${col};font-size:15px'>${esc(rep)}</b> ${badge} <span style='color:#687d92;font-size:12px'>\u00b7 ${_hotFor(rep)} hot \u00b7 ${_overdueFor(rep)} overdue follow-up(s)</span></div>`;
-    html+=summaryLine(rt, col);
-    html+=statTable(rt, '');
-    html+=`<div style='font-size:12px;font-weight:700;margin:4px 0 0'>Pricing sent (last 30 days):</div>`+_detailList(rep,'price');
+    html+=`<div style='margin:18px 0 2px'><span style='display:inline-block;width:11px;height:11px;border-radius:50%;background:${col};margin-right:6px'></span><b style='color:${col};font-size:16px'>${esc(rep)}</b> ${badge} <span style='color:#687d92;font-size:12px'>\u00b7 ${_hotFor(rep)} hot \u00b7 ${_overdueFor(rep)} overdue follow-up(s)</span></div>`;
+    html+=_summaryBlock(rt, cutoffFor(7), 'This week', true);
+    html+=_summaryBlock(rt, cutoffFor(30), 'Last 30 days', false);
+    html+=`<div style='font-size:12px;font-weight:700;margin:6px 0 0'>Pricing sent (last 30 days):</div>`+_detailList(rep,'price');
     html+=`<div style='font-size:12px;font-weight:700;margin:2px 0 0'>Meetings \u2014 in person (last 30 days):</div>`+_detailList(rep,'meet');
+    html+=statTable(rt, '');
   });
   html+=`</div>`;
   return html;
