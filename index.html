@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v25 · data safety)</title>
+<title>Tacoma Energy — Sales CRM (v27 · weekly report)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -389,7 +389,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v25</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v27</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -397,6 +397,7 @@
     <button class="nav-tab" data-view="contacts" onclick="switchView('contacts')">Contacts</button>
     <button class="nav-tab" data-view="followups" onclick="switchView('followups')">Follow-Ups</button>
     <button class="nav-tab" data-view="activity" onclick="switchView('activity')">Activity</button>
+    <button class="nav-tab" data-view="report" onclick="switchView('report')">Report</button>
   </div>
   <div class="nav-right">
     <span id="syncStatus" onclick="refreshFromServer(true)" title="Click to sync now" style="cursor:pointer;font-size:11.5px;font-weight:700;margin-right:6px"></span>
@@ -586,6 +587,13 @@
         </table>
       </div>
     </div>
+  </section>
+  <section class="view" id="view-report">
+    <div class="page-head">
+      <div><h2>Weekly Report</h2><p>Team overview and per-rep breakdown — last 7 days, this month, and year to date. Built to paste straight into your Thursday email.</p></div>
+      <div class="btn-row"><button class="btn green" onclick="copyReportEmail()">Copy for email</button></div>
+    </div>
+    <div id="reportBody"></div>
   </section>
 
 </div>
@@ -1201,6 +1209,7 @@ async function loadTouchesFromSharePoint() {
     // queue), so a refresh never makes a rep's just-logged touch disappear
     // before it lands in SharePoint.
     const have = new Set(touches.map(t => t.contactId + '|' + t.touchId));
+    { const _q = getPending(); const _q2 = _q.filter(w => !(w.action==='addTouch' && w.payload && have.has(w.payload.contactId + '|' + w.payload.touchId))); if (_q2.length !== _q.length) { setPending(_q2); updateSyncBadge(); } }
     for (const w of getPending()) {
       if (w.action === 'addTouch' && w.payload && !have.has(w.payload.contactId + '|' + w.payload.touchId)) {
         touches.push(w.payload);
@@ -1235,6 +1244,57 @@ async function loadTouchesFromSharePoint() {
 // ============================================================
 let state = { view:'dashboard', selectedContact:null, actingRep:'', openBuilders:new Set(), dashRange:30, dashRep:'', dashBreakdown:'builder' };
 
+function _mtdCutoff(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'; }
+function _repStats(touches, cutoff){
+  var w = cutoff ? touches.filter(function(t){return t.date>=cutoff;}) : touches;
+  return { reach:w.length, reached:new Set(w.filter(function(t){return CONNECT_RESULTS.includes(t.result);}).map(function(t){return t.contactId;})).size, meet:w.filter(function(t){return t.method==='In Person';}).length, price:w.filter(function(t){return t.result==='Pricing sent';}).length };
+}
+function _overdueFor(rep){ var today=todayISO(), n=0; getContacts().forEach(function(c){ if(!c.active) return; var fu=nextFollowUp(c.contactId); if(fu && fu<today){ var lt=lastTouch(c.contactId); var owner=lt?lt.rep:'Unassigned'; if(rep===null || owner===rep) n++; } }); return n; }
+function buildReportHTML(){
+  var all=getTouches();
+  var wins=[['Last 7 days',cutoffFor(7)],['This month',_mtdCutoff()],['Year to date',cutoffFor('ytd')]];
+  var contacts=getContacts().filter(function(c){return c.active;});
+  var totC=contacts.length;
+  var touchedEver=new Set(all.map(function(t){return t.contactId;})).size;
+  var cov=totC?Math.round(touchedEver/totC*100):0;
+  var thC='padding:6px 10px;border:1px solid #d9e2ec;background:#0c2d47;color:#fff;text-align:center;font-size:12px';
+  var thL='padding:6px 10px;border:1px solid #d9e2ec;background:#0c2d47;color:#fff;text-align:left;font-size:12px';
+  var tdC='padding:6px 10px;border:1px solid #d9e2ec;text-align:center';
+  var tdL='padding:6px 10px;border:1px solid #d9e2ec;text-align:left;font-weight:600';
+  function rowFn(label, fn){ return `<tr><td style='${tdL}'>${label}</td>`+wins.map(function(w){return `<td style='${tdC}'>${fn(w[1])}</td>`;}).join('')+`</tr>`; }
+  function statTable(touches, extra){
+    return `<table style='border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;margin:6px 0 16px'>`
+      +`<tr><th style='${thL}'>Metric</th>`+wins.map(function(w){return `<th style='${thC}'>${w[0]}</th>`;}).join('')+`</tr>`
+      +rowFn('Reach-outs', function(c){return _repStats(touches,c).reach;})
+      +rowFn('Contacts reached', function(c){return _repStats(touches,c).reached;})
+      +rowFn('Meetings (in person)', function(c){return _repStats(touches,c).meet;})
+      +rowFn('Pricing sent', function(c){return _repStats(touches,c).price;})
+      +(extra||'')+`</table>`;
+  }
+  var html=`<div style='font-family:Arial,sans-serif;color:#12263a;max-width:720px'>`;
+  html+=`<h2 style='color:#0c2d47;margin:0 0 2px'>Tacoma Energy \u2014 Weekly Sales Report</h2>`;
+  html+=`<div style='color:#687d92;font-size:12px;margin-bottom:14px'>Generated ${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})} \u00b7 Coverage: ${cov}% of ${totC.toLocaleString()} active contacts ever touched</div>`;
+  html+=`<h3 style='color:#0c2d47;border-bottom:2px solid #06a951;padding-bottom:4px'>Team Overview</h3>`;
+  var newRow=rowFn('New contacts added', function(c){return contacts.filter(function(x){return (x.dateAdded||'')>=c;}).length;});
+  html+=statTable(all, newRow);
+  html+=`<h3 style='color:#0c2d47;border-bottom:2px solid #1395d3;padding-bottom:4px;margin-top:22px'>By Rep</h3>`;
+  REPS.forEach(function(rep){
+    var rt=all.filter(function(t){return t.rep===rep;});
+    if(rt.length===0 && rep==='Unassigned') return;
+    var col=REP_COLOR[rep]||'#12263a';
+    html+=`<div style='margin:10px 0 4px'><span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:${col};margin-right:6px'></span><b style='color:${col}'>${esc(rep)}</b> <span style='color:#687d92;font-size:12px'>\u00b7 ${_overdueFor(rep)} overdue follow-up(s)</span></div>`;
+    html+=statTable(rt, '');
+  });
+  html+=`</div>`;
+  return html;
+}
+function renderReport(){ var el=document.getElementById('reportBody'); if(el) el.innerHTML=buildReportHTML(); }
+async function copyReportEmail(){
+  var html=buildReportHTML();
+  var plain=html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  try { await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([plain],{type:'text/plain'})})]); toast('\u2713 Report copied \u2014 paste into your email'); }
+  catch(e){ try{ await navigator.clipboard.writeText(plain); toast('Report copied (plain text)'); }catch(e2){ toast('Copy failed \u2014 select and copy manually'); } }
+}
 function switchView(v) {
   state.view = v;
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
@@ -1245,6 +1305,7 @@ function switchView(v) {
   if (v==='contacts') renderContacts();
   if (v==='followups') renderFollowups();
   if (v==='activity') renderActivity();
+  if (v==='report') renderReport();
   window.scrollTo({top:0});
 }
 function onRepSwitch() { state.actingRep = document.getElementById('repSwitch').value; store.set('crm_acting_rep', state.actingRep); }
