@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v35 · sync audit)</title>
+<title>Tacoma Energy — Sales CRM (v37 · entry cleanup)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -410,7 +410,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v35</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v37</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -712,6 +712,7 @@
         <input type="text" id="cmCompany" list="cmCompanyList" oninput="checkDup();maybeGuessEmail()" placeholder="Search or type a new builder" />
         <datalist id="cmCompanyList"></datalist>
         <div class="new-hint" id="cmNewHint">✓ New builder — will be added to the directory</div>
+        <div id="cmCompanyHint" style="display:none;font-size:12px;margin-top:5px;background:var(--amber-light,#fdf6e7);border:1px solid #f0d28a;color:#7a5200;border-radius:7px;padding:8px 10px;line-height:1.5"></div>
       </div>
       <div><label class="fld">Title / Position</label><input type="text" id="cmTitleField" placeholder="e.g. Purchasing Manager" /></div>
       <div class="frow">
@@ -791,10 +792,66 @@ const REP_COLOR = { 'N. Reynolds': '#06a951', 'C. Gaston': '#1395d3', 'A. Palumb
 function repColor(r) { return REP_COLOR[r] || '#687d92'; }
 
 const mem = {};
+// Keys that must NEVER be lost to a full storage quota. The bulk caches
+// (contacts/touches) are expendable — they re-download from SharePoint. Unsaved
+// work does not exist anywhere else yet, so if space runs out we evict cache to
+// make room for it rather than silently dropping it into memory, where a
+// refresh would destroy it.
+const CRITICAL_KEYS = ['crm_pending_writes', 'crm_write_log', 'crm_session'];
+const EVICTABLE_KEYS = ['crm_touches', 'crm_contacts'];
+let _storageWarned = false;
+
 const store = {
-  get(k) { try { return localStorage.getItem(k); } catch(e) { return mem[k] ?? null; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch(e) { mem[k] = v; } }
+  get(k) {
+    try {
+      const v = localStorage.getItem(k);
+      // A key that had to fall back to memory (quota full) isn't in
+      // localStorage at all — without this, it would read as missing.
+      if (v === null && mem[k] !== undefined) return mem[k];
+      return v;
+    } catch(e) { return mem[k] ?? null; }
+  },
+  set(k, v) {
+    try { localStorage.setItem(k, v); mem[k] = undefined; return true; }
+    catch(e) {
+      if (CRITICAL_KEYS.includes(k)) {
+        // Free space by dropping expendable cache, then retry.
+        for (const ek of EVICTABLE_KEYS) {
+          try { localStorage.removeItem(ek); } catch(_) {}
+          try { localStorage.setItem(k, v); mem[k] = undefined; console.warn('[storage] evicted ' + ek + ' to save ' + k); return true; }
+          catch(_) {}
+        }
+        // Still no room — keep it in memory but make the risk explicit.
+        mem[k] = v;
+        console.error('[storage] CRITICAL key could not be persisted:', k);
+        warnStorageFull(true);
+        return false;
+      }
+      // Expendable cache: skip it, we can always re-read from the workbook.
+      mem[k] = v;
+      warnStorageFull(false);
+      return false;
+    }
+  }
 };
+function warnStorageFull(critical) {
+  if (_storageWarned && !critical) return;
+  _storageWarned = true;
+  try {
+    if (critical) {
+      alert('This device\u2019s browser storage is full.\n\nAnything you log right now may not survive closing the tab. Please use the "not saved \u2014 tap to retry" button to save your work to the workbook before closing, and tell Arick.');
+    } else {
+      console.warn('[storage] quota reached — local cache degraded, data will re-read from the workbook');
+    }
+  } catch(_) {}
+}
+// Rough usage check so pressure is visible before it becomes a failure.
+function storageUsage() {
+  let bytes = 0;
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); bytes += k.length + (localStorage.getItem(k) || '').length; } }
+  catch(e) { return null; }
+  return { mb: +(bytes / 1048576).toFixed(2) };
+}
 
 // ---- HTML-escaping (applied at render time only — never on stored/synced data,
 // which would push "&amp;" back into SharePoint). esc() for text nodes; escArg()
@@ -2713,13 +2770,117 @@ function checkDup() {
     return false;
   });
 
+  // Near-miss builder names — likely a typo or a variant spelling.
+  const coHint = document.getElementById('cmCompanyHint');
+  if (coHint) {
+    const rawCo = document.getElementById('cmCompany').value.trim();
+    const canon = canonCompany(rawCo);
+    const near = similarCompanies(rawCo);
+    if (rawCo && canon.toLowerCase() !== rawCo.toLowerCase()) {
+      coHint.innerHTML = `Will be saved as <b>${esc(canon)}</b> \u2014 that builder is already in the directory.`;
+      coHint.style.display = '';
+    } else if (near.length) {
+      coHint.innerHTML = `Did you mean ` + near.map(n => `<b>${esc(n)}</b>`).join(' or ') +
+        `? Using an existing builder keeps their contacts grouped together.`;
+      coHint.style.display = '';
+    } else { coHint.style.display = 'none'; }
+  }
+
   const warn = document.getElementById('cmDupWarn');
   if (hits.length) {
     warn.innerHTML = `<b>Possible duplicate.</b> This person may already be in the directory:` +
       hits.map(h => `<div class="dup-hit"><b>${esc(h.first)} ${esc(h.last)}</b> · ${esc(h.title)} · ${esc(h.company)} (${h.contactId})<br>${esc(h.email||'')}</div>`).join('') +
       `<div style="margin-top:8px">If it's the same person, cancel and open their record instead. If it's genuinely a different person, you can still save.</div>`;
     warn.classList.add('show');
-  } else { warn.classList.remove('show'); }
+  } else {
+    // No exact match — check for near-miss spellings at the same builder
+    // ("Jon" vs "John", "Reynold" vs "Reynolds"), which exact matching misses.
+    const nearPeople = similarPeople(
+      document.getElementById('cmFirst').value,
+      document.getElementById('cmLast').value,
+      document.getElementById('cmCompany').value,
+      editingContactId);
+    if (nearPeople.length) {
+      warn.innerHTML = `<b>Similar name already at this builder.</b> Check this isn\u2019t the same person:` +
+        nearPeople.map(h => `<div class="dup-hit"><b>${esc(h.first)} ${esc(h.last)}</b>${h.title?` \u00b7 ${esc(h.title)}`:''} \u00b7 ${esc(h.company)} (${h.contactId})<br>${esc(h.email||'')}</div>`).join('') +
+        `<div style="margin-top:8px">If it\u2019s the same person, cancel and open their record. If it\u2019s genuinely someone else, go ahead and save.</div>`;
+      warn.classList.add('show');
+    } else { warn.classList.remove('show'); }
+  }
+}
+
+// ---- Typo tolerance for contact entry ----------------------------------
+// Edit distance, bailing out early once it exceeds `max` (keeps this cheap
+// even when scanning every builder on each keystroke).
+function _lev(a, b, max) {
+  a = String(a||''); b = String(b||'');
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({length: b.length + 1}, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]; let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i-1] === b[j-1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + cost);
+      if (cur[j] < rowMin) rowMin = cur[j];
+    }
+    if (rowMin > max) return max + 1;   // whole row already too far — stop
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// Loose key for comparing business names: case, punctuation, and the generic
+// suffixes builders use inconsistently ("Lennar" vs "Lennar Homes, LLC").
+const _CO_NOISE = /\b(homes?|home|builders?|building|construction|communities|community|group|company|co|corp|corporation|inc|llc|ltd|lp|the|of|and)\b/g;
+function _coKey(s) {
+  return String(s||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(_CO_NOISE,' ').replace(/\s+/g,' ').trim();
+}
+function distinctCompanies() { return [...new Set(getContacts().map(c => (c.company||'').trim()).filter(Boolean))]; }
+
+// If this builder already exists under a different spelling/casing, return the
+// spelling already in the directory so we don't fragment it into two builders.
+function canonCompany(input) {
+  const raw = String(input||'').trim();
+  if (!raw) return raw;
+  const list = distinctCompanies();
+  const exact = list.find(c => c.toLowerCase() === raw.toLowerCase());
+  if (exact) return exact;                      // same builder, different casing
+  // Deliberately NOT auto-merging suffix variants: "Adams Homes" and
+  // "Adams Construction" both reduce to "adams", and silently combining two
+  // real builders is worse than leaving them apart. Those are surfaced as a
+  // suggestion instead, for the rep to confirm.
+  return raw;
+}
+// Near-miss builders worth asking about (not confident enough to auto-snap).
+function similarCompanies(input) {
+  const raw = String(input||'').trim();
+  if (raw.length < 4) return [];
+  const k = _coKey(raw); if (!k) return [];
+  const max = k.length <= 6 ? 1 : 2;
+  return distinctCompanies().filter(c => {
+    if (c.toLowerCase() === raw.toLowerCase()) return false;
+    const ck = _coKey(c); if (!ck) return false;
+    if (ck === k) return true;                  // suffix variant — ask, don't assume
+    return _lev(k, ck, max) <= max;             // one or two characters off
+  }).slice(0, 3);
+}
+// Same builder, name is one or two characters off — likely the same person.
+function similarPeople(first, last, company, excludeId) {
+  const f = String(first||'').trim().toLowerCase(), l = String(last||'').trim().toLowerCase();
+  if (!f || !l) return [];
+  const ck = _coKey(company);
+  return getContacts().filter(c => {
+    if (c.contactId === excludeId || c.active === false || c.active === 'No') return false;
+    if (!ck || _coKey(c.company) !== ck) return false;   // only within the same builder
+    const cf = (c.first||'').trim().toLowerCase(), cl = (c.last||'').trim().toLowerCase();
+    if (!cf || !cl) return false;
+    if (cf === f && cl === l) return false;              // exact match handled elsewhere
+    const dl = _lev(cl, l, 2), df = _lev(cf, f, 2);
+    if (dl === 0 && df <= 2) return true;                // same surname, first name off
+    if (df === 0 && dl <= 1) return true;                // same first name, surname off
+    if (df <= 1 && dl <= 1) return true;
+    return false;
+  }).slice(0, 4);
 }
 
 function capName(s) { return (s||'').trim().toLowerCase().replace(/\b\w/g, function(c){return c.toUpperCase();}); }
@@ -2727,7 +2888,9 @@ async function saveContact() {
   { var _b=document.getElementById('cmSaveBtn'); if(_b){ if(_b.disabled) return; _b.disabled=true; _b.textContent='Saving\u2026'; setTimeout(function(){ _b.disabled=false; _b.textContent='Save Contact'; }, 1500); } }
   const first = capName(document.getElementById('cmFirst').value);
   const last = capName(document.getElementById('cmLast').value);
-  const company = document.getElementById('cmCompany').value.trim();
+  // Snap to the spelling already in the directory so "lennar" / "Lennar Homes"
+  // don't split one builder into several cards and report rows.
+  const company = canonCompany(document.getElementById('cmCompany').value);
   if (!first || !last || !company) { toast('Name and company are required'); return; }
 
   const contacts = getContacts();
