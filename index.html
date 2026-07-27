@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v33 · report redesign)</title>
+<title>Tacoma Energy — Sales CRM (v35 · sync audit)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -225,6 +225,13 @@
   .flame-btn:hover { filter: grayscale(.3) opacity(.7); background: var(--hot-light); }
   .flame-btn.on { filter: none; animation: flamepulse 2.4s ease-in-out infinite; }
   @keyframes flamepulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.16); } }
+  /* Unsaved-writes badge: must be impossible to mistake for normal chrome. */
+  @keyframes unsavedpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(216,68,58,.55); } 50% { box-shadow: 0 0 0 7px rgba(216,68,58,0); } }
+  #syncStatus.unsaved {
+    background: var(--red, #d8443a); color: #fff !important; padding: 5px 12px; border-radius: 999px;
+    animation: unsavedpulse 1.6s ease-out infinite; font-weight: 800 !important; letter-spacing: .2px;
+  }
+  #syncStatus.unsaved:hover { background: #b7362e; }
   @media (prefers-reduced-motion: reduce) { .flame-btn.on { animation: none; } }
 
   /* ---- Contact detail ---- */
@@ -403,7 +410,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v33</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v35</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -414,7 +421,8 @@
     <button class="nav-tab" data-view="report" onclick="switchView('report')">Report</button>
   </div>
   <div class="nav-right">
-    <span id="syncStatus" onclick="refreshFromServer(true)" title="Click to sync now" style="cursor:pointer;font-size:11.5px;font-weight:700;margin-right:6px"></span>
+    <span id="syncStatus" onclick="syncNow()" title="Click to retry any unsaved changes and refresh" style="cursor:pointer;font-size:11.5px;font-weight:700;margin-right:6px"></span>
+    <span onclick="openReconcile()" title="Verify every touch logged on this device reached the workbook" style="cursor:pointer;font-size:11.5px;font-weight:700;color:#9fc4dd;margin-right:6px">Check saved work</span>
     <span class="lbl">Logging as</span>
     <select class="rep-switch" id="repSwitch" onchange="onRepSwitch()" title="Who you are — sets the rep on touches you log"></select>
     <button class="nav-logout" id="navLogout" onclick="logout()" title="Log out" style="display:none">Log out</button>
@@ -610,6 +618,42 @@
     <div id="reportBody"></div>
   </section>
 
+</div>
+
+<!-- UNSAVED WORK MODAL — fires automatically when a write can't reach the workbook -->
+<div class="modal-bg" id="syncTroubleModal">
+  <div class="modal" style="width:min(520px,100%)">
+    <div class="modal-head" style="background:#fdecea;border-bottom-color:#f3c4bf">
+      <h3 style="color:#a8322a">⚠ Your work hasn't saved yet</h3>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:14.5px;line-height:1.55">
+        <b id="stCount">1 change</b> is saved on this device but hasn't reached the shared workbook yet.
+        This is usually a brief internet hiccup.
+      </div>
+      <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:13px 15px;font-size:13.5px;line-height:1.6">
+        <b>Your work is not lost.</b> It's stored on this device and the app keeps retrying on its own.
+        The only thing that would lose it is clearing your browser data before it saves.
+      </div>
+      <div id="stResult" style="font-size:13.5px;font-weight:700;display:none"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeSyncTrouble()">I'll keep working</button>
+      <button class="btn green" id="stRetryBtn" onclick="retryFromModal()">Try saving again</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECONCILIATION — proof that everything logged on this device reached the workbook -->
+<div class="modal-bg" id="reconcileModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Check my saved work</h3><button class="modal-x" onclick="closeReconcile()">×</button></div>
+    <div class="modal-body" id="reconcileBody"></div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeReconcile()">Close</button>
+      <button class="btn green" id="rcResendBtn" style="display:none" onclick="resendMissing()">Re-send missing</button>
+    </div>
+  </div>
 </div>
 
 <!-- ADD TOUCH MODAL -->
@@ -965,7 +1009,12 @@ async function syncWrite(action, payload){
   try { ok = await pushPA(action, payload); } catch(e){ ok=false; }
   updateSyncBadge();
   if (ok) toast('\u2713 Saved to workbook');
-  else toast('\u26a0 Saved on this device \u2014 keep this tab open, still syncing');
+  else {
+    toast('\u26a0 Saved here, not in the workbook yet');
+    // Don't rely on the rep noticing a badge or remembering training —
+    // put the problem and the fix directly in front of them.
+    showSyncTrouble();
+  }
 }
 async function pushPA(action, payload, opts) {
   opts = opts || {};
@@ -989,17 +1038,24 @@ async function pushPA(action, payload, opts) {
       const q = getPending();
       q.push({ action, payload, ts: Date.now() });
       setPending(q);
-      toast('\u26a0 Didn\u2019t reach the server \u2014 saved locally, will retry');
+      toast('\u26a0 Couldn\u2019t reach the server \u2014 saved on this device, will keep retrying');
       updateSyncBadge();
     }
     return false;
   }
 }
 
-// Retry everything queued from earlier failed writes. Runs once on load.
+// Retry everything queued from earlier failed writes.
+// Runs on load, on the background poll, when the tab regains focus, when the
+// browser comes back online, and when the rep taps the sync badge.
+// _flushing guards against two passes overlapping and sending a write twice.
+let _flushing = false;
 async function flushPendingWrites() {
+  if (_flushing) return;
   let q = getPending();
   if (!q.length) return;
+  _flushing = true;
+  try {
   // Safety: edit/delete-touch writes queued under v16 may reference legacy
   // duplicate Touch IDs. Flushing those would hit the FIRST matching row in
   // the sheet — possibly a different contact's touch. Drop them here.
@@ -1018,6 +1074,153 @@ async function flushPendingWrites() {
   setPending(still);
   if (still.length) updateSyncBadge(); else showSyncResting();
   if (q.length && !still.length) toast('\u2713 Synced ' + q.length + ' pending change' + (q.length>1?'s':''));
+  } finally { _flushing = false; }
+}
+
+// ============================================================
+//  WRITE LEDGER + RECONCILIATION
+//  The retry queue only knows about writes that are STILL waiting. If a write
+//  ever leaves the queue without truly landing (a dropped legacy edit, cleared
+//  storage mid-flight, a bug), nothing would notice — the touch would simply
+//  vanish on the next refresh and no one would know.
+//  The ledger is an independent record of every touch THIS DEVICE created,
+//  including the full payload, so we can (a) prove each one reached the
+//  workbook and (b) re-send it if it didn't.
+// ============================================================
+let _missingAlerted = false;   // only auto-open the audit once per session
+const WRITE_LOG_KEY = 'crm_write_log';
+const WRITE_LOG_MAX = 400;
+function getWriteLog() { try { return JSON.parse(store.get(WRITE_LOG_KEY)) || []; } catch(e) { return []; } }
+function setWriteLog(l) { store.set(WRITE_LOG_KEY, JSON.stringify(l)); }
+function logWrite(action, payload) {
+  if (!payload || !payload.touchId) return;
+  const l = getWriteLog();
+  const key = payload.contactId + '|' + payload.touchId;
+  // Keep one entry per touch — the latest payload wins (an edit supersedes the add).
+  const i = l.findIndex(e => e.key === key);
+  const entry = { key, action, touchId: payload.touchId, contactId: payload.contactId, ts: Date.now(), payload };
+  if (i >= 0) l[i] = entry; else l.push(entry);
+  if (l.length > WRITE_LOG_MAX) l.splice(0, l.length - WRITE_LOG_MAX);
+  setWriteLog(l);
+}
+function forgetWrite(contactId, touchId) {
+  const key = contactId + '|' + touchId;
+  setWriteLog(getWriteLog().filter(e => e.key !== key));
+}
+
+// Compare this device's ledger against what's actually in the workbook.
+// Only meaningful once live server data has loaded, otherwise everything
+// would look "missing" simply because we haven't read the workbook yet.
+function reconcileWrites() {
+  if (store.get('crm_touches_source') !== 'live') return null;
+  const log = getWriteLog();
+  if (!log.length) return { confirmed: [], pending: [], missing: [] };
+  const server = new Set(getTouches().map(t => t.contactId + '|' + t.touchId));
+  const queued = new Set(getPending().filter(w => w.payload).map(w => w.payload.contactId + '|' + w.payload.touchId));
+  const out = { confirmed: [], pending: [], missing: [] };
+  for (const e of log) {
+    if (e.action === 'deleteTouch') { if (!server.has(e.key)) out.confirmed.push(e); else out.pending.push(e); continue; }
+    if (server.has(e.key)) out.confirmed.push(e);
+    else if (queued.has(e.key)) out.pending.push(e);
+    else out.missing.push(e);
+  }
+  return out;
+}
+
+function openReconcile() {
+  const r = reconcileWrites();
+  const body = document.getElementById('reconcileBody');
+  const btn = document.getElementById('rcResendBtn');
+  btn.style.display = 'none';
+  if (!r) {
+    body.innerHTML = `<div style="font-size:14px;line-height:1.6">The app hasn't finished loading data from the workbook yet, so it can't verify anything right now. Give it a few seconds and try again.</div>`;
+  } else if (!r.confirmed.length && !r.pending.length && !r.missing.length) {
+    body.innerHTML = `<div style="font-size:14px;line-height:1.6">Nothing has been logged from this device yet, so there's nothing to check.</div>`;
+  } else {
+    const row = (color, label, n, note) => `<div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid var(--border);border-left:4px solid ${color};border-radius:9px;background:#fff">
+        <div style="font-size:24px;font-weight:800;color:${color};min-width:38px;text-align:center">${n}</div>
+        <div><div style="font-weight:700;font-size:13.5px">${label}</div><div style="font-size:12px;color:var(--muted);margin-top:1px">${note}</div></div>
+      </div>`;
+    let html = `<div style="display:grid;gap:9px">`;
+    html += row('#06a951', 'Confirmed in the workbook', r.confirmed.length, 'These are safely saved.');
+    if (r.pending.length) html += row('#e8a13a', 'Still saving', r.pending.length, 'Waiting to send — normally clears on its own.');
+    if (r.missing.length) html += row('#d8443a', 'Not in the workbook', r.missing.length, 'These need to be re-sent.');
+    html += `</div>`;
+    if (r.missing.length) {
+      const byId = {}; getContacts().forEach(c => byId[c.contactId] = c);
+      html += `<div style="font-size:13px;font-weight:700;margin-top:4px">Missing touches</div>
+        <div style="display:grid;gap:6px;max-height:230px;overflow:auto">` +
+        r.missing.slice(0, 40).map(e => {
+          const c = byId[e.contactId] || {};
+          const nm = ((c.first||'') + ' ' + (c.last||'')).trim() || e.contactId;
+          const p = e.payload || {};
+          return `<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12.5px;background:var(--bg-2)">
+            <b>${esc(nm)}</b>${c.company?` · ${esc(c.company)}`:''} <span style="color:var(--muted)">· ${esc(p.date||'')} · ${esc(p.method||'')} · ${esc(p.result||'')}</span>
+            ${p.notes?`<div style="color:#44515f;margin-top:2px">${esc(p.notes)}</div>`:''}
+          </div>`;
+        }).join('') + `</div>`;
+      html += `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:9px;padding:11px 13px;font-size:13px;line-height:1.55">
+        Tap <b>Re-send missing</b> and these will be queued and sent to the workbook again.</div>`;
+      btn.style.display = '';
+    } else {
+      html += `<div style="background:#e9f7ef;border:1px solid #b5e3c6;border-radius:9px;padding:12px 14px;font-size:13.5px;line-height:1.55;color:#1c7a2e">
+        <b>✓ Everything logged on this device is accounted for.</b> Nothing has been lost.</div>`;
+    }
+    body.innerHTML = html;
+  }
+  document.getElementById('reconcileModal').classList.add('open');
+}
+function closeReconcile() { document.getElementById('reconcileModal').classList.remove('open'); }
+
+async function resendMissing() {
+  const r = reconcileWrites();
+  if (!r || !r.missing.length) return;
+  const btn = document.getElementById('rcResendBtn');
+  btn.disabled = true; btn.textContent = 'Re-sending…';
+  // Put them back in the local touch list and the retry queue, then flush.
+  const touches = getTouches();
+  const have = new Set(touches.map(t => t.contactId + '|' + t.touchId));
+  const q = getPending();
+  for (const e of r.missing) {
+    if (!have.has(e.key) && e.payload) touches.push(e.payload);
+    q.push({ action: 'addTouch', payload: e.payload, ts: Date.now() });
+  }
+  saveTouches(touches); setPending(q); updateSyncBadge();
+  await flushPendingWrites();
+  btn.disabled = false; btn.textContent = 'Re-send missing';
+  openReconcile();
+}
+
+// ---- Unsaved-work modal: fires on its own so a rep never has to remember ----
+let _troubleShownAt = 0;
+function showSyncTrouble(force) {
+  const n = pendingCount();
+  if (!n) return;
+  // Don't nag: re-show at most every 4 minutes unless explicitly forced.
+  if (!force && Date.now() - _troubleShownAt < 240000) return;
+  _troubleShownAt = Date.now();
+  document.getElementById('stCount').textContent = n + (n === 1 ? ' change' : ' changes');
+  document.getElementById('stResult').style.display = 'none';
+  document.getElementById('syncTroubleModal').classList.add('open');
+}
+function closeSyncTrouble() { document.getElementById('syncTroubleModal').classList.remove('open'); }
+async function retryFromModal() {
+  const btn = document.getElementById('stRetryBtn');
+  const res = document.getElementById('stResult');
+  btn.disabled = true; btn.textContent = 'Trying…';
+  await flushPendingWrites();
+  btn.disabled = false; btn.textContent = 'Try saving again';
+  const left = pendingCount();
+  res.style.display = '';
+  if (!left) {
+    res.style.color = 'var(--green-deep)';
+    res.textContent = '✓ Saved. Everything is in the workbook.';
+    setTimeout(closeSyncTrouble, 1400);
+  } else {
+    res.style.color = '#a8322a';
+    res.textContent = 'Still can\u2019t reach the workbook. Your work is safe here and will send automatically once you\u2019re back online.';
+    document.getElementById('stCount').textContent = left + (left === 1 ? ' change' : ' changes');
+  }
 }
 
 // Persistent amber indicator whenever writes are still waiting to sync.
@@ -1025,8 +1228,8 @@ function updateSyncBadge() {
   const el = document.getElementById('syncStatus');
   if (!el) return;
   const n = pendingCount();
-  if (n > 0) { el.textContent = '\u23f3 ' + n + ' not yet synced'; el.style.color = 'var(--amber)'; el.title = 'Some changes are saved on this device but not yet confirmed in the workbook. Keep this tab open until this clears.'; }
-  else { el.textContent = '\u2713 All changes synced'; el.style.color = 'var(--green)'; el.title = 'Everything is saved to the workbook.'; }
+  if (n > 0) { el.textContent = '\u26a0 ' + n + ' not saved \u2014 tap to retry'; el.style.color = ''; el.classList.add('unsaved'); el.title = n + ' change(s) are saved on this device but not yet in the workbook. Tap to retry. They are not lost \u2014 just don\u2019t clear your browser data until this clears.'; }
+  else { el.classList.remove('unsaved'); el.textContent = '\u2713 All changes synced'; el.style.color = 'var(--green)'; el.title = 'Everything is saved to the workbook.'; }
 }
 
 // Build the FULL sheet-ready record for Flow 4 (Edit Contact). Flow 4's "Update a
@@ -1061,6 +1264,7 @@ function fmtClock(ts) {
 function showSyncResting() {
   const el = document.getElementById('syncStatus');
   if (!el) return;
+  el.classList.remove('unsaved');
   if (pendingCount() > 0) { updateSyncBadge(); return; }
   const ts = +store.get('crm_last_synced') || 0;
   if (ts) { el.textContent = '✓ Synced ' + fmtClock(ts); el.style.color = 'var(--muted)'; }
@@ -1069,6 +1273,11 @@ function showSyncResting() {
 function setSyncStatus(st, count) {
   const el = document.getElementById('syncStatus');
   if (!el) return;
+  el.classList.remove('unsaved');
+  // Unsaved writes outrank every read-status message. A rep with a queued touch
+  // must always see the retry prompt — especially when the network is down and
+  // the read is failing too, which is exactly when both fire at once.
+  if (pendingCount() > 0) { updateSyncBadge(); return; }
   if (st === 'syncing') {
     el.textContent = '↻ Syncing…'; el.style.color = 'var(--muted)';
   } else if (st === 'ok') {
@@ -1243,6 +1452,16 @@ async function loadTouchesFromSharePoint() {
     }
     saveTouches(touches);
     store.set('crm_touches_source', 'live');
+    // Every time we get fresh workbook data, verify this device's ledger against
+    // it. A touch that's neither in the workbook nor still queued was silently
+    // lost — surface it immediately rather than letting it disappear quietly.
+    try {
+      const _rc = reconcileWrites();
+      if (_rc && _rc.missing.length && !_missingAlerted) {
+        _missingAlerted = true;
+        openReconcile();
+      }
+    } catch(e) { console.error('reconcile check failed:', e); }
     if      (state.view === 'dashboard') renderDashboard();
     else if (state.view === 'contacts')  { renderContacts(); if (state.selectedContact) renderContactDetail(state.selectedContact); }
     else if (state.view === 'hotleads')  renderHotLeads();
@@ -2370,6 +2589,9 @@ async function saveTouch() {
     touches.push(entry);
   }
   saveTouches(touches);
+  // Independent record of what this device logged, so we can later prove it
+  // reached the workbook — and re-send it if it didn't.
+  logWrite(isEdit ? 'editTouch' : 'addTouch', entry);
 
   // a fresh touch creates a new follow-up date, which supersedes any prior snooze/dismiss
   if (entry.followUp) {
@@ -2417,6 +2639,9 @@ function deleteTouchEntry(cid, tid) {
   if (!t) return;
   touches = touches.filter(x => !(x.contactId === cid && x.touchId === tid));
   saveTouches(touches);
+  // Drop it from the ledger — an intentionally deleted touch must not be
+  // reported as "missing from the workbook" later.
+  forgetWrite(cid, tid);
   pushPA('deleteTouch', { contactId: cid, touchId: tid });
   toast('Touch deleted');
   refreshHotCount();
@@ -2682,6 +2907,14 @@ function logout() { store.set('crm_session', 'null'); location.reload(); }
 
 // ---- Refresh on focus (throttled; only when signed in) ----
 let _lastRefresh = 0;
+// What the sync badge actually calls. Flushes queued writes FIRST (the thing a
+// rep needs when they see "not saved"), then re-reads from the workbook.
+async function syncNow() {
+  if (!authOK()) return;
+  if (pendingCount() > 0) toast('Retrying\u2026');
+  await flushPendingWrites();
+  refreshFromServer(true);
+}
 function refreshFromServer(force) {
   if (!authOK()) return;
   const now = Date.now();
@@ -2690,14 +2923,19 @@ function refreshFromServer(force) {
   loadContactsFromSharePoint();
   loadTouchesFromSharePoint();
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshFromServer(); });
-window.addEventListener('focus', () => refreshFromServer());
-window.addEventListener('beforeunload', function(e){ try { if (pendingCount() > 0) { e.preventDefault(); e.returnValue = 'You have changes that haven\'t finished saving to the workbook. If you leave now they may be lost.'; return e.returnValue; } } catch(err){} });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { flushPendingWrites(); refreshFromServer(); } });
+window.addEventListener('focus', () => { flushPendingWrites(); refreshFromServer(); });
+// Connectivity restored — retry immediately rather than waiting for the poll.
+window.addEventListener('online', () => { flushPendingWrites(); });
+window.addEventListener('beforeunload', function(e){ try { if (pendingCount() > 0) { e.preventDefault(); e.returnValue = pendingCount() + ' change(s) haven\'t saved to the workbook yet. They\'re stored on this device and will send automatically next time you open the app \u2014 just don\'t clear your browser data.'; return e.returnValue; } } catch(err){} });
 let _lastPoll = 0;
 setInterval(() => {
   if (document.visibilityState !== 'visible') return;
-  if (Date.now() - _lastPoll < 110000) return;
   try { if (!authOK()) return; } catch(e) { return; }
+  // Always attempt queued writes, even if the read poll is still cooling down —
+  // an unsaved touch shouldn't wait on the read throttle.
+  flushPendingWrites();
+  if (Date.now() - _lastPoll < 110000) return;
   _lastPoll = Date.now();
   loadTouchesFromSharePoint();
   if (Date.now() - (window._lastContactPoll||0) > 480000) { window._lastContactPoll = Date.now(); loadContactsFromSharePoint(); }
