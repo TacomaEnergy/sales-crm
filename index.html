@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v37 · entry cleanup)</title>
+<title>Tacoma Energy — Sales CRM (v40 · weekly trend)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -381,8 +381,11 @@
     #reportBody > div > div { max-width:none !important; }
     #reportBody ul { page-break-inside:avoid; }
     tr, td, th { page-break-inside:avoid; }
-    #reportBody > div > div:last-child > *:last-child { margin-bottom:0 !important; }
-    #reportBody > div > div:last-child { margin-bottom:0 !important; padding-bottom:0 !important; page-break-after:auto !important; break-after:auto !important; }
+    /* Trailing margin/padding on the final block is what makes Chromium emit a
+       phantom blank page. Zeroing it (and its descendants) keeps the report at
+       exactly 3 pages while page 3 stays an unbreakable unit. */
+    #reportBody > div > div:last-child *:last-child { margin-bottom:0 !important; padding-bottom:0 !important; }
+    #reportBody > div > div:last-child { margin:0 !important; padding:0 !important; page-break-after:avoid !important; break-after:avoid !important; }
   }
   </style>
 </head>
@@ -410,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v37</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v40</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -635,6 +638,7 @@
         <b>Your work is not lost.</b> It's stored on this device and the app keeps retrying on its own.
         The only thing that would lose it is clearing your browser data before it saves.
       </div>
+      <div id="stStuck" style="display:none;background:#fdecea;border:1px solid #f3c4bf;border-radius:10px;padding:12px 14px"></div>
       <div id="stResult" style="font-size:13.5px;font-weight:700;display:none"></div>
     </div>
     <div class="modal-foot">
@@ -1126,7 +1130,14 @@ async function flushPendingWrites() {
   const still = [];
   for (const w of q) {
     const ok = await pushPA(w.action, w.payload, { noQueue:true });
-    if (!ok) still.push(w);
+    if (!ok) {
+      // Count failures so a write that can never succeed (e.g. its row was
+      // deleted straight out of the workbook) stops masquerading as "retrying"
+      // and can be surfaced to the user as needing a decision.
+      w.attempts = (w.attempts || 0) + 1;
+      w.lastError = Date.now();
+      still.push(w);
+    }
   }
   setPending(still);
   if (still.length) updateSyncBadge(); else showSyncResting();
@@ -1248,7 +1259,42 @@ async function resendMissing() {
   openReconcile();
 }
 
-// ---- Unsaved-work modal: fires on its own so a rep never has to remember ----
+// A write that has failed this many times is not a network blip — something is
+// permanently wrong with it (usually its row was deleted directly in the
+// workbook). It needs a human decision, not another silent retry.
+const STUCK_AFTER = 5;
+function stuckWrites() { return getPending().filter(w => (w.attempts || 0) >= STUCK_AFTER); }
+function stuckCount() { return stuckWrites().length; }
+// Plain-English description of a queued change, for the discard UI.
+function describeWrite(w) {
+  const p = w.payload || {};
+  const c = p.contactId ? getContacts().find(x => x.contactId === p.contactId) : null;
+  const who = c ? ((c.first||'') + ' ' + (c.last||'')).trim() + (c.company ? ' (' + c.company + ')' : '')
+                : (p.contactId ? 'contact ' + p.contactId : 'unknown contact');
+  switch (w.action) {
+    case 'addTouch':     return 'New touch on ' + who + (p.date ? ' \u00b7 ' + p.date : '');
+    case 'editTouch':    return 'Edited touch on ' + who;
+    case 'deleteTouch':  return 'Deleted touch on ' + who;
+    case 'addContact':   return 'New contact: ' + who;
+    case 'editContact':  return 'Update to ' + who + (p.active === false || p.active === 'No' ? ' (marked inactive)' : '');
+    default:             return w.action + ' \u00b7 ' + who;
+  }
+}
+function discardWrite(idx) {
+  const q = getPending();
+  const w = q[idx];
+  if (!w) return;
+  if (!confirm('Discard this change?\n\n' + describeWrite(w) + '\n\nIt will NOT be saved to the workbook. Only do this if you know the change is no longer needed \u2014 for example, the row was already deleted directly in Excel.')) return;
+  q.splice(idx, 1);
+  setPending(q);
+  if (w.payload && w.payload.touchId) forgetWrite(w.payload.contactId, w.payload.touchId);
+  updateSyncBadge();
+  toast('Change discarded');
+  if (document.getElementById('syncTroubleModal').classList.contains('open')) showSyncTrouble(true);
+  if (document.getElementById('reconcileModal').classList.contains('open')) openReconcile();
+}
+
+
 let _troubleShownAt = 0;
 function showSyncTrouble(force) {
   const n = pendingCount();
@@ -1258,7 +1304,32 @@ function showSyncTrouble(force) {
   _troubleShownAt = Date.now();
   document.getElementById('stCount').textContent = n + (n === 1 ? ' change' : ' changes');
   document.getElementById('stResult').style.display = 'none';
+  renderStuckList();
   document.getElementById('syncTroubleModal').classList.add('open');
+}
+// Writes that keep failing get called out separately, with a way to drop them.
+// Otherwise one un-syncable change leaves the badge red forever and reps learn
+// to ignore the very warning we need them to trust.
+function renderStuckList() {
+  const box = document.getElementById('stStuck');
+  if (!box) return;
+  const q = getPending();
+  const stuck = q.map((w, i) => ({ w, i })).filter(x => (x.w.attempts || 0) >= STUCK_AFTER);
+  if (!stuck.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = '';
+  box.innerHTML = `<div style="font-weight:800;font-size:13.5px;color:#a8322a;margin-bottom:6px">
+      ${stuck.length === 1 ? 'This change keeps failing' : 'These changes keep failing'}
+    </div>
+    <div style="font-size:13px;line-height:1.55;margin-bottom:9px">
+      Retried ${STUCK_AFTER}+ times without success. This usually means the row was
+      deleted or changed directly in the Excel workbook, so there\u2019s nothing left to update.
+      If the change is no longer needed, discard it to clear this warning.
+    </div>` +
+    stuck.map(x => `<div style="display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #f3c4bf;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+        <div style="flex:1;font-size:12.5px">${esc(describeWrite(x.w))}
+          <div style="color:var(--muted);font-size:11px;margin-top:1px">failed ${x.w.attempts} times</div></div>
+        <button class="btn ghost sm" onclick="discardWrite(${x.i})">Discard</button>
+      </div>`).join('');
 }
 function closeSyncTrouble() { document.getElementById('syncTroubleModal').classList.remove('open'); }
 async function retryFromModal() {
@@ -1582,6 +1653,48 @@ function _tbl(cols, rows){
   var b=rows.map(function(r,ri){ var bg=ri%2?'#f4f8fb':'#ffffff'; return '<tr>'+r.map(function(cell,ci){ var st='padding:6px 12px;border-bottom:1px solid #eaf1f7;font-size:13px;background:'+bg+(ci===0?';text-align:left;font-weight:600;color:#12263a':';text-align:center;color:#2c3e50;font-variant-numeric:tabular-nums'); return `<td style='${st}'>${cell}</td>`; }).join('')+'</tr>'; }).join('');
   return `<table style='border-collapse:collapse;font-family:Arial,sans-serif;width:100%;margin:2px 0 6px;border:1px solid #dbe6f0;border-radius:7px;overflow:hidden'>${head}${b}</table>`;
 }
+// ---- Week-over-week trend ----------------------------------------------
+// Rolling 7-day buckets (not calendar weeks) so the most recent bar matches the
+// "this week" figure and the bar before it matches "vs last week" elsewhere in
+// the report. Rendered as table cells with solid-colour bars, which survives
+// print far more reliably than a chart library or CSS gradients.
+function _weeklyBuckets(touches, weeks) {
+  const iso = d => d.toISOString().slice(0,10);
+  const out = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const end = new Date(); end.setHours(12,0,0,0); end.setDate(end.getDate() - i*7);
+    const start = new Date(end); start.setDate(start.getDate() - 6);
+    const s = iso(start), e = iso(end);
+    out.push({ s, e, n: touches.filter(t => t.date >= s && t.date <= e).length, start });
+  }
+  return out;
+}
+function _trendChart(touches, weeks, accent) {
+  weeks = weeks || 8;
+  const b = _weeklyBuckets(touches, weeks);
+  const max = Math.max(1, ...b.map(x => x.n));
+  const H = 96;
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const avg = Math.round(b.reduce((a,x) => a + x.n, 0) / weeks);
+  const cells = b.map((x, i) => {
+    const h = Math.max(2, Math.round(x.n / max * H));
+    const last = i === b.length - 1;
+    const col = last ? accent : '#b9d3e6';
+    return `<td valign="bottom" align="center" style="padding:0 3px;vertical-align:bottom">
+      <div style="font-size:11px;font-weight:800;color:${last ? accent : '#5b6b7c'};margin-bottom:3px">${x.n}</div>
+      <div style="width:100%;height:${h}px;background:${col};border-radius:4px 4px 0 0"></div>
+      <div style="font-size:9.5px;color:#8a99a9;margin-top:4px;white-space:nowrap">${MON[x.start.getMonth()]} ${x.start.getDate()}</div>
+    </td>`;
+  }).join('');
+  return `<div style="border:1px solid #dbe6f0;border-radius:10px;padding:12px 14px 10px;background:#fff">
+    <table width="100%" style="border-collapse:collapse;margin-bottom:6px"><tr>
+      <td style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#687d92">Reach-outs by week <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#8a99a9">(last ${weeks} weeks)</span></td>
+      <td align="right" style="font-size:11px;color:#8a99a9">${weeks}-week average <b style="color:#12263a;font-size:13px">${avg}</b>/wk</td>
+    </tr></table>
+    <table width="100%" style="border-collapse:collapse;table-layout:fixed;height:${H + 32}px"><tr>${cells}</tr></table>
+  </div>`;
+}
+
 // ---- Report visual helpers (KPI cards, section headers) ----
 function _kpiCards(touches, opts){
   opts = opts || {};
@@ -1655,6 +1768,10 @@ function buildReportHTML(){
       </div>
     </td></tr></table>`;
 
+  // Trajectory — turns this week's number into a direction the CEO can read
+  // at a glance, which the KPI cards alone can't convey.
+  html+=`<div style='margin-top:12px'>` + _trendChart(all, 8, '#06a951') + `</div>`;
+
   // ================= PAGE 2 — BY REP =================
   html+=`</div>`;
   html+=`<div>`;
@@ -1687,8 +1804,11 @@ function buildReportHTML(){
   });
 
   // ================= PAGE 3 — GEOGRAPHY =================
+  // Kept as one unbreakable block so the heading can never be stranded at the
+  // bottom of page 2 while its tables move on. No forced break is used here —
+  // that reintroduces a phantom trailing page in Chromium.
   html+=`</div>`;
-  html+=`<div>`;
+  html+=`<div style='page-break-inside:avoid'>`;
   html+=_sectionHead('3','Where We\u2019re Working','outreaches by market','#f2622a');
   html+=`<div style='font-size:12px;font-weight:700;margin:8px 0 3px;color:#0c2d47;text-transform:uppercase;letter-spacing:.4px'>By Builder <span style='color:#8a99a9;font-weight:400;text-transform:none;letter-spacing:0'>(top 15)</span></div>`;
   html+=_breakdownTable(function(c){return c.company;}, 'Builder', 15);
@@ -3077,6 +3197,10 @@ async function syncNow() {
   if (pendingCount() > 0) toast('Retrying\u2026');
   await flushPendingWrites();
   refreshFromServer(true);
+  // If anything still won't go through after repeated tries, don't just leave a
+  // red badge with no explanation — open the panel that explains it and offers
+  // a way out.
+  if (stuckCount() > 0) showSyncTrouble(true);
 }
 function refreshFromServer(force) {
   if (!authOK()) return;
