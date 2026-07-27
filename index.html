@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v32 · report trim)</title>
+<title>Tacoma Energy — Sales CRM (v33 · report redesign)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -363,7 +363,20 @@
     .bd-caret { display:inline-block; width:14px; font-size:9px; color: var(--muted); }
     .bd-sub { padding: 2px 0 10px 22px; }
     .bd-sub .bd-row { margin: 2px 0; }
-  @media print { @page { margin: 14mm; size: letter; } .nav { display:none !important; } #view-report .page-head { display:none !important; } .view:not(.active){ display:none !important; } body { background:#fff !important; } #reportBody, #reportBody * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; } #reportBody table, #reportBody ul, #reportBody h3 { page-break-inside:avoid; } #reportBody { overflow:hidden; } #reportBody > div { max-width:none !important; } #reportBody > div > *:last-child { margin-bottom:0 !important; } #reportBody table:last-child { page-break-after:avoid !important; } }
+  @media print {
+    @page { margin: 13mm; size: letter; }
+    .nav, .login-gate, #view-report .page-head { display:none !important; }
+    .view:not(.active) { display:none !important; }
+    body { background:#fff !important; }
+    #reportBody, #reportBody * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    #reportBody { max-width:none !important; font-family:Arial,Helvetica,sans-serif; }
+    #reportBody > div { display:contents !important; }
+    #reportBody > div > div { max-width:none !important; }
+    #reportBody ul { page-break-inside:avoid; }
+    tr, td, th { page-break-inside:avoid; }
+    #reportBody > div > div:last-child > *:last-child { margin-bottom:0 !important; }
+    #reportBody > div > div:last-child { margin-bottom:0 !important; padding-bottom:0 !important; page-break-after:auto !important; break-after:auto !important; }
+  }
   </style>
 </head>
 <body>
@@ -390,7 +403,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v32</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v33</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -1287,11 +1300,41 @@ function _breakdownTable(keyFn, colLabel, topN){
   return _tbl([colLabel,'7 Days','30 Days','YTD'], rows);
 }
 function _tbl(cols, rows){
-  var th='padding:7px 12px;background:#0e2f4a;color:#ffffff;font-size:11px;letter-spacing:.5px;text-transform:uppercase;text-align:center';
+  var th='padding:8px 12px;background:#0e2f4a;color:#ffffff;font-size:10px;letter-spacing:.6px;text-transform:uppercase;text-align:center;font-weight:700';
   var thL=th+';text-align:left';
   var head='<tr>'+cols.map(function(c,i){return `<th style='${i===0?thL:th}'>${c}</th>`;}).join('')+'</tr>';
-  var b=rows.map(function(r,ri){ var bg=ri%2?'#f4f8fb':'#ffffff'; return '<tr>'+r.map(function(cell,ci){ var st='padding:6px 12px;border-bottom:1px solid #e6eef5;font-size:13px;background:'+bg+(ci===0?';text-align:left;font-weight:600;color:#12263a':';text-align:center;color:#12263a'); return `<td style='${st}'>${cell}</td>`; }).join('')+'</tr>'; }).join('');
-  return `<table style='border-collapse:collapse;font-family:Arial,sans-serif;width:100%;margin:4px 0 14px'>${head}${b}</table>`;
+  var b=rows.map(function(r,ri){ var bg=ri%2?'#f4f8fb':'#ffffff'; return '<tr>'+r.map(function(cell,ci){ var st='padding:6px 12px;border-bottom:1px solid #eaf1f7;font-size:13px;background:'+bg+(ci===0?';text-align:left;font-weight:600;color:#12263a':';text-align:center;color:#2c3e50;font-variant-numeric:tabular-nums'); return `<td style='${st}'>${cell}</td>`; }).join('')+'</tr>'; }).join('');
+  return `<table style='border-collapse:collapse;font-family:Arial,sans-serif;width:100%;margin:2px 0 6px;border:1px solid #dbe6f0;border-radius:7px;overflow:hidden'>${head}${b}</table>`;
+}
+// ---- Report visual helpers (KPI cards, section headers) ----
+function _kpiCards(touches, opts){
+  opts = opts || {};
+  var s7=_repStats(touches,cutoffFor(7)), s30=_repStats(touches,cutoffFor(30)), sytd=_repStats(touches,cutoffFor('ytd'));
+  var defs=[
+    {label:'Reach-outs', key:'reach', ico:'\u2197'},
+    {label:'Contacts reached', key:'reached', ico:'\u2713'},
+    {label:'Meetings', key:'meet', ico:'\ud83e\udd1d'},
+    {label:'Pricing sent', key:'price', ico:'\ud83d\udcb2'}
+  ];
+  var cells=defs.map(function(d){
+    return `<td valign='top' style='width:25%;padding:0 5px'>
+      <div style='border:1px solid #dbe6f0;border-top:3px solid ${opts.accent||'#1395d3'};border-radius:8px;padding:9px 12px 10px;background:#fff'>
+        <div style='font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#687d92'>${d.label}</div>
+        <div style='font-size:28px;font-weight:800;color:#0e2f4a;line-height:1.0;margin:5px 0 1px'>${s7[d.key]}</div>
+        <div style='font-size:11px;color:#8a99a9'>this week</div>
+        <div style='margin-top:7px;padding-top:6px;border-top:1px solid #eef3f8;font-size:11px;color:#5b6b7c'>
+          <b style='color:#12263a'>${s30[d.key]}</b> in 30d &nbsp;\u00b7&nbsp; <b style='color:#12263a'>${sytd[d.key]}</b> YTD
+        </div>
+      </div></td>`;
+  }).join('');
+  return `<table width='100%' style='border-collapse:separate;border-spacing:0;margin:10px -5px 6px;table-layout:fixed'><tr>${cells}</tr></table>`;
+}
+function _sectionHead(num, title, sub, accent){
+  return `<table width='100%' style='border-collapse:collapse;margin:0 0 4px'><tr>
+    <td valign='middle' style='width:34px'><div style='width:28px;height:28px;border-radius:7px;background:${accent};color:#fff;font-weight:800;font-size:14px;text-align:center;line-height:28px;font-family:Arial'>${num}</div></td>
+    <td valign='middle' style='padding-left:10px;border-bottom:2px solid ${accent};padding-bottom:6px'>
+      <span style='font-size:17px;font-weight:800;color:#0c2d47'>${title}</span>${sub?` <span style='font-size:12px;color:#8a99a9;font-weight:400'>${sub}</span>`:''}
+    </td></tr></table>`;
 }
 function buildReportHTML(){
   var all=getTouches();
@@ -1304,36 +1347,87 @@ function buildReportHTML(){
   var activeThisWeek=realReps.filter(function(r){return all.filter(function(t){return t.rep===r && t.date>=cutoffFor(7);}).length>0;}).length;
   function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Contacts reached','reached'),mk('Meetings (in person)','meet'),mk('Pricing sent','price')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
-  var html=`<div style='font-family:Arial,sans-serif;color:#12263a;max-width:720px'>`;
-  html+=`<table width='100%' style='border-collapse:collapse;margin-bottom:12px'><tr><td bgcolor='#0e2f4a' style='background:#0e2f4a;padding:18px 22px'><div style='font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.5px'>TACOMA ENERGY</div><div style='font-size:13px;color:#a9c7de;margin-top:3px;letter-spacing:.3px'>WEEKLY SALES REPORT</div></td></tr></table>`;
-  html+=`<div style='background:#eef4fa;border-left:3px solid #1395d3;padding:9px 13px;font-size:12px;color:#12263a;margin-bottom:10px'><b>Data as of ${_stamp}.</b> Touches logged after this time are not included in this report.</div>`;
-  html+=`<div style='color:#687d92;font-size:12px;margin-bottom:16px'>Coverage: ${cov}% of ${totC.toLocaleString()} active contacts ever touched \u00b7 Reps active this week: <b style='color:${activeThisWeek<realReps.length?"#d64545":"#06a951"}'>${activeThisWeek} of ${realReps.length}</b></div>`;
-  html+=`<h3 style='color:#0c2d47;border-bottom:2px solid #06a951;padding-bottom:5px;font-size:16px'>Team Overview</h3>`;
-  html+=_summaryBlock(all, cutoffFor(7), 'This week', true);
-  html+=_summaryBlock(all, cutoffFor(30), 'Last 30 days', false);
-  html+=`<div style='font-size:13px;font-weight:700;margin:10px 0 0'>\ud83d\udd25 Hot leads (current \u2014 ${_hotFor(null)}):</div>`+_hotList();
-  var nc=[ 'New contacts added' ].concat(wins.map(function(cut){return contacts.filter(function(x){return (x.dateAdded||'')>=cut;}).length;}));
-  html+=statBlock(all, nc);
-  html+=`<h3 style='color:#0c2d47;border-bottom:2px solid #1395d3;padding-bottom:5px;font-size:16px;margin-top:24px;page-break-before:always'>By Rep</h3>`;
+  var html=`<div style="font-family:Arial,Helvetica,sans-serif;color:#12263a;max-width:720px">`;
+  // ================= PAGE 1 — TEAM =================
+  html+=`<div style='page-break-after:always'>`;
+  // ---- Masthead ----
+  html+=`<table width='100%' style='border-collapse:collapse;margin-bottom:11px'><tr>
+    <td bgcolor='#0e2f4a' style='background:#0e2f4a;padding:17px 22px;border-radius:9px'>
+      <table width='100%'><tr>
+        <td valign='middle'><div style='font-size:23px;font-weight:800;color:#ffffff;letter-spacing:.6px'>TACOMA ENERGY</div><div style='font-size:12px;color:#8fb4d6;margin-top:3px;letter-spacing:2px;font-weight:600'>WEEKLY SALES REPORT</div></td>
+        <td valign='middle' align='right'><div style='font-size:11px;color:#8fb4d6;letter-spacing:.3px'>Reps active this week</div><div style='font-size:20px;font-weight:800;color:${activeThisWeek<realReps.length?"#ffb454":"#4fd18a"};text-align:right'>${activeThisWeek} <span style='font-size:13px;color:#8fb4d6;font-weight:600'>of ${realReps.length}</span></div></td>
+      </tr></table>
+    </td></tr></table>`;
+  html+=`<div style='display:flex;font-size:11px;color:#687d92;margin-bottom:14px'><span style='background:#eef4fa;border-left:3px solid #1395d3;padding:6px 11px;border-radius:0 5px 5px 0'><b style='color:#12263a'>As of ${_stamp}</b> \u00b7 later touches excluded \u00b7 coverage ${cov}% of ${totC.toLocaleString()} active contacts</span></div>`;
+
+  // ---- Team section ----
+  html+=_sectionHead('1','Team Overview','all reps combined','#06a951');
+  html+=_kpiCards(all, {accent:'#06a951'});
+  html+=`<table width='100%' style='border-collapse:collapse;margin:8px 0 14px'><tr>
+    <td valign='top' style='width:50%;padding-right:9px'>
+      <div style='border:1px solid #dbe6f0;border-radius:8px;padding:11px 14px;background:#f8fbfd'>
+        <div style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#687d92;margin-bottom:5px'>Pace</div>
+        ${_summaryBlock(all, cutoffFor(7), 'This week', true)}
+        ${_summaryBlock(all, cutoffFor(30), 'Last 30 days', false)}
+        <div style='font-size:12px;margin-top:4px;color:#5b6b7c'>New contacts added: <b style='color:#12263a'>${contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(7);}).length}</b> wk \u00b7 <b style='color:#12263a'>${contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor('ytd');}).length}</b> YTD</div>
+      </div>
+    </td>
+    <td valign='top' style='width:50%;padding-left:9px'>
+      <div style='border:1px solid #f0dcc4;border-radius:8px;padding:11px 14px;background:#fffaf3'>
+        <div style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#b5711f;margin-bottom:5px'>\ud83d\udd25 Hot leads (${_hotFor(null)})</div>
+        ${_hotList()}
+      </div>
+    </td></tr></table>`;
+
+  // ================= PAGE 2 — BY REP =================
+  html+=`</div>`;
+  html+=`<div>`;
+  html+=_sectionHead('2','By Rep','individual breakdown','#1395d3');
   REPS.forEach(function(rep){
     if(rep==='Unassigned') return;
     var rt=all.filter(function(t){return t.rep===rep;});
     var col=REP_COLOR[rep]||'#12263a';
     var r7=rt.filter(function(t){return t.date>=cutoffFor(7);}).length;
-    var badge = r7>0 ? `<span style='background:#06a951;color:#fff;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700'>ACTIVE</span>` : `<span style='background:#d64545;color:#fff;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700'>NO ACTIVITY THIS WEEK</span>`;
-    html+=`<div style='margin:20px 0 2px;page-break-inside:avoid'><span style='display:inline-block;width:11px;height:11px;border-radius:50%;background:${col};margin-right:7px'></span><b style='color:${col};font-size:16px'>${esc(rep)}</b> ${badge} <span style='color:#687d92;font-size:12px'>\u00b7 ${_hotFor(rep)} hot \u00b7 ${_overdueFor(rep)} overdue follow-up(s)</span></div>`;
-    html+=_summaryBlock(rt, cutoffFor(7), 'This week', true);
-    html+=_summaryBlock(rt, cutoffFor(30), 'Last 30 days', false);
-    html+=`<div style='font-size:12px;font-weight:700;margin:6px 0 0'>Pricing sent (last 30 days):</div>`+_detailList(rep,'price');
-    html+=`<div style='font-size:12px;font-weight:700;margin:2px 0 0'>Meetings \u2014 in person (last 30 days):</div>`+_detailList(rep,'meet');
-    html+=statBlock(rt, null, true);
+    var badge = r7>0 ? `<span style='background:#06a951;color:#fff;font-size:9px;padding:2px 8px;border-radius:9px;font-weight:800;letter-spacing:.4px'>ACTIVE</span>` : `<span style='background:#d64545;color:#fff;font-size:9px;padding:2px 8px;border-radius:9px;font-weight:800;letter-spacing:.4px'>NO ACTIVITY</span>`;
+    html+=`<div style='page-break-inside:avoid;margin-top:9px;border:1px solid #dbe6f0;border-radius:9px;overflow:hidden'>
+      <table width='100%' style='border-collapse:collapse'><tr><td style='background:${col};padding:9px 14px'>
+        <table width='100%'><tr>
+          <td valign='middle'><span style='display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;margin-right:8px;opacity:.85'></span><b style='color:#fff;font-size:15px'>${esc(rep)}</b> &nbsp;${badge}</td>
+          <td align='right' valign='middle'><span style='color:#ffffff;font-size:11px;opacity:.9'>${_hotFor(rep)} hot \u00b7 ${_overdueFor(rep)} overdue</span></td>
+        </tr></table>
+      </td></tr></table>
+      <div style='padding:8px 14px 9px'>
+        ${_kpiCards(rt, {accent:col})}
+        <table width='100%' style='border-collapse:collapse;margin-top:6px'><tr>
+          <td valign='top' style='width:50%;padding-right:10px'>
+            <div style='font-size:11px;font-weight:700;color:#0c2d47;margin-bottom:1px'>Pricing sent <span style='color:#8a99a9;font-weight:400'>(30d)</span></div>${_detailList(rep,'price')}
+          </td>
+          <td valign='top' style='width:50%;padding-left:10px'>
+            <div style='font-size:11px;font-weight:700;color:#0c2d47;margin-bottom:1px'>Meetings \u2014 in person <span style='color:#8a99a9;font-weight:400'>(30d)</span></div>${_detailList(rep,'meet')}
+          </td>
+        </tr></table>
+      </div>
+    </div>`;
   });
-  html+=`<h3 style='color:#0c2d47;border-bottom:2px solid #f2622a;padding-bottom:5px;font-size:16px;margin-top:24px;page-break-before:always'>Where the Team Is Working <span style='font-size:12px;color:#687d92;font-weight:400'>(all reps combined)</span></h3>`;
-  var buildersTbl=`<div style='font-size:13px;font-weight:700;margin:6px 0 2px;color:#0c2d47'>Top 25 Builders</div>`+_breakdownTable(function(c){return c.company;}, 'Builder', 25);
-  var statesTbl=`<div style='font-size:13px;font-weight:700;margin:6px 0 2px;color:#0c2d47'>Top 10 States</div>`+_breakdownTable(function(c){return c.state;}, 'State', 10);
-  var citiesTbl=`<div style='font-size:13px;font-weight:700;margin:12px 0 2px;color:#0c2d47'>Top 10 Cities</div>`+_breakdownTable(function(c){return [c.city,c.state].filter(Boolean).join(', ');}, 'City', 10);
-  html+=`<table width='100%' style='border-collapse:collapse'><tr><td valign='top' style='width:53%;padding-right:16px'>${buildersTbl}</td><td valign='top' style='width:47%'>${statesTbl}${citiesTbl}</td></tr></table>`;
+
+  // ================= PAGE 3 — GEOGRAPHY =================
   html+=`</div>`;
+  html+=`<div>`;
+  html+=_sectionHead('3','Where We\u2019re Working','outreaches by market','#f2622a');
+  html+=`<div style='font-size:12px;font-weight:700;margin:8px 0 3px;color:#0c2d47;text-transform:uppercase;letter-spacing:.4px'>By Builder <span style='color:#8a99a9;font-weight:400;text-transform:none;letter-spacing:0'>(top 15)</span></div>`;
+  html+=_breakdownTable(function(c){return c.company;}, 'Builder', 15);
+  html+=`<table width='100%' style='border-collapse:collapse;margin-top:12px'><tr>
+    <td valign='top' style='width:50%;padding-right:11px'>
+      <div style='font-size:12px;font-weight:700;margin:0 0 3px;color:#0c2d47;text-transform:uppercase;letter-spacing:.4px'>By State <span style='color:#8a99a9;font-weight:400;text-transform:none;letter-spacing:0'>(top 10)</span></div>
+      ${_breakdownTable(function(c){return c.state;}, 'State', 10)}
+    </td>
+    <td valign='top' style='width:50%;padding-left:11px'>
+      <div style='font-size:12px;font-weight:700;margin:0 0 3px;color:#0c2d47;text-transform:uppercase;letter-spacing:.4px'>By City <span style='color:#8a99a9;font-weight:400;text-transform:none;letter-spacing:0'>(top 10)</span></div>
+      ${_breakdownTable(function(c){return [c.city,c.state].filter(Boolean).join(', ');}, 'City', 10)}
+    </td></tr></table>`;
+
+  html+=`</div>`;   // close page 3
+  html+=`</div>`;   // close outer wrapper
   return html;
 }
 function downloadReportPDF(){ if(state.view!=='report') switchView('report'); var _prev=document.title; var _d=new Date(); var _st=_d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'2-digit'}).replace(/,/g,'').replace(/ /g,'-'); document.title='Tacoma Energy - Weekly Sales Report - '+_st; setTimeout(function(){ window.print(); setTimeout(function(){ document.title=_prev; }, 1200); }, 350); }
