@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v41 · pending manager)</title>
+<title>Tacoma Energy — Sales CRM (v42 · access key)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v41</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v42</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -436,13 +436,19 @@
 <div class="login-gate" id="loginGate">
   <div class="login-card">
     <h2>Tacoma Energy — Sales CRM</h2>
-    <p>Select your name and enter the team passcode to continue.</p>
+    <p id="lgIntro">Select your name to continue.</p>
     <label class="fld">Your name</label>
     <select id="lgName"></select>
-    <label class="fld">Team passcode</label>
-    <input type="password" id="lgCode" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()" />
+    <div id="lgKeyWrap">
+      <label class="fld">Access key</label>
+      <input type="password" id="lgCode" autocomplete="off" placeholder="Paste the key Arick gave you" onkeydown="if(event.key==='Enter')doLogin()" />
+      <div style="font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45">You only need to enter this once on this device.</div>
+    </div>
     <div class="login-err" id="lgErr"></div>
-    <button class="btn green" onclick="doLogin()">Sign in</button>
+    <button class="btn green" id="lgBtn" onclick="doLogin()">Sign in</button>
+    <div style="margin-top:10px;text-align:center">
+      <span id="lgChangeKey" onclick="promptNewKey()" style="display:none;cursor:pointer;font-size:11.5px;color:var(--muted);text-decoration:underline">Enter a different access key</span>
+    </div>
   </div>
 </div>
 
@@ -763,10 +769,19 @@ const POWER_AUTOMATE = {
 // APP_KEY is sent in the body of every request; each flow verifies it (triggerBody()?['key'])
 // and rejects anything without it. Note: it lives in this file, so it's deterrence — it stops
 // URL-only abuse, not a determined source-viewer. Real page-access control (Cloudflare/M365) is separate.
-const APP_KEY = 'tac-a7Kq2Wm9Rf4Xp1Zc8Nv3Bs6';   // change this, and set the SAME value in each flow's key-check
+// The access key is NOT stored in this file any more. Each person enters it once
+// on their device and it lives in their browser from then on. That means viewing
+// the page source gives an outsider nothing usable — the key is the real lock,
+// since it's checked by Power Automate on Microsoft's servers, not in the browser.
+const APP_KEY_STORE = 'crm_app_key';
+function getAppKey() { return store.get(APP_KEY_STORE) || ''; }
+function setAppKey(k) { store.set(APP_KEY_STORE, String(k || '').trim()); }
+function hasAppKey() { return !!getAppKey(); }
+function clearAppKey() { try { localStorage.removeItem(APP_KEY_STORE); } catch(e){} mem[APP_KEY_STORE] = undefined; }
 // Team login passcode — CHANGE THIS, and set the same value in the login instructions to the reps.
 // Cosmetic UI gate (client-side check); pair with APP_KEY + hosting for real protection.
-const TEAM_PASSCODE = 'CHANGE-ME';
+// TEAM_PASSCODE removed: it was checked in the browser, so the correct value sat
+// in this file and could be read (or skipped entirely). The access key replaces it.
 const SESSION_HOURS = 12;   // how long a login lasts before re-prompting
 
 const LOCATIONS = {
@@ -801,7 +816,7 @@ const mem = {};
 // work does not exist anywhere else yet, so if space runs out we evict cache to
 // make room for it rather than silently dropping it into memory, where a
 // refresh would destroy it.
-const CRITICAL_KEYS = ['crm_pending_writes', 'crm_write_log', 'crm_session'];
+const CRITICAL_KEYS = ['crm_pending_writes', 'crm_write_log', 'crm_session', 'crm_app_key'];
 const EVICTABLE_KEYS = ['crm_touches', 'crm_contacts'];
 let _storageWarned = false;
 
@@ -1090,7 +1105,7 @@ async function pushPA(action, payload, opts) {
     console.log(`[Power Automate stub] ${action}:`, payload); return true;
   }
   try {
-    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, key: APP_KEY }) });
+    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, key: getAppKey() }) });
     if (r.status !== 200) throw new Error('HTTP ' + r.status + (r.status === 202 ? ' (accepted but not run — likely key rejected)' : ''));
     return true;
   } catch(e) {
@@ -1466,7 +1481,7 @@ async function fetchPages(url, maxPages, pageSize) {
   const results = new Array(maxPages).fill(null);   // null = failed / not fetched
   async function fetchOne(i) {
     try {
-      const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ skip: i * pageSize, key: APP_KEY }) });
+      const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ skip: i * pageSize, key: getAppKey() }) });
       if (!r.ok) return null;
       const d = await r.json();
       return Array.isArray(d) ? d : (d.value || []);
@@ -3185,15 +3200,64 @@ function showLoginGate() {
   if (_prevSel && names.includes(_prevSel)) { sel.value = _prevSel; } else { const last = store.get('crm_acting_rep'); if (last && names.includes(last)) sel.value = last; }
   if (!_wasShown) document.getElementById('lgErr').textContent = '';
   if (!_wasShown) document.getElementById('lgCode').value = '';
+  // The key is entered once per device. On later sign-ins just pick a name,
+  // with a quiet link to re-enter if the key was rotated.
+  const known = hasAppKey();
+  document.getElementById('lgKeyWrap').style.display = known ? 'none' : '';
+  document.getElementById('lgChangeKey').style.display = known ? '' : 'none';
+  document.getElementById('lgIntro').textContent = known
+    ? 'Select your name to continue.'
+    : 'Select your name and enter the access key to continue.';
   document.getElementById('loginGate').classList.add('show');
-  setTimeout(() => { try { document.getElementById('lgCode').focus(); } catch(e){} }, 60);
+  setTimeout(() => { try { document.getElementById(known ? 'lgName' : 'lgCode').focus(); } catch(e){} }, 60);
 }
-function doLogin() {
+// Ask Power Automate whether a key is actually accepted. readUsers is the
+// cheapest flow (a handful of rows), so this costs almost nothing.
+// Returns 'ok' | 'rejected' | 'unreachable'.
+async function verifyAppKey(key) {
+  const url = POWER_AUTOMATE.readUsers;
+  if (!url) return 'ok';                        // nothing wired up yet — don't lock anyone out
+  try {
+    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key: String(key||'').trim() }) });
+    if (r.ok) return 'ok';
+    if (r.status === 401 || r.status === 403) return 'rejected';
+    return 'rejected:' + r.status;              // surface the code so a flow misconfig is debuggable
+  } catch(e) { return 'unreachable'; }
+}
+function promptNewKey() {
+  clearAppKey();
+  document.getElementById('lgKeyWrap').style.display = '';
+  document.getElementById('lgChangeKey').style.display = 'none';
+  document.getElementById('lgErr').textContent = '';
+  document.getElementById('lgCode').value = '';
+  setTimeout(() => { try { document.getElementById('lgCode').focus(); } catch(e){} }, 40);
+}
+async function doLogin() {
   const name = document.getElementById('lgName').value;
-  const code = document.getElementById('lgCode').value;
   const err = document.getElementById('lgErr');
+  const btn = document.getElementById('lgBtn');
+  const needKey = document.getElementById('lgKeyWrap').style.display !== 'none';
+  const code = needKey ? document.getElementById('lgCode').value.trim() : getAppKey();
   if (!name) { err.textContent = 'Select your name.'; return; }
-  if (code !== TEAM_PASSCODE) { err.textContent = 'Incorrect passcode.'; return; }
+  if (!code) { err.textContent = 'Enter the access key.'; return; }
+
+  if (needKey) {
+    err.style.color = ''; err.textContent = '';
+    btn.disabled = true; btn.textContent = 'Checking\u2026';
+    const res = await verifyAppKey(code);
+    btn.disabled = false; btn.textContent = 'Sign in';
+    if (res === 'unreachable') {
+      err.textContent = 'Couldn\u2019t reach the server to check that key. Check your internet connection and try again.';
+      return;
+    }
+    if (res !== 'ok') {
+      const extra = res.startsWith('rejected:') ? ' (server said ' + res.split(':')[1] + ')' : '';
+      err.textContent = 'That access key wasn\u2019t accepted' + extra + '. Check it and try again.';
+      return;
+    }
+    setAppKey(code);
+  }
+
   store.set('crm_session', JSON.stringify({ name, until: Date.now() + SESSION_HOURS*3600*1000 }));
   store.set('crm_acting_rep', name);
   state.actingRep = name;
