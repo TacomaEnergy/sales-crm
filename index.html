@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v44 · key verify fix)</title>
+<title>Tacoma Energy — Sales CRM (v45 · note chips)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v44</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v45</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -678,7 +678,7 @@
       </div>
       <div class="context-note" id="touchContext">Search above to pick the contact this touch is for.</div>
       <div class="frow">
-        <div><label class="fld">Rep</label><select id="tmRep"></select></div>
+        <div><label class="fld">Rep</label><select id="tmRep" onchange="renderNoteChips()"></select></div>
         <div><label class="fld">Method</label><select id="tmMethod">
           <option>Call</option><option>Email</option><option>LinkedIn</option><option>Text</option><option>In Person</option><option>Other</option>
         </select></div>
@@ -697,7 +697,9 @@
         <div><label class="fld">Date</label><input type="date" id="tmDate" /></div>
       </div>
       <div><label class="fld">Next Follow-Up Date <span style="font-weight:400;color:var(--muted)">(auto-set: 6 weeks, or 1 year if Not interested — change or clear as needed)</span></label><input type="date" id="tmFollowup" /></div>
-      <div><label class="fld">Notes</label><textarea id="tmNotes" placeholder="Response, follow-up details, pricing questions, etc."></textarea></div>
+      <div><label class="fld">Notes</label><textarea id="tmNotes" placeholder="Response, follow-up details, pricing questions, etc."></textarea>
+        <div id="tmNoteChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px"></div>
+      </div>
     </div>
     <div class="modal-foot">
       <label style="display:flex;align-items:center;gap:6px;margin-right:auto;font-size:13px;cursor:pointer;font-weight:600"><input type="checkbox" id="tmHot" /> 🔥 Flag as Hot Lead</label>
@@ -1158,6 +1160,78 @@ async function flushPendingWrites() {
   if (still.length) updateSyncBadge(); else showSyncResting();
   if (q.length && !still.length) toast('\u2713 Synced ' + q.length + ' pending change' + (q.length>1?'s':''));
   } finally { _flushing = false; }
+}
+
+// ============================================================
+//  QUICK NOTE CHIPS
+//  Most touches carry no note at all (about 17% do), and the ones that repeat
+//  are short and formulaic ("Email sent", "Trying to set in person"). So the
+//  win isn't a text editor — it's one tap for the phrases already being typed.
+//  Chips are mined from the logged-in rep's OWN history, so they track that
+//  person's habits with nothing to maintain, topped up with a few generics.
+// ============================================================
+const GENERIC_NOTE_CHIPS = [
+  'Email sent',
+  'Left voicemail',
+  'Trying to connect',
+  'Trying to set in person',
+  'Sent pricing',
+  'Sent energy rating email',
+  'Not the right contact',
+  'Prospecting'
+];
+function _normNote(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+}
+// Rep's own repeated notes, most-used first. Keeps the original wording/casing
+// of whichever version they typed most often.
+function minedNoteChips(rep, limit) {
+  const counts = {}, display = {};
+  getTouches().forEach(t => {
+    if (rep && t.rep !== rep) return;
+    const raw = (t.notes || '').trim();
+    if (!raw || raw.length > 60) return;          // long notes aren't reusable phrases
+    const k = _normNote(raw);
+    if (!k) return;
+    counts[k] = (counts[k] || 0) + 1;
+    if (!display[k]) display[k] = {};
+    display[k][raw] = (display[k][raw] || 0) + 1;
+  });
+  return Object.keys(counts)
+    .filter(k => counts[k] > 1)                   // only things actually reused
+    .sort((a, b) => counts[b] - counts[a])
+    .slice(0, limit || 6)
+    .map(k => {
+      const variants = display[k];
+      const best = Object.keys(variants).sort((a, b) => variants[b] - variants[a])[0];
+      return { text: best, count: counts[k] };
+    });
+}
+function renderNoteChips() {
+  const box = document.getElementById('tmNoteChips');
+  if (!box) return;
+  const rep = (document.getElementById('tmRep') || {}).value || state.actingRep || '';
+  const mined = minedNoteChips(rep, 6);
+  const seen = new Set(mined.map(m => _normNote(m.text)));
+  const generics = GENERIC_NOTE_CHIPS.filter(g => !seen.has(_normNote(g))).slice(0, 6);
+  const chip = (text, mine) =>
+    `<button type="button" onclick="insertNote(${JSON.stringify(text).replace(/"/g, '&quot;')})"
+       title="${mine ? 'One of your most-used notes' : 'Common note'}"
+       style="border:1px solid ${mine ? '#b9ddf2' : 'var(--border)'};background:${mine ? 'var(--accent-light,#e8f4fb)' : '#fff'};
+              color:var(--navy,#0c2d47);border-radius:999px;padding:4px 11px;font-size:12px;font-weight:600;
+              font-family:inherit;cursor:pointer;line-height:1.3">${esc(text)}</button>`;
+  box.innerHTML = (mined.length || generics.length)
+    ? mined.map(m => chip(m.text, true)).join('') + generics.map(g => chip(g, false)).join('')
+    : '';
+}
+// Append rather than overwrite — a rep part-way through typing shouldn't lose it.
+function insertNote(text) {
+  const ta = document.getElementById('tmNotes');
+  if (!ta) return;
+  const cur = ta.value.trim();
+  ta.value = cur ? (cur.replace(/[.\s]+$/, '') + '. ' + text) : text;
+  ta.focus();
+  try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch(e) {}
 }
 
 // ============================================================
@@ -2686,6 +2760,7 @@ function changeTouchContact() {
 let editingTouchKey = null;   // "contactId|touchId" while editing an existing touch
 function openTouchModal(editKey) {
   editingTouchKey = editKey || null;
+  setTimeout(renderNoteChips, 0);   // chips reflect whichever rep ends up selected
   { var _h=document.getElementById('tmHot'); if(_h) _h.checked=false; }
   document.getElementById('tmContactSearch').value = '';
   document.getElementById('tmContactResults').innerHTML = '';
