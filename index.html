@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v45 · note chips)</title>
+<title>Tacoma Energy — Sales CRM (v47 · local dates + partial-read merge)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v45</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v47</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -953,10 +953,19 @@ function saveTouches(t) { store.set('crm_touches', JSON.stringify(t)); _cache.to
 function contactById(cid) { return contactIndex().get(cid); }
 
 // ---- date helpers ----
-function todayISO() { return new Date().toISOString().slice(0,10); }
-function plusWeeks(n) { const d = new Date(); d.setDate(d.getDate() + n*7); return d.toISOString().slice(0,10); }
-function plusYears(n) { const d = new Date(); d.setFullYear(d.getFullYear() + n); return d.toISOString().slice(0,10); }
-function addDays(iso, n) { const d = new Date((iso||todayISO()) + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); }
+// Dates must be LOCAL, not UTC. toISOString() converts to UTC, so anything
+// logged after 8pm Eastern was being stamped with tomorrow's date — touches,
+// dateAdded, lastEdited, and follow-up defaults were all a day ahead in the
+// evening, which also pushed touches into the wrong week on the report.
+function _localISO(d) {
+  return d.getFullYear() + '-' +
+         String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
+function todayISO() { return _localISO(new Date()); }
+function plusWeeks(n) { const d = new Date(); d.setDate(d.getDate() + n*7); return _localISO(d); }
+function plusYears(n) { const d = new Date(); d.setFullYear(d.getFullYear() + n); return _localISO(d); }
+function addDays(iso, n) { const d = new Date((iso||todayISO()) + 'T00:00:00'); d.setDate(d.getDate() + n); return _localISO(d); }
 function followUpDefault(result) {
   if (result === 'Not interested') return plusYears(1);
   if (HOT_RESULTS.includes(result)) return plusWeeks(1);   // meeting/pricing — keep it warm
@@ -1617,7 +1626,37 @@ async function loadContactsFromSharePoint() {
     const seenC = new Map();
     for (const c of contacts) seenC.set(c.contactId, c);
     const deduped = [...seenC.values()];
-    saveContacts(deduped);
+    // Keep local contacts the workbook hasn't caught up on yet. Without this, a
+    // refresh landing between "contact created" and "row readable in Excel"
+    // silently removes the new contact — it vanishes from search until a later
+    // refresh brings it back.
+    const GRACE_MS = 15 * 60 * 1000;
+    const queuedIds = new Set(getPending()
+      .filter(w => w.payload && w.payload.contactId && (w.action === 'addContact' || w.action === 'editContact'))
+      .map(w => String(w.payload.contactId)));
+    let rescued = 0;
+    for (const local of getContacts()) {
+      const id = String(local.contactId || '');
+      if (!id || seenC.has(id)) continue;
+      const fresh = local._localAt && (Date.now() - local._localAt) < GRACE_MS;
+      if (fresh || queuedIds.has(id)) { deduped.push(local); rescued++; }
+    }
+    if (rescued) console.warn('[readContacts] kept ' + rescued + ' local contact(s) not yet in the workbook');
+    // On a PARTIAL read, merge instead of replace. Some pages failing doesn't
+    // mean those contacts are gone — overwriting the full local list with an
+    // incomplete one makes contacts vanish from the app until the next good
+    // refresh. Update what came back, keep what didn't.
+    if (failedPages.length) {
+      const merged = new Map();
+      for (const c of getContacts()) merged.set(String(c.contactId), c);
+      for (const c of deduped) merged.set(String(c.contactId), c);
+      const out = [...merged.values()];
+      console.warn('[readContacts] partial read (' + failedPages.length + ' page(s) failed) — merged ' +
+                   deduped.length + ' rows into ' + out.length + ' kept locally');
+      saveContacts(out);
+    } else {
+      saveContacts(deduped);
+    }
     store.set('crm_contacts_source', 'live');
     if (failedPages.length) setSyncStatus('partial', deduped.length); else setSyncStatus('ok', deduped.length);
     populateRepDropdowns();
@@ -1683,7 +1722,19 @@ async function loadTouchesFromSharePoint() {
         touches = touches.filter(t => t.contactId + '|' + t.touchId !== k);
       }
     }
-    saveTouches(touches);
+    // Same partial-read protection as contacts: a failed page doesn't mean those
+    // touches were deleted, so merge rather than blow away local history.
+    if (failedPages.length) {
+      const mergedT = new Map();
+      for (const t of getTouches()) mergedT.set(t.contactId + '|' + t.touchId, t);
+      for (const t of touches) mergedT.set(t.contactId + '|' + t.touchId, t);
+      const outT = [...mergedT.values()];
+      console.warn('[readTouches] partial read (' + failedPages.length + ' page(s) failed) — merged ' +
+                   touches.length + ' rows into ' + outT.length + ' kept locally');
+      saveTouches(outT);
+    } else {
+      saveTouches(touches);
+    }
     store.set('crm_touches_source', 'live');
     // Every time we get fresh workbook data, verify this device's ledger against
     // it. A touch that's neither in the workbook nor still queued was silently
@@ -1764,7 +1815,7 @@ function _tbl(cols, rows){
 // the report. Rendered as table cells with solid-colour bars, which survives
 // print far more reliably than a chart library or CSS gradients.
 function _weeklyBuckets(touches, weeks) {
-  const iso = d => d.toISOString().slice(0,10);
+  const iso = d => _localISO(d);
   const out = [];
   for (let i = weeks - 1; i >= 0; i--) {
     const end = new Date(); end.setHours(12,0,0,0); end.setDate(end.getDate() - i*7);
@@ -2101,7 +2152,7 @@ function setDashBreakdown(mode) {
   document.querySelectorAll('#dashBreakdownSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.bd === mode));
   renderDashboard();
 }
-function cutoffFor(days) { if (!days) return null; if (days === 'ytd') return new Date().getFullYear() + '-01-01'; const d = new Date(); d.setDate(d.getDate()-days); return d.toISOString().slice(0,10); }
+function cutoffFor(days) { if (!days) return null; if (days === 'ytd') return new Date().getFullYear() + '-01-01'; const d = new Date(); d.setDate(d.getDate() - days); return _localISO(d); }
 
 function dashTouches() {
   const cutoff = cutoffFor(state.dashRange);
@@ -2489,7 +2540,10 @@ function renderContacts() {
       else if (contactStatus(c.contactId).key !== statusF) return false;
     }
     if (q) {
-      const hay = `${esc(c.first)} ${esc(c.last)} ${esc(c.company)} ${esc(c.email)} ${esc(c.city)} ${esc(c.state)} ${esc(c.title)}`.toLowerCase();
+      // Search the RAW values. esc() turns an apostrophe into &#39;, so a search
+      // for "o'brien" would never match the escaped haystack. Escaping belongs
+      // at render time, not in a comparison.
+      const hay = `${c.first||''} ${c.last||''} ${c.company||''} ${c.email||''} ${c.city||''} ${c.state||''} ${c.title||''}`.replace(/\s+/g,' ').toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -3149,12 +3203,17 @@ async function saveContact() {
       return;
     }
     const newId = nextContactId();
-    const entry = { contactId:newId, active:true, hot:false, dateAdded: todayISO(), ...payload };
+    // _localAt is a local-only timestamp. A background refresh replaces the
+    // contact list with whatever the workbook returns, and a row written
+    // seconds ago may not be readable yet — this marks the contact as
+    // recently-created so the refresh keeps it instead of wiping it.
+    const entry = { contactId:newId, active:true, hot:false, dateAdded: todayISO(), _localAt: Date.now(), ...payload };
     contacts.push(entry);
     saveContacts(contacts);
     state.selectedContact = newId;
     syncAction = 'addContact';
-    syncPayload = entry;
+    const { _localAt, ...cleanPayload } = entry;   // don't ship the local marker
+    syncPayload = cleanPayload;
     toast('Contact added');
   }
 
