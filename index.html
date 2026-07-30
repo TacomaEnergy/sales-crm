@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v48 · roster fix)</title>
+<title>Tacoma Energy — Sales CRM (v49 · phone format + filter persistence)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v48</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v49</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -957,6 +957,30 @@ function contactById(cid) { return contactIndex().get(cid); }
 // logged after 8pm Eastern was being stamped with tomorrow's date — touches,
 // dateAdded, lastEdited, and follow-up defaults were all a day ahead in the
 // evening, which also pushed touches into the wrong week on the report.
+// Phone display. Data has been entered every which way (4696521617,
+// 469.652.1617, +1 469 652 1617), so normalise for display only — anything that
+// isn't a recognisable US number is shown untouched rather than mangled.
+function formatPhone(raw) {
+  const s = String(raw == null ? '' : raw).trim();
+  if (!s) return '';
+  // keep any extension aside
+  const extM = s.match(/(?:\s*(?:x|ext\.?|extension)\s*(\d{1,6}))\s*$/i);
+  const ext = extM ? extM[1] : '';
+  const core = extM ? s.slice(0, extM.index) : s;
+  const d = core.replace(/\D/g, '');
+  let out;
+  if (d.length === 10) out = '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+  else if (d.length === 11 && d[0] === '1') out = '(' + d.slice(1,4) + ') ' + d.slice(4,7) + '-' + d.slice(7);
+  else if (d.length === 7) out = d.slice(0,3) + '-' + d.slice(3);
+  else return s;                       // international / partial — leave alone
+  return ext ? out + ' x' + ext : out;
+}
+// Dialable form for tel: links.
+function phoneHref(raw) {
+  const s = String(raw == null ? '' : raw).trim();
+  const d = s.replace(/[^\d+]/g, '');
+  return d || s;
+}
 function _localISO(d) {
   return d.getFullYear() + '-' +
          String(d.getMonth() + 1).padStart(2, '0') + '-' +
@@ -2650,7 +2674,7 @@ function renderContactDetail(cid) {
       <div class="role">${esc(c.company)} · ${esc(c.title||'—')}<br>${esc(c.city)}, ${esc(c.state)}</div>
       <div class="info-grid">
         <div class="info-box"><label>Email</label><strong><a href="mailto:${esc(c.email)}">${esc(c.email||'—')}</a></strong></div>
-        <div class="info-box"><label>Phone</label><strong><a href="tel:${esc(c.phone)}">${esc(c.phone||'—')}</a></strong></div>
+        <div class="info-box"><label>Phone</label><strong><a href="tel:${esc(phoneHref(c.phone))}">${esc(formatPhone(c.phone) || '—')}</a></strong></div>
         <div class="info-box"><label>LinkedIn</label><strong>${c.linkedin?`<a href="${esc(c.linkedin)}" target="_blank" rel="noopener">View profile ↗</a>`:'—'}</strong></div>
         <div class="info-box"><label>Last Rep</label><strong>${(() => { const lt = lastTouch(c.contactId); return lt ? repChip(lt.rep) : '<span style="color:var(--muted)">— none yet —</span>'; })()}</strong></div>
         <div class="info-box"><label>Contact ID</label><strong>${c.contactId}</strong></div>
@@ -3013,7 +3037,7 @@ function openContactModal(cid) {
   document.getElementById('cmCompany').value = c?.company || '';
   document.getElementById('cmTitleField').value = c?.title || '';
   document.getElementById('cmEmail').value = c?.email || '';
-  document.getElementById('cmPhone').value = c?.phone || '';
+  document.getElementById('cmPhone').value = formatPhone(c?.phone) || '';
   document.getElementById('cmLinkedin').value = c?.linkedin || '';
   document.getElementById('cmState').value = c?.state || '';
   rebuildModalCityList();
@@ -3178,7 +3202,7 @@ async function saveContact() {
     first, last, company,
     title: document.getElementById('cmTitleField').value.trim(),
     email: document.getElementById('cmEmail').value.trim().toLowerCase(),
-    phone: document.getElementById('cmPhone').value.trim(),
+    phone: formatPhone(document.getElementById('cmPhone').value),   // store consistently going forward
     linkedin: document.getElementById('cmLinkedin').value.trim(),
     city: document.getElementById('cmCity').value.trim(),
     state: document.getElementById('cmState').value.trim().toUpperCase(),
@@ -3242,27 +3266,39 @@ function markInactive() {
 // ============================================================
 //  INIT
 // ============================================================
+// Rebuild a <select> without throwing away what the user had chosen. Background
+// refreshes call populateRepDropdowns(), and replacing innerHTML silently resets
+// every dropdown — which is why a chosen builder kept clearing itself.
+function _setOptionsPreserving(id, html) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const cur = el.value;
+  el.innerHTML = html;
+  if (cur && [...el.options].some(o => o.value === cur)) el.value = cur;
+}
 function populateRepDropdowns() {
-  const opts = REPS.map(r => `<option value="${r}">${r}</option>`).join('');
+  const opts = REPS.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
   document.getElementById('repSwitch').innerHTML = opts;
   if (!state.actingRep) {
     const saved = store.get('crm_acting_rep');
     state.actingRep = (saved && REPS.includes(saved)) ? saved : REPS[0];
   }
   document.getElementById('repSwitch').value = state.actingRep;
-  document.getElementById('tmRep').innerHTML = opts;
-  document.getElementById('contactRepFilter').innerHTML = '<option value="">Any rep activity</option>' + opts;
-  document.getElementById('actRepFilter').innerHTML = '<option value="">All reps</option>' + opts;
-  document.getElementById('fuRepFilter').innerHTML = '<option value="">All reps</option>' + opts;
+  _setOptionsPreserving('tmRep', opts);
+  _setOptionsPreserving('contactRepFilter', '<option value="">Any rep activity</option>' + opts);
+  _setOptionsPreserving('actRepFilter', '<option value="">All reps</option>' + opts);
+  _setOptionsPreserving('fuRepFilter', '<option value="">All reps</option>' + opts);
 
+  // Keep whichever rep is selected on the dashboard highlighted after a rebuild.
+  const curDashRep = state.dashRep || '';
   document.getElementById('dashRepSeg').innerHTML =
-    `<span class="seg-label" style="padding:8px 6px 8px 8px">Rep</span><button class="seg-btn active" data-rep="" onclick="setDashRep('')">All</button>` +
-    REPS.map(r => `<button class="seg-btn" data-rep="${r}" onclick="setDashRep('${r}')">${r}</button>`).join('');
+    `<span class="seg-label" style="padding:8px 6px 8px 8px">Rep</span><button class="seg-btn${curDashRep === '' ? ' active' : ''}" data-rep="" onclick="setDashRep('')">All</button>` +
+    REPS.map(r => `<button class="seg-btn${curDashRep === r ? ' active' : ''}" data-rep="${esc(r)}" onclick="setDashRep('${escArg(r)}')">${esc(r)}</button>`).join('');
 
   rebuildLocationFilters();
-  const builders = [...new Set(getContacts().map(c => c.company))].sort();
-  document.getElementById('contactCompanyFilter').innerHTML =
-    '<option value="">All builders</option>' + builders.map(b => `<option value="${b}">${b}</option>`).join('');
+  const builders = [...new Set(getContacts().map(c => c.company).filter(Boolean))].sort();
+  _setOptionsPreserving('contactCompanyFilter',
+    '<option value="">All builders</option>' + builders.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join(''));
 }
 
 function rebuildLocationFilters() {
