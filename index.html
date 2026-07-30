@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v50 · read scheduling)</title>
+<title>Tacoma Energy — Sales CRM (v51 · change probe)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v50</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v51</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -3491,6 +3491,43 @@ async function syncNow() {
 // shared by every trigger, instead of both being re-fetched on any tab focus.
 // Contacts barely change; touches change when someone logs one.
 const READ_TTL = { contacts: 15 * 60 * 1000, touches: 3 * 60 * 1000 };
+
+// A full contacts read is ~24 Power Automate runs, which is why it can't just be
+// polled every minute. But new rows are appended, so they always land on the
+// LAST page of the table — probing only that page costs ONE call and detects
+// another rep's addition within a minute. The 15-minute full read stays as a
+// safety net for edits and deletions further up the table.
+const CONTACT_PAGE_SIZE = 256;
+let _probeBusy = false;
+async function probeContactsTail() {
+  const url = POWER_AUTOMATE.readContacts;
+  if (!url || _probeBusy || !authOK()) return false;
+  if (store.get('crm_contacts_source') !== 'live') return false;
+  _probeBusy = true;
+  try {
+    const local = getContacts();
+    if (!local.length) return false;
+    const pageIdx  = Math.floor((local.length - 1) / CONTACT_PAGE_SIZE);
+    const expected = local.length - (pageIdx * CONTACT_PAGE_SIZE);
+    const r = await fetch(url, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ skip: pageIdx * CONTACT_PAGE_SIZE, key: getAppKey() })
+    });
+    if (r.status === 202 || !r.ok) return false;      // rejected/errored — leave it to the full read
+    let d = null;
+    try { d = await r.json(); } catch(e) { return false; }
+    const rows = Array.isArray(d) ? d : (d && d.value) || null;
+    if (!Array.isArray(rows)) return false;
+    // More rows on the tail page than we hold locally => somebody added contacts.
+    if (rows.length !== expected) {
+      console.warn('[probe] contacts tail changed (' + expected + ' local vs ' + rows.length + ' on server) — pulling full list');
+      readIfStale('contacts', true);
+      return true;
+    }
+    return false;
+  } catch(e) { return false; }
+  finally { _probeBusy = false; }
+}
 const _lastRead = { contacts: 0, touches: 0 };
 function readIfStale(which, force) {
   const now = Date.now();
@@ -3505,8 +3542,11 @@ function refreshFromServer(force) {
   readIfStale('touches', force);
   readIfStale('contacts', force);
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { flushPendingWrites(); refreshFromServer(); } });
-window.addEventListener('focus', () => { flushPendingWrites(); refreshFromServer(); });
+// Coming back to the tab: flush anything queued, cheaply check whether contacts
+// changed (1 call), and let the TTLs decide on full reads.
+function onTabActive() { flushPendingWrites(); probeContactsTail(); refreshFromServer(false); }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onTabActive(); });
+window.addEventListener('focus', onTabActive);
 // Connectivity restored — retry immediately rather than waiting for the poll.
 window.addEventListener('online', () => { flushPendingWrites(); });
 window.addEventListener('beforeunload', function(e){ try { if (pendingCount() > 0) { e.preventDefault(); e.returnValue = pendingCount() + ' change(s) haven\'t saved to the workbook yet. They\'re stored on this device and will send automatically next time you open the app \u2014 just don\'t clear your browser data.'; return e.returnValue; } } catch(err){} });
@@ -3517,10 +3557,13 @@ setInterval(() => {
   // Always attempt queued writes, even if the read poll is still cooling down —
   // an unsaved touch shouldn't wait on the read throttle.
   flushPendingWrites();
-  // The per-dataset TTLs above are the real rate limit now, so the poll can just
-  // ask and let them decide. No separate timers to drift out of sync.
-  refreshFromServer(false);
-}, 120000);
+  // Touches are cheap (~8 calls) so the TTL handles them. Contacts get the
+  // one-call tail probe every tick, with the full read only when it finds a
+  // change or when the 15-minute safety net comes due.
+  readIfStale('touches', false);
+  probeContactsTail();
+  readIfStale('contacts', false);
+}, 60000);
 
 // ---- App start: runs once the user is signed in ----
 async function startApp() {
