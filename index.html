@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v51 · change probe)</title>
+<title>Tacoma Energy — Sales CRM (v52 · sticky defaults)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v51</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v52</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -990,6 +990,25 @@ function todayISO() { return _localISO(new Date()); }
 function plusWeeks(n) { const d = new Date(); d.setDate(d.getDate() + n*7); return _localISO(d); }
 function plusYears(n) { const d = new Date(); d.setFullYear(d.getFullYear() + n); return _localISO(d); }
 function addDays(iso, n) { const d = new Date((iso||todayISO()) + 'T00:00:00'); d.setDate(d.getDate() + n); return _localISO(d); }
+// Per-rep memory of the last method/result used, so repeat logging is
+// click-Log then click-Save rather than re-picking dropdowns every time.
+const TOUCH_PREF_KEY = 'crm_touch_prefs';
+function _allTouchPrefs() { try { return JSON.parse(store.get(TOUCH_PREF_KEY)) || {}; } catch(e) { return {}; } }
+function getTouchPrefs(rep) {
+  const p = _allTouchPrefs()[rep] || {};
+  const methods = ['Call','Email','LinkedIn','Text','In Person','Other'];
+  const results = ['Left voicemail','Sent info','Spoke with contact','Not interested','Bad contact info'];
+  return {
+    method: methods.includes(p.method) ? p.method : 'Call',
+    result: results.includes(p.result) ? p.result : 'Sent info'
+  };
+}
+function rememberTouchPrefs(rep, method, result) {
+  if (!rep) return;
+  const all = _allTouchPrefs();
+  all[rep] = { method, result };
+  store.set(TOUCH_PREF_KEY, JSON.stringify(all));
+}
 function followUpDefault(result) {
   if (result === 'Not interested') return plusYears(1);
   if (HOT_RESULTS.includes(result)) return plusWeeks(1);   // meeting/pricing — keep it warm
@@ -2853,10 +2872,15 @@ function openTouchModal(editKey) {
     document.getElementById('tmNotes').value = t.notes || '';
   } else {
     document.getElementById('tmDate').value = todayISO();
-    document.getElementById('tmRep').value = state.actingRep || REPS[0];
-    document.getElementById('tmMethod').value = 'Call';
-    document.getElementById('tmResult').value = 'Left voicemail';
-    document.getElementById('tmFollowup').value = followUpDefault('Left voicemail');
+    const _rep = state.actingRep || REPS[0];
+    document.getElementById('tmRep').value = _rep;
+    // Open with whatever this rep logged last time. The old fixed defaults
+    // (Call / Left voicemail) matched under 2% of real touches, so almost every
+    // entry required changing the dropdowns before saving.
+    const _pref = getTouchPrefs(_rep);
+    document.getElementById('tmMethod').value = _pref.method;
+    document.getElementById('tmResult').value = _pref.result;
+    document.getElementById('tmFollowup').value = followUpDefault(_pref.result);
     document.getElementById('tmNotes').value = '';
   }
   refreshTouchContext();
@@ -2917,6 +2941,13 @@ function touchIdUnique(tid) {
 }
 
 async function saveTouch() {
+  // Remember this rep's picks so the next touch opens pre-set.
+  try {
+    rememberTouchPrefs(
+      document.getElementById('tmRep').value,
+      document.getElementById('tmMethod').value,
+      document.getElementById('tmResult').value);
+  } catch(e) {}
   { var _b=document.getElementById('tmSaveBtn'); if(_b){ if(_b.disabled) return; _b.disabled=true; _b.textContent='Saving\u2026'; setTimeout(function(){ _b.disabled=false; _b.textContent='Save Touch'; }, 1500); } }
   const cid = state.selectedContact;
   if (!cid) { toast('Select a contact first'); return; }
