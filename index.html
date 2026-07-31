@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v52 · sticky defaults)</title>
+<title>Tacoma Energy — Sales CRM (v54 · filter visibility)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v52</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v54</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -572,6 +572,7 @@
         <option value="active">Recently touched (30 days)</option>
       </select>
     </div>
+    <div id="activeFilterBar" style="display:none;align-items:center;flex-wrap:wrap;gap:7px;margin:-4px 0 12px"></div>
     <div class="cols">
       <div class="panel">
         <div class="panel-head"><h3>Leads Directory</h3><span class="hint" id="contactCount"></span></div>
@@ -1533,7 +1534,7 @@ function editPayload(c) {
     last:       c.last      || '',
     email:      c.email     || '',
     phone:      c.phone     || '',
-    active:     c.active ? 'Yes' : '',
+    active:     c.active ? 'Yes' : 'No',
     lastEdited: c.lastEdited || '',
     hot:        c.hot ? 'Yes' : ''
   };
@@ -1658,7 +1659,10 @@ async function loadContactsFromSharePoint() {
         last:       r['Last Name']    || '',
         email:      r['Email']        || '',
         phone:      r['Phone']        || '',
-        active:     r['Active'] === 'Yes',
+        // Case/format tolerant, but blank still means inactive: the app writes an
+        // empty Active cell when a contact is retired, so blank must not flip to
+        // active or every retired contact would come back.
+        active:     /^(yes|y|true|1|active)$/i.test(String(r['Active'] == null ? '' : r['Active']).trim()),
         dateAdded:  normDate(r['Date Added']),
         lastEdited: normDate(r['Last Edited']),
         hot:        isHot
@@ -2562,6 +2566,48 @@ function maybeGuessEmail(){
   var g=guessEmail(document.getElementById('cmCompany').value, document.getElementById('cmFirst').value, document.getElementById('cmLast').value);
   if(g){ em.value=g; window.__lastGuess=g; }
 }
+// A forgotten filter looks identical to missing data. Six filters live on this
+// screen and none of them announced themselves, so "not all the builders are
+// showing" was impossible to self-diagnose. This makes any active filter
+// visible and clearable in one click.
+const CONTACT_FILTERS = [
+  { id:'contactSearch',        label:'Search'  },
+  { id:'contactCompanyFilter', label:'Builder' },
+  { id:'contactStateFilter',   label:'State'   },
+  { id:'contactCityFilter',    label:'City'    },
+  { id:'contactRepFilter',     label:'Rep'     },
+  { id:'contactStatusFilter',  label:'Status'  }
+];
+function clearContactFilter(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = '';
+  if (id === 'contactStateFilter') { rebuildCityFilter(); }
+  renderContacts();
+}
+function clearAllContactFilters() {
+  CONTACT_FILTERS.forEach(f => { const el = document.getElementById(f.id); if (el) el.value = ''; });
+  rebuildCityFilter();
+  renderContacts();
+}
+function renderActiveFilterBar() {
+  const bar = document.getElementById('activeFilterBar');
+  if (!bar) return;
+  const active = CONTACT_FILTERS
+    .map(f => { const el = document.getElementById(f.id); return el && el.value ? { ...f, value: el.value, text: (el.tagName === 'SELECT' && el.selectedOptions[0]) ? el.selectedOptions[0].textContent.trim() : el.value } : null; })
+    .filter(Boolean);
+  if (!active.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML =
+    `<span style="font-size:12px;font-weight:700;color:var(--muted)">Filtering by:</span>` +
+    active.map(f => `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-light,#e8f4fb);border:1px solid #b9ddf2;border-radius:999px;padding:3px 6px 3px 11px;font-size:12px;font-weight:600;color:var(--navy,#0c2d47)">
+        ${esc(f.label)}: ${esc(f.text)}
+        <button type="button" onclick="clearContactFilter('${f.id}')" title="Remove this filter"
+          style="border:none;background:#cfe6f6;color:#0c2d47;border-radius:999px;width:17px;height:17px;line-height:1;cursor:pointer;font-size:12px;font-weight:800;padding:0">×</button>
+      </span>`).join('') +
+    `<button type="button" onclick="clearAllContactFilters()"
+       style="border:1px solid var(--border);background:#fff;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;color:var(--navy,#0c2d47)">Clear all</button>`;
+}
 function renderContacts() {
   const q = (document.getElementById('contactSearch').value || '').toLowerCase();
   const companyF = document.getElementById('contactCompanyFilter').value;
@@ -2570,6 +2616,7 @@ function renderContacts() {
   const repF = document.getElementById('contactRepFilter').value;
   const statusF = document.getElementById('contactStatusFilter').value;
 
+  renderActiveFilterBar();
   let contacts = getContacts().filter(c => c.active);
   contacts = contacts.filter(c => {
     if (companyF && c.company !== companyF) return false;
@@ -2608,7 +2655,7 @@ function renderContacts() {
     return;
   }
 
-  const BCAP = 200;
+  const BCAP = 1500;   // was 200, which silently truncated big markets like Houston/Austin
   const builderOverflow = builders.length - BCAP;
   document.getElementById('builderList').innerHTML = builders.slice(0, BCAP).map((b, idx) => {
     const open = state.openBuilders.has(`${b.company}|${b.city}|${b.state}`);
