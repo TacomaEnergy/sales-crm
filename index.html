@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v60 · contact write ledger)</title>
+<title>Tacoma Energy — Sales CRM (v61 · contact ID collision guard)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v60</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v61</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -3037,8 +3037,42 @@ function contactsAreLoaded() {
 }
 // Contact ID: plain sequential number stored as text (e.g. "15460"), no prefix —
 // continues the existing 10001..15459 sequence by taking the highest numeric ID + 1.
-function nextContactId() {
-  let max = 10000;
+// Contact IDs are minted as "highest known + 1" from local data that can be up
+// to 15 minutes stale. If two people add a contact in that window they'd both
+// compute the same number and create two rows sharing one ID — which silently
+// corrupts the primary key (Excel's Update-a-row only ever hits the first
+// match). This reads just the final page of the table — ONE call — and returns
+// the highest ID actually in the workbook, so the new ID is based on data
+// that's about a second old rather than minutes.
+// Returns 0 if it can't be determined; the caller then falls back to local max.
+async function serverMaxContactId() {
+  const url = POWER_AUTOMATE.readContacts;
+  if (!url || !authOK()) return 0;
+  if (store.get('crm_contacts_source') !== 'live') return 0;
+  try {
+    const local = getContacts();
+    if (!local.length) return 0;
+    const pageIdx = Math.floor((local.length - 1) / CONTACT_PAGE_SIZE);
+    const r = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skip: pageIdx * CONTACT_PAGE_SIZE, key: getAppKey() })
+    });
+    if (r.status === 202 || !r.ok) return 0;
+    let d = null;
+    try { d = await r.json(); } catch(e) { return 0; }
+    const rows = Array.isArray(d) ? d : (d && d.value) || null;
+    if (!Array.isArray(rows) || !rows.length) return 0;
+    let max = 0;
+    for (const row of rows) {
+      const id = String(row['Contact ID'] || row.contactId || '').trim();
+      if (/^\d+$/.test(id)) { const n = parseInt(id, 10); if (n > max) max = n; }
+    }
+    return max;
+  } catch(e) { return 0; }
+}
+
+function nextContactId(serverFloor) {
+  let max = Math.max(10000, Number(serverFloor) || 0);
   for (const c of getContacts()) {
     const id = String(c.contactId || '');
     if (/^\d+$/.test(id)) { const n = parseInt(id, 10); if (n > max) max = n; }
@@ -3396,7 +3430,10 @@ async function saveContact() {
       toast('Contacts aren\u2019t loaded yet — can\u2019t add safely. Load the contact list first.');
       return;
     }
-    const newId = nextContactId();
+    // Check the workbook's real high-water mark before minting an ID, so two
+    // people adding at the same time can't land on the same number.
+    const _serverMax = await serverMaxContactId();
+    const newId = nextContactId(_serverMax);
     // _localAt is a local-only timestamp. A background refresh replaces the
     // contact list with whatever the workbook returns, and a row written
     // seconds ago may not be readable yet — this marks the contact as
