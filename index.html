@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v58 · uniform activity rows)</title>
+<title>Tacoma Energy — Sales CRM (v60 · contact write ledger)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v58</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v60</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -610,7 +610,7 @@
       <select id="actRepFilter" onchange="renderActivity()"><option value="">All reps</option></select>
       <select id="actMethodFilter" onchange="renderActivity()">
         <option value="">All methods</option>
-        <option>Call</option><option>Email</option><option>LinkedIn</option><option>Text</option><option>In Person</option><option>Other</option>
+        <option>Call</option><option>Email</option><option>LinkedIn</option><option>Text</option><option value="In Person">In Person / Virtual</option><option>Other</option>
       </select>
       <select id="actBuilderFilter" onchange="renderActivity()"><option value="">All builders</option></select>
       <input type="text" id="actSearch" placeholder="Search contact or notes..." oninput="renderActivity()" />
@@ -685,7 +685,7 @@
       <div class="frow">
         <div><label class="fld">Rep</label><select id="tmRep" onchange="renderNoteChips()"></select></div>
         <div><label class="fld">Method</label><select id="tmMethod">
-          <option>Call</option><option>Email</option><option>LinkedIn</option><option>Text</option><option>In Person</option><option>Other</option>
+          <option>Call</option><option>Email</option><option>LinkedIn</option><option>Text</option><option value="In Person">In Person / Virtual</option><option>Other</option>
         </select></div>
       </div>
       <div class="frow">
@@ -1098,6 +1098,11 @@ function contactCell(c, opts) {
   return `<div class="company" style="${clamp}">${c.hot ? '\u{1F525} ' : ''}${name}</div>` +
          `<div class="sub" style="${clamp}" title="${plain}">${line2}</div>${line3}`;
 }
+// "In Person" is what we STORE (and what all the meeting counters and 838
+// existing rows use). This is the label shown to people — renaming the stored
+// value would split one method into two and break historical counts.
+const METHOD_LABELS = { 'In Person': 'In Person / Virtual' };
+function methodLabel(m) { return METHOD_LABELS[m] || m || ''; }
 function repChip(rep) {
   return `<span class="rep-chip" style="color:${repColor(rep)}"><span class="rep-dot" style="background:${repColor(rep)}"></span>${esc(rep||'—')}</span>`;
 }
@@ -1326,19 +1331,28 @@ const WRITE_LOG_KEY = 'crm_write_log';
 const WRITE_LOG_MAX = 400;
 function getWriteLog() { try { return JSON.parse(store.get(WRITE_LOG_KEY)) || []; } catch(e) { return []; } }
 function setWriteLog(l) { store.set(WRITE_LOG_KEY, JSON.stringify(l)); }
+// Logs BOTH touch writes and contact writes. Touch keys keep their original
+// "contactId|touchId" shape so existing ledgers stay valid; contact keys are
+// prefixed so the two can never collide.
 function logWrite(action, payload) {
-  if (!payload || !payload.touchId) return;
+  if (!payload) return;
+  const isContact = !payload.touchId && payload.contactId &&
+                    (action === 'addContact' || action === 'editContact');
+  if (!payload.touchId && !isContact) return;
   const l = getWriteLog();
-  const key = payload.contactId + '|' + payload.touchId;
-  // Keep one entry per touch — the latest payload wins (an edit supersedes the add).
+  const key = isContact ? ('C#' + payload.contactId)
+                        : (payload.contactId + '|' + payload.touchId);
+  // One entry per record — the latest payload wins (an edit supersedes the add).
   const i = l.findIndex(e => e.key === key);
-  const entry = { key, action, touchId: payload.touchId, contactId: payload.contactId, ts: Date.now(), payload };
+  const entry = { key, kind: isContact ? 'contact' : 'touch', action,
+                  touchId: payload.touchId || null, contactId: payload.contactId,
+                  ts: Date.now(), payload };
   if (i >= 0) l[i] = entry; else l.push(entry);
   if (l.length > WRITE_LOG_MAX) l.splice(0, l.length - WRITE_LOG_MAX);
   setWriteLog(l);
 }
 function forgetWrite(contactId, touchId) {
-  const key = contactId + '|' + touchId;
+  const key = touchId ? (contactId + '|' + touchId) : ('C#' + contactId);
   setWriteLog(getWriteLog().filter(e => e.key !== key));
 }
 
@@ -1346,16 +1360,33 @@ function forgetWrite(contactId, touchId) {
 // Only meaningful once live server data has loaded, otherwise everything
 // would look "missing" simply because we haven't read the workbook yet.
 function reconcileWrites() {
-  if (store.get('crm_touches_source') !== 'live') return null;
+  // Each kind is checked against its OWN source. If contacts haven't loaded yet
+  // we simply skip contact entries rather than reporting them missing — and we
+  // never block a touch audit just because the contact list is still coming in.
+  const touchesLive  = store.get('crm_touches_source')  === 'live';
+  const contactsLive = store.get('crm_contacts_source') === 'live';
+  if (!touchesLive && !contactsLive) return null;
   const log = getWriteLog();
   if (!log.length) return { confirmed: [], pending: [], missing: [] };
-  const server = new Set(getTouches().map(t => t.contactId + '|' + t.touchId));
-  const queued = new Set(getPending().filter(w => w.payload).map(w => w.payload.contactId + '|' + w.payload.touchId));
+  const serverTouches  = new Set(getTouches().map(t => t.contactId + '|' + t.touchId));
+  const serverContacts = new Set(getContacts().map(c => String(c.contactId)));
+  const q = getPending().filter(w => w.payload);
+  const queuedTouches  = new Set(q.filter(w => w.payload.touchId).map(w => w.payload.contactId + '|' + w.payload.touchId));
+  const queuedContacts = new Set(q.filter(w => !w.payload.touchId && w.payload.contactId).map(w => String(w.payload.contactId)));
   const out = { confirmed: [], pending: [], missing: [] };
   for (const e of log) {
-    if (e.action === 'deleteTouch') { if (!server.has(e.key)) out.confirmed.push(e); else out.pending.push(e); continue; }
-    if (server.has(e.key)) out.confirmed.push(e);
-    else if (queued.has(e.key)) out.pending.push(e);
+    if (e.kind === 'contact') {
+      if (!contactsLive) continue;                 // can't judge it yet
+      const id = String(e.contactId);
+      if (serverContacts.has(id)) out.confirmed.push(e);
+      else if (queuedContacts.has(id)) out.pending.push(e);
+      else out.missing.push(e);
+      continue;
+    }
+    if (!touchesLive) continue;                    // can't judge it yet
+    if (e.action === 'deleteTouch') { if (!serverTouches.has(e.key)) out.confirmed.push(e); else out.pending.push(e); continue; }
+    if (serverTouches.has(e.key)) out.confirmed.push(e);
+    else if (queuedTouches.has(e.key)) out.pending.push(e);
     else out.missing.push(e);
   }
   return out;
@@ -1382,14 +1413,21 @@ function openReconcile() {
     html += `</div>`;
     if (r.missing.length) {
       const byId = {}; getContacts().forEach(c => byId[c.contactId] = c);
-      html += `<div style="font-size:13px;font-weight:700;margin-top:4px">Missing touches</div>
+      html += `<div style="font-size:13px;font-weight:700;margin-top:4px">Not in the workbook</div>
         <div style="display:grid;gap:6px;max-height:230px;overflow:auto">` +
         r.missing.slice(0, 40).map(e => {
-          const c = byId[e.contactId] || {};
-          const nm = ((c.first||'') + ' ' + (c.last||'')).trim() || e.contactId;
           const p = e.payload || {};
+          const c = byId[e.contactId] || {};
+          if (e.kind === 'contact') {
+            const nm = ((p.first||c.first||'') + ' ' + (p.last||c.last||'')).trim() || e.contactId;
+            return `<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12.5px;background:var(--bg-2)">
+              <span style="background:#e8f4fb;border:1px solid #b9ddf2;border-radius:4px;padding:1px 5px;font-size:10.5px;font-weight:700;margin-right:6px">CONTACT</span>
+              <b>${esc(nm)}</b>${p.company?` \u00b7 ${esc(p.company)}`:''}<span style="color:var(--muted)">${p.city?` \u00b7 ${esc(p.city)}, ${esc(p.state||'')}`:''}</span>
+            </div>`;
+          }
+          const nm = ((c.first||'') + ' ' + (c.last||'')).trim() || e.contactId;
           return `<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12.5px;background:var(--bg-2)">
-            <b>${esc(nm)}</b>${c.company?` · ${esc(c.company)}`:''} <span style="color:var(--muted)">· ${esc(p.date||'')} · ${esc(p.method||'')} · ${esc(p.result||'')}</span>
+            <b>${esc(nm)}</b>${c.company?` \u00b7 ${esc(c.company)}`:''} <span style="color:var(--muted)">\u00b7 ${esc(p.date||'')} \u00b7 ${esc(methodLabel(p.method)||'')} \u00b7 ${esc(p.result||'')}</span>
             ${p.notes?`<div style="color:#44515f;margin-top:2px">${esc(p.notes)}</div>`:''}
           </div>`;
         }).join('') + `</div>`;
@@ -1432,7 +1470,18 @@ async function resendMissing() {
   const have = new Set(touches.map(t => t.contactId + '|' + t.touchId));
   const q = getPending();
   for (const e of r.missing) {
-    if (!have.has(e.key) && e.payload) touches.push(e.payload);
+    if (!e.payload) continue;
+    if (e.kind === 'contact') {
+      // Put the contact back locally too, so it's usable while the resend runs.
+      const cs = getContacts();
+      if (!cs.some(c => String(c.contactId) === String(e.contactId))) {
+        cs.push({ ...e.payload, _localAt: Date.now() });
+        saveContacts(cs);
+      }
+      q.push({ action: 'addContact', payload: e.payload, ts: Date.now() });
+      continue;
+    }
+    if (!have.has(e.key)) touches.push(e.payload);
     q.push({ action: 'addTouch', payload: e.payload, ts: Date.now() });
   }
   saveTouches(touches); setPending(q); updateSyncBadge();
@@ -1961,7 +2010,7 @@ function buildReportHTML(){
   var cov=totC?Math.round(touchedEver/totC*100):0;
   var realReps=REPS.filter(function(r){return r!=='Unassigned';});
   var activeThisWeek=realReps.filter(function(r){return all.filter(function(t){return t.rep===r && t.date>=cutoffFor(7);}).length>0;}).length;
-  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Contacts reached','reached'),mk('Meetings (in person)','meet'),mk('Pricing sent','price')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
+  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Contacts reached','reached'),mk('Meetings','meet'),mk('Pricing sent','price')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
   var html=`<div style="font-family:Arial,Helvetica,sans-serif;color:#12263a;max-width:720px">`;
   // ================= PAGE 1 — TEAM =================
@@ -2027,7 +2076,7 @@ function buildReportHTML(){
             <div style='font-size:11px;font-weight:700;color:#0c2d47;margin-bottom:1px'>Pricing sent <span style='color:#8a99a9;font-weight:400'>(30d)</span></div>${_detailList(rep,'price')}
           </td>
           <td valign='top' style='width:50%;padding-left:10px'>
-            <div style='font-size:11px;font-weight:700;color:#0c2d47;margin-bottom:1px'>Meetings \u2014 in person <span style='color:#8a99a9;font-weight:400'>(30d)</span></div>${_detailList(rep,'meet')}
+            <div style='font-size:11px;font-weight:700;color:#0c2d47;margin-bottom:1px'>Meetings <span style='color:#8a99a9;font-weight:400'>(in person / virtual, 30d)</span></div>${_detailList(rep,'meet')}
           </td>
         </tr></table>
       </div>
@@ -2484,7 +2533,7 @@ function renderDashboard() {
 
   // by method
   const methodCounts = {};
-  tch.forEach(t => methodCounts[t.method] = (methodCounts[t.method]||0)+1);
+  tch.forEach(t => { const k = methodLabel(t.method); methodCounts[k] = (methodCounts[k]||0)+1; });
   document.getElementById('dashByMethod').innerHTML = barRows(methodCounts);
   animateBars('dashByMethod');
 
@@ -2540,8 +2589,8 @@ function renderDashboard() {
         const loc = [esc(c.city), esc(c.state)].filter(Boolean).join(', ');
         const where = `${hot}${esc(c.company || '—')}${loc ? ` · ${loc}` : ''}`;
         const who = `${esc(c.first)} ${esc(c.last)}${c.title ? ` · ${esc(c.title)}` : ''}`.trim();
-        return `<div class="touch method-${t.method.toLowerCase().replace(' ','')}">
-          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${esc(t.method)}</span>${repChip(t.rep)}</div>
+        return `<div class="touch method-${String(t.method||'').toLowerCase().replace(/[^a-z]/g,'')}">
+          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${esc(methodLabel(t.method))}</span>${repChip(t.rep)}</div>
           <div class="touch-notes"><b>${where}</b> — ${esc(t.result)}</div>
           ${who ? `<div class="sub" style="margin-top:3px">${who}</div>` : ''}
         </div>`;
@@ -2789,8 +2838,8 @@ function renderContactDetail(cid) {
     <div style="margin-top:16px">
       <div class="panel-head" style="padding:0 0 11px;border:none"><h3>Touch History</h3><span class="hint">${history.length} logged</span></div>
       ${history.length ? `<div class="timeline">${history.map(t => `
-        <div class="touch method-${t.method.toLowerCase().replace(' ','')}">
-          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${esc(t.method)}</span><span style="display:flex;align-items:center;gap:8px">${repChip(t.rep)}${touchIdUnique(t.touchId) ? `<button class="touch-act" title="Edit this touch" onclick="openTouchModal('${c.contactId}|${t.touchId}')">✎</button><button class="touch-act" title="Delete this touch" onclick="deleteTouchEntry('${c.contactId}','${t.touchId}')">🗑</button>` : `<span class="touch-act" style="opacity:.35;cursor:help" title="Legacy touch — its ID is shared with touches on other contacts, so server edits/deletes can't target it safely. New touches don't have this limit.">🔒</span>`}</span></div>
+        <div class="touch method-${String(t.method||'').toLowerCase().replace(/[^a-z]/g,'')}">
+          <div class="touch-top"><span class="touch-meta">${fmtDate(t.date)} · ${esc(methodLabel(t.method))}</span><span style="display:flex;align-items:center;gap:8px">${repChip(t.rep)}${touchIdUnique(t.touchId) ? `<button class="touch-act" title="Edit this touch" onclick="openTouchModal('${c.contactId}|${t.touchId}')">✎</button><button class="touch-act" title="Delete this touch" onclick="deleteTouchEntry('${c.contactId}','${t.touchId}')">🗑</button>` : `<span class="touch-act" style="opacity:.35;cursor:help" title="Legacy touch — its ID is shared with touches on other contacts, so server edits/deletes can't target it safely. New touches don't have this limit.">🔒</span>`}</span></div>
           <div class="touch-notes"><b>${esc(t.result)}.</b> ${esc(t.notes||'')}</div>
           ${t.followUp ? `<div class="touch-followup">⏰ Follow up ${fmtDate(t.followUp)}</div>` : ''}
         </div>`).join('')}</div>`
@@ -2894,7 +2943,7 @@ function renderActivity() {
       <td style="white-space:nowrap">${fmtDate(t.date)}</td>
       <td>${repChip(t.rep)}</td>
       <td>${contactCell(c)}</td>
-      <td><span class="chip gray">${esc(t.method)}</span></td>
+      <td><span class="chip gray">${esc(methodLabel(t.method))}</span></td>
       <td>${esc(t.result)}</td>
       <td class="sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0" title="${esc(t.notes||'')}">${esc(t.notes||'')}</td>
     </tr>`;
@@ -3362,6 +3411,9 @@ async function saveContact() {
     toast('Contact added');
   }
 
+  // Record it so "Check saved work" can prove it reached the workbook — and
+  // re-send it if it didn't.
+  try { logWrite(syncAction, syncPayload); } catch(e) {}
   closeContactModal();
   if (state.view==='contacts') { renderContacts(); renderContactDetail(state.selectedContact); }
   else switchView('contacts');
