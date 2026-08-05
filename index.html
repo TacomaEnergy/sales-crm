@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v56 · logging-as + proposal link)</title>
+<title>Tacoma Energy — Sales CRM (v58 · uniform activity rows)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v56</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v58</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -617,8 +617,8 @@
     </div>
     <div class="panel">
       <div style="overflow:auto;">
-        <table>
-          <thead><tr><th style="width:105px">Date</th><th style="width:130px">Rep</th><th style="width:230px">Contact</th><th style="width:95px">Method</th><th style="width:150px">Result</th><th>Notes</th></tr></thead>
+        <table style="table-layout:fixed;width:100%">
+          <thead><tr><th style="width:105px">Date</th><th style="width:125px">Rep</th><th style="width:300px">Contact</th><th style="width:90px">Method</th><th style="width:140px">Result</th><th>Notes</th></tr></thead>
           <tbody id="activityRows"></tbody>
         </table>
       </div>
@@ -1079,6 +1079,25 @@ function contactSummaries() {
   return out;
 }
 
+// One renderer for the "who is this" block used in every contact list. These
+// were three near-identical copies that had already drifted (Activity wasn't
+// escaping the company name), so consolidating keeps them consistent by
+// construction rather than by discipline.
+function contactCell(c, opts) {
+  opts = opts || {};
+  if (!c) return `<div class="company">(unknown contact)</div><div class="sub">\u2014</div>`;
+  const name = `${esc(c.first || '')} ${esc(c.last || '')}`.replace(/\s+/g, ' ').trim() || '(no name)';
+  const loc  = [c.city, c.state].filter(Boolean).map(x => esc(x)).join(', ');
+  const line2 = [esc(c.company || ''), loc].filter(Boolean).join(' \u00b7 ') || '\u2014';
+  const line3 = opts.third ? `<div class="sub">${opts.third}</div>` : '';
+  // One line, always. Long values like "Stanley Martin Homes · Charlotte, NC"
+  // used to wrap, which made some rows taller than others; ellipsis keeps the
+  // row height uniform and the full text is available on hover.
+  const clamp = 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  const plain = String(line2).replace(/<[^>]*>/g, '');
+  return `<div class="company" style="${clamp}">${c.hot ? '\u{1F525} ' : ''}${name}</div>` +
+         `<div class="sub" style="${clamp}" title="${plain}">${line2}</div>${line3}`;
+}
 function repChip(rep) {
   return `<span class="rep-chip" style="color:${repColor(rep)}"><span class="rep-dot" style="background:${repColor(rep)}"></span>${esc(rep||'—')}</span>`;
 }
@@ -2500,7 +2519,7 @@ function renderDashboard() {
     const chip = d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`;
     return `<tr onclick="openContactFromDash('${c.contactId}')">
         <td style="width:118px">${chip}</td>
-        <td><div class="company">${c.hot?'🔥 ':''}${esc(c.first)} ${esc(c.last)}</div><div class="sub">${esc(c.company)} · ${esc(c.city)}, ${esc(c.state)}</div></td>
+        <td>${contactCell(c)}</td>
         <td onclick="event.stopPropagation()" style="width:60px"><button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button></td>
       </tr>`;
   });
@@ -2817,7 +2836,7 @@ function renderFollowups() {
       <table><tbody>${rows.map(({c, fu, lt}) => {
         return `<tr onclick="openContactFromDash('${c.contactId}')">
           <td style="width:128px"><span class="chip ${k==='overdue'?'red':k==='today'?'amber':'blue'}">${fmtDate(fu)}</span></td>
-          <td><div class="company">${c.hot?'🔥 ':''}${esc(c.first)} ${esc(c.last)}</div><div class="sub">${esc(c.company)} · ${esc(c.city)}, ${esc(c.state)}</div></td>
+          <td>${contactCell(c)}</td>
           <td style="width:120px">${lt?repChip(lt.rep):'—'}</td>
           <td class="sub" style="width:260px;max-width:260px;overflow:hidden;text-overflow:ellipsis">${esc((lt&&lt.notes)||'')}</td>
           <td onclick="event.stopPropagation()" style="width:240px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
@@ -2874,10 +2893,10 @@ function renderActivity() {
     return `<tr onclick="${c?`openContactFromDash('${t.contactId}')`:''}">
       <td style="white-space:nowrap">${fmtDate(t.date)}</td>
       <td>${repChip(t.rep)}</td>
-      <td><div class="company">${c&&c.hot?'🔥 ':''}${name}</div><div class="sub">${co}${c && c.city ? esc(' · ' + c.city + ', ' + (c.state || '')) : ''}</div></td>
+      <td>${contactCell(c)}</td>
       <td><span class="chip gray">${esc(t.method)}</span></td>
       <td>${esc(t.result)}</td>
-      <td class="sub">${esc(t.notes||'')}</td>
+      <td class="sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0" title="${esc(t.notes||'')}">${esc(t.notes||'')}</td>
     </tr>`;
   }).join('') + (total > CAP ? `<tr><td colspan="6" class="sub" style="text-align:center;padding:14px">Showing the ${CAP} most recent of ${total.toLocaleString()} touches — use the filters above to narrow.</td></tr>` : '') : '<tr><td colspan="6"><div class="empty">No activity matches your filters.</div></td></tr>';
 }
