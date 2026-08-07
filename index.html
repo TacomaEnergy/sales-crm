@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v64 · readable rep notes)</title>
+<title>Tacoma Energy — Sales CRM (v71 · my follow-ups)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,13 +413,13 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v64</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v71</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
     <button class="nav-tab" data-view="hotleads" onclick="switchView('hotleads')"><span class="tabflame">🔥</span>Hot Leads<span class="tabcount" id="navHotCount" style="display:none">0</span></button>
     <button class="nav-tab" data-view="contacts" onclick="switchView('contacts')">Contacts</button>
-    <button class="nav-tab" data-view="followups" onclick="switchView('followups')">Follow-Ups</button>
+    <button class="nav-tab" data-view="followups" onclick="switchView('followups')">Follow-Ups<span class="tabcount" id="navFuCount" style="display:none">0</span></button>
     <button class="nav-tab" data-view="activity" onclick="switchView('activity')">Activity</button>
     <button class="nav-tab" data-view="report" onclick="switchView('report')">Report</button>
     <a class="nav-tab" href="https://tacomaenergy.github.io/tacoma-proposal-generator/" target="_blank" rel="noopener"
@@ -429,6 +429,7 @@
   <div class="nav-right">
     <span id="syncStatus" onclick="syncNow()" title="Click to retry any unsaved changes and refresh" style="cursor:pointer;font-size:11.5px;font-weight:700;margin-right:6px"></span>
     <span onclick="openReconcile()" title="Verify every touch logged on this device reached the workbook" style="cursor:pointer;font-size:11.5px;font-weight:700;color:#9fc4dd;margin-right:6px">Check saved work</span>
+    <span onclick="openFirstRun()" title="Quick reminder of how this works" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.35);color:#cfe6f6;font-size:12px;font-weight:800;margin-right:8px">?</span>
     <span class="lbl">Logging as</span>
     <select class="rep-switch" id="repSwitch" onchange="onRepSwitch()" title="Who you are — sets the rep on touches you log"></select>
     <button class="nav-logout" id="navLogout" onclick="logout()" title="Log out" style="display:none">Log out</button>
@@ -480,6 +481,7 @@
       </div>
     </div>
 
+    <div id="myDayStrip" style="display:none"></div>
     <div class="dash-topline" id="dashTopline"></div>
     </div>
 
@@ -634,6 +636,48 @@
 
 </div>
 
+
+<!-- FIRST-RUN CARD — the three things that actually matter, shown once per device -->
+<div class="modal-bg" id="firstRunModal">
+  <div class="modal" style="width:min(560px,100%)">
+    <div class="modal-head" style="background:#0e2f4a">
+      <h3 style="color:#fff">Three things and you're set</h3>
+    </div>
+    <div class="modal-body" style="gap:11px">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="min-width:26px;height:26px;border-radius:7px;background:#06a951;color:#fff;text-align:center;line-height:26px;font-weight:800;font-size:13px">1</div>
+        <div><b>Find people by searching their name.</b><br>
+          <span style="color:var(--muted);font-size:13px">Contacts &rarr; type a name. Faster than scrolling through builders.</span></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="min-width:26px;height:26px;border-radius:7px;background:#06a951;color:#fff;text-align:center;line-height:26px;font-weight:800;font-size:13px">2</div>
+        <div><b>Logging a touch is two clicks.</b><br>
+          <span style="color:var(--muted);font-size:13px">Click <b>Log</b> next to their name, then <b>Save Touch</b>. Everything else is filled in for you.</span></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="min-width:26px;height:26px;border-radius:7px;background:#d8443a;color:#fff;text-align:center;line-height:26px;font-weight:800;font-size:13px">3</div>
+        <div><b>If a red box appears, click the green button.</b><br>
+          <span style="color:var(--muted);font-size:13px">That means something didn't save yet. Clicking retries it. Your work isn't lost either way.</span></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:2px">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px">Tools to keep yourself organized</div>
+        <div style="display:grid;gap:6px;font-size:12.5px;line-height:1.45">
+          <div><b>Follow-up date</b> &mdash; set automatically when you log a touch. <b>Snooze 1wk</b> pushes it out, <b>Dismiss</b> clears it when handled. Don't want a reminder at all? Just clear the date before saving.</div>
+          <div><span style="font-size:14px">&#128293;</span> <b>Hot lead</b> &mdash; click the flame on a contact when a real opportunity appears. It does two jobs: they get named in the weekly report, and the <b>Hot Leads</b> tab up top becomes your shortlist of who matters right now &mdash; with a count so you can see it at a glance.</div>
+          <div><b>+ Add Contact</b> &mdash; on the Contacts page. If a yellow box warns you they already exist, read it before saving. If it says they're <b>inactive</b>, reactivate them instead so their history follows them.</div>
+        </div>
+      </div>
+      <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:9px;padding:10px 13px;font-size:13px;line-height:1.5">
+        Anything looks wrong &mdash; tell Arick the same day.
+        Reopen this any time from the <b>?</b> in the top bar.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn green" onclick="closeFirstRun()">Got it</button>
+    </div>
+  </div>
+</div>
+
 <!-- UNSAVED WORK MODAL — fires automatically when a write can't reach the workbook -->
 <div class="modal-bg" id="syncTroubleModal">
   <div class="modal" style="width:min(520px,100%)">
@@ -698,7 +742,8 @@
           <option>Became customer</option>
           <option>Not interested</option>
           <option>Bad contact info</option>
-        </select></div>
+        </select>
+        <div id="tmResultHint" style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.35"></div></div>
         <div><label class="fld">Date</label><input type="date" id="tmDate" /></div>
       </div>
       <div><label class="fld">Next Follow-Up Date <span style="font-weight:400;color:var(--muted)">(auto-set: 6 weeks, or 1 year if Not interested — change or clear as needed)</span></label><input type="date" id="tmFollowup" /></div>
@@ -2127,17 +2172,69 @@ function switchView(v) {
   if (v==='dashboard') renderDashboard();
   if (v==='hotleads') renderHotLeads();
   if (v==='contacts') renderContacts();
-  if (v==='followups') renderFollowups();
+  if (v==='followups') { applyMyFollowUpFilter(false); renderFollowups(); }
   if (v==='activity') renderActivity();
   if (v==='report') renderReport();
   window.scrollTo({top:0});
 }
-function onRepSwitch() { state.actingRep = document.getElementById('repSwitch').value; store.set('crm_acting_rep', state.actingRep); }
+function onRepSwitch() { state.actingRep = document.getElementById('repSwitch').value; store.set('crm_acting_rep', state.actingRep); refreshFuCount(); applyMyFollowUpFilter(true); if (state.view === 'dashboard') renderMyDay(); if (state.view === 'followups') renderFollowups(); }
 
+// The dashboard below this is for leadership. This strip is for whoever is
+// signed in: what they personally owe someone today, before any team metrics.
+function renderMyDay() {
+  const box = document.getElementById('myDayStrip');
+  if (!box) return;
+  const me = state.actingRep || currentUserName();
+  const c = myFollowUpCounts(me);
+  if (!c.total) {
+    box.style.display = '';
+    box.innerHTML = `<div style="border:1px solid #b5e3c6;background:#e9f7ef;border-radius:10px;padding:11px 15px;margin-bottom:12px;font-size:13.5px;color:#1c7a2e">
+        <b>\u2713 Nothing due for ${esc(me || 'you')}.</b> No overdue follow-ups and nothing scheduled for today.</div>`;
+    return;
+  }
+  const bits = [];
+  if (c.overdue)  bits.push(`<b style="color:#a8322a">${c.overdue} overdue</b>`);
+  if (c.dueToday) bits.push(`<b style="color:#8a6212">${c.dueToday} due today</b>`);
+  box.style.display = '';
+  box.innerHTML = `<div style="border:1px solid ${c.overdue ? '#f3c4bf' : '#f0d28a'};background:${c.overdue ? '#fdecea' : '#fdf6e7'};border-radius:10px;padding:11px 15px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px;font-size:13.5px;line-height:1.4">
+        <b>Your follow-ups${me ? ', ' + esc(me) : ''}:</b> ${bits.join(' \u00b7 ')}.
+        <span style="color:var(--muted)">Everything below is the team view.</span>
+      </div>
+      <button class="btn" onclick="applyMyFollowUpFilter(true); switchView('followups')">Open my follow-ups</button>
+    </div>`;
+}
 function refreshHotCount() {
   const n = getContacts().filter(c => c.active && c.hot).length;
   const b = document.getElementById('navHotCount');
   if (b) { b.textContent = n; b.style.display = n ? 'inline-flex' : 'none'; }
+  refreshFuCount();
+}
+// Anything overdue or due today for whoever is signed in. Reps shouldn't have to
+// scroll a leadership dashboard to find out they owe someone a call — the number
+// sits on the tab from the moment they open the app.
+function myFollowUpCounts(rep) {
+  const today = todayISO();
+  let overdue = 0, dueToday = 0;
+  getContacts().forEach(c => {
+    if (!c.active) return;
+    const fu = nextFollowUp(c.contactId);
+    if (!fu) return;
+    const lt = lastTouch(c.contactId);
+    const owner = lt ? lt.rep : 'Unassigned';
+    if (rep && owner !== rep) return;
+    if (fu < today) overdue++;
+    else if (fu === today) dueToday++;
+  });
+  return { overdue, dueToday, total: overdue + dueToday };
+}
+function refreshFuCount() {
+  const b = document.getElementById('navFuCount');
+  if (!b) return;
+  const c = myFollowUpCounts(state.actingRep);
+  b.textContent = c.total;
+  b.style.display = c.total ? 'inline-flex' : 'none';
+  b.title = c.overdue + ' overdue, ' + c.dueToday + ' due today';
 }
 
 // ============================================================
@@ -2382,6 +2479,7 @@ function renderSignalDetail(tch) {
     </div>`;
 }
 function renderDashboard() {
+  renderMyDay();          // personal actions first, team metrics after
   const allTouches = getTouches();
   const summaries = contactSummaries();
   const tch = dashTouches();
@@ -2855,6 +2953,19 @@ function renderContactDetail(cid) {
 // ============================================================
 //  FOLLOW-UPS
 // ============================================================
+// The Follow-Ups page opens showing YOUR items, matching the strip on the
+// dashboard and the "Logging as" name. Set once per session so it never fights
+// a filter the user chose themselves — and it stays visible and changeable, so
+// widening to the whole team is one click.
+let _fuRepDefaulted = false;
+function applyMyFollowUpFilter(force) {
+  const sel = document.getElementById('fuRepFilter');
+  if (!sel) return;
+  if (!force && _fuRepDefaulted) return;
+  _fuRepDefaulted = true;
+  const me = state.actingRep || currentUserName();
+  if (me && [...sel.options].some(o => o.value === me)) sel.value = me;
+}
 function renderFollowups() {
   const repF = document.getElementById('fuRepFilter') ? document.getElementById('fuRepFilter').value : '';
   const q = (document.getElementById('fuSearch') ? document.getElementById('fuSearch').value : '').toLowerCase();
@@ -3016,6 +3127,7 @@ function openTouchModal(editKey) {
     document.getElementById('tmMethod').value = _pref.method;
     document.getElementById('tmResult').value = _pref.result;
     document.getElementById('tmFollowup').value = followUpDefault(_pref.result);
+    updateResultHint();
     document.getElementById('tmNotes').value = '';
   }
   refreshTouchContext();
@@ -3023,7 +3135,26 @@ function openTouchModal(editKey) {
   document.getElementById('touchModal').classList.add('open');
 }
 function closeTouchModal() { document.getElementById('touchModal').classList.remove('open'); var _b=document.getElementById('tmSaveBtn'); if(_b){ _b.disabled=false; _b.textContent='Save Touch'; } }
+// A short explanation under the Result dropdown. Results drive the report —
+// "Pricing sent" in particular has its own metric — so the cost of everyone
+// choosing differently is a set of numbers that don't mean anything.
+const RESULT_HINTS = {
+  'Left voicemail':    'Called, no answer. Doesn\u2019t count as reaching them.',
+  'Sent info':         'Emailed or sent material, no pricing and no reply yet. Doesn\u2019t count as reaching them.',
+  'Spoke with contact':'A real conversation happened. Counts as reaching them.',
+  'Pricing sent':      'You sent numbers \u2014 use this rather than \u201cSent info\u201d whenever pricing is involved. Tracked separately in the weekly report.',
+  'Became customer':   'They\u2019re in. Counts as reaching them.',
+  'Not interested':    'A clear no \u2014 still worth logging. Counts as reaching them.',
+  'Bad contact info':  'Bounced, wrong number, or they\u2019ve left. Doesn\u2019t count as reaching them.'
+};
+function updateResultHint() {
+  const el = document.getElementById('tmResultHint');
+  const sel = document.getElementById('tmResult');
+  if (!el || !sel) return;
+  el.textContent = RESULT_HINTS[sel.value] || '';
+}
 function onResultChange() {
+  updateResultHint();
   document.getElementById('tmFollowup').value = followUpDefault(document.getElementById('tmResult').value);
 }
 
@@ -3831,8 +3962,22 @@ setInterval(() => {
 }, 60000);
 
 // ---- App start: runs once the user is signed in ----
+// Shown once per device after the first successful sign-in. The PDF guide gets
+// filed and forgotten; this can't be avoided, and it's deliberately only three
+// things — the ones that stop someone getting stuck or losing work.
+const FIRSTRUN_KEY = 'crm_seen_intro';
+function openFirstRun() { document.getElementById('firstRunModal').classList.add('open'); }
+function closeFirstRun() {
+  document.getElementById('firstRunModal').classList.remove('open');
+  store.set(FIRSTRUN_KEY, '1');
+}
+function maybeShowFirstRun() {
+  if (store.get(FIRSTRUN_KEY) === '1') return;
+  setTimeout(openFirstRun, 700);          // let the app paint first
+}
 async function startApp() {
   document.getElementById('navLogout').style.display = '';
+  maybeShowFirstRun();
   await flushPendingWrites();
   loadContactsFromSharePoint();
   loadTouchesFromSharePoint();
