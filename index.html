@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v74 · coverage + per-rep pages)</title>
+<title>Tacoma Energy — Sales CRM (v75 · clearer coverage)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v74</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v75</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -1190,12 +1190,15 @@ function toast(msg) {
 // count-up animation for KPI numbers
 function animateNum(el, to) {
   to = +to || 0;
-  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to.toLocaleString(); return; }
+  // data-suffix lets a KPI read as "7%" instead of a bare "7" that looks like a
+  // count next to four other cards that ARE counts.
+  const sfx = el.dataset && el.dataset.suffix ? el.dataset.suffix : '';
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to.toLocaleString() + sfx; return; }
   const dur = 650, start = performance.now();
   function step(now) {
     const p = Math.min(1, (now - start) / dur);
     const v = Math.round(to * (1 - Math.pow(1 - p, 3)));
-    el.textContent = v.toLocaleString();
+    el.textContent = v.toLocaleString() + sfx;
     if (p < 1) requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
@@ -2601,12 +2604,13 @@ function renderDashboard() {
   const _cov = coverageStats(_covDays);
   const _g = dashGeoFilter();
   const _covScope = _g.active ? ' \u00b7 ' + esc([_g.city, _g.state].filter(Boolean).join(', ')) : '';
+  const _covWindow = _covDays ? ('last ' + _covDays + ' days') : 'all time';
   document.getElementById('dashKpis').innerHTML = `
     <div class="kpi k-reach"><div class="kpi-top"><label>Reach-Outs</label><span class="kpi-ico">📈</span></div><div class="num tnum" data-to="${totalReachOuts}">0</div><div class="sub">${trend} <span>${state.dashRange==='ytd' ? 'year to date' : 'vs prior ' + (state.dashRange ? state.dashRange+'d' : '—')}</span></div></div>
     <div class="kpi k-hot clickable" onclick="switchView('hotleads')"><div class="kpi-top"><label>Hot Leads</label><span class="kpi-ico">🔥</span></div><div class="num tnum" data-to="${hotCount}">0</div><div class="sub">close to closing →</div></div>
     <div class="kpi k-due"><div class="kpi-top"><label>Follow-Ups Due</label><span class="kpi-ico">⏰</span></div><div class="num tnum" data-to="${fusDue}">0</div><div class="sub">${repLabel}</div></div>
-    <div class="kpi k-untouched"><div class="kpi-top"><label>Builder coverage</label><span class="kpi-ico">🏘️</span></div><div class="num tnum" data-to="${_cov.builderPct}">0</div><div class="sub">${_cov.buildersHit} of ${_cov.builders} builders${_covScope}</div></div>
-    <div class="kpi k-reached"><div class="kpi-top"><label>Contact coverage</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${_cov.contactPct}">0</div><div class="sub">${_cov.contactsHit.toLocaleString()} of ${_cov.contacts.toLocaleString()} people${_covScope}</div></div>`;
+    <div class="kpi k-untouched"><div class="kpi-top"><label>Builder coverage</label><span class="kpi-ico">🏘️</span></div><div class="num tnum" data-to="${_cov.builderPct}" data-suffix="%">0</div><div class="sub"><b>${_cov.buildersHit} of ${_cov.builders}</b> builders touched \u00b7 ${_covWindow}${_covScope}</div></div>
+    <div class="kpi k-reached"><div class="kpi-top"><label>Contact coverage</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${_cov.contactPct}" data-suffix="%">0</div><div class="sub"><b>${_cov.contactsHit.toLocaleString()} of ${_cov.contacts.toLocaleString()}</b> people touched \u00b7 ${_covWindow}${_covScope}</div></div>`;
   document.querySelectorAll('#dashKpis .num').forEach(el => animateNum(el, el.dataset.to));
 
   // Deal Signals — high-intent outcomes in the current window (respects rep + timeframe)
