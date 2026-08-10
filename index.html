@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v77 · readable coverage cards)</title>
+<title>Tacoma Energy — Sales CRM (v80 · builder divisions on reports)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v77</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v80</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -709,6 +709,17 @@
 </div>
 
 <!-- RECONCILIATION — proof that everything logged on this device reached the workbook -->
+
+<!-- BUILDER COVERAGE BREAKDOWN — who we have and haven't reached -->
+<div class="modal-bg" id="coverageModal">
+  <div class="modal" style="width:min(760px,100%)">
+    <div class="modal-head"><h3 id="covTitle">Builder coverage</h3><button class="modal-x" onclick="closeCoverage()">&times;</button></div>
+    <div class="modal-body" id="coverageBody" style="gap:10px"></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeCoverage()">Close</button></div>
+  </div>
+</div>
+
+<!-- BUILDER COVERAGE BREAKDOWN END -->
 <div class="modal-bg" id="reconcileModal">
   <div class="modal">
     <div class="modal-head"><h3>Check my saved work</h3><button class="modal-x" onclick="closeReconcile()">×</button></div>
@@ -1991,10 +2002,19 @@ function _repStats(touches, cutoff, allTouchesForNewCalc){
     var f = firstEver[cid];
     if (f && (!cutoff || f >= cutoff)) fresh++;
   });
+  // Builder divisions = company + city. Touching three people at Lennar Austin
+  // is one division; touching Lennar Austin and Lennar Houston is two.
+  var byId = {}; getContacts().forEach(function(c){ byId[c.contactId] = c; });
+  var divSet = new Set();
+  uniqSet.forEach(function(cid){
+    var c = byId[cid]; if (!c || !c.company) return;
+    divSet.add(c.company + '|' + (c.city || '') + '|' + (c.state || ''));
+  });
   return {
     reach:   w.length,
     reached: new Set(w.filter(function(t){return CONNECT_RESULTS.includes(t.result);}).map(function(t){return t.contactId;})).size,
     uniq:    uniqSet.size,
+    divisions: divSet.size,
     fresh:   fresh,
     perContact: uniqSet.size ? Math.round((w.length / uniqSet.size) * 10) / 10 : 0,
     meet:    w.filter(function(t){return t.method==='In Person';}).length,
@@ -2043,11 +2063,15 @@ function _breakdownTable(keyFn, colLabel, topN){
   return _tbl([colLabel,'7 Days','30 Days','YTD'], rows);
 }
 function _tbl(cols, rows){
-  var th='padding:8px 12px;background:#0e2f4a;color:#ffffff;font-size:10px;letter-spacing:.6px;text-transform:uppercase;text-align:center;font-weight:700';
+  // Row padding is deliberately tight: the team page fits its masthead, KPI
+  // cards, this table, the Pace/Hot block and the trend chart into ONE printed
+  // page, and this table is the tallest thing on it. Loosening this is what
+  // pushes the team overview onto a second page.
+  var th='padding:6px 12px;background:#0e2f4a;color:#ffffff;font-size:10px;letter-spacing:.6px;text-transform:uppercase;text-align:center;font-weight:700';
   var thL=th+';text-align:left';
   var head='<tr>'+cols.map(function(c,i){return `<th style='${i===0?thL:th}'>${c}</th>`;}).join('')+'</tr>';
-  var b=rows.map(function(r,ri){ var bg=ri%2?'#f4f8fb':'#ffffff'; return '<tr>'+r.map(function(cell,ci){ var st='padding:6px 12px;border-bottom:1px solid #eaf1f7;font-size:13px;background:'+bg+(ci===0?';text-align:left;font-weight:600;color:#12263a':';text-align:center;color:#2c3e50;font-variant-numeric:tabular-nums'); return `<td style='${st}'>${cell}</td>`; }).join('')+'</tr>'; }).join('');
-  return `<table style='border-collapse:collapse;font-family:Arial,sans-serif;width:100%;margin:2px 0 6px;border:1px solid #dbe6f0;border-radius:7px;overflow:hidden'>${head}${b}</table>`;
+  var b=rows.map(function(r,ri){ var bg=ri%2?'#f4f8fb':'#ffffff'; return '<tr>'+r.map(function(cell,ci){ var st='padding:4px 12px;border-bottom:1px solid #eaf1f7;font-size:13px;background:'+bg+(ci===0?';text-align:left;font-weight:600;color:#12263a':';text-align:center;color:#2c3e50;font-variant-numeric:tabular-nums'); return `<td style='${st}'>${cell}</td>`; }).join('')+'</tr>'; }).join('');
+  return `<table style='border-collapse:collapse;font-family:Arial,sans-serif;width:100%;margin:2px 0 5px;border:1px solid #dbe6f0;border-radius:7px;overflow:hidden'>${head}${b}</table>`;
 }
 // ---- Week-over-week trend ----------------------------------------------
 // Rolling 7-day buckets (not calendar weeks) so the most recent bar matches the
@@ -2097,13 +2121,13 @@ function _kpiCards(touches, opts){
   var s7=_repStats(touches,cutoffFor(7)), s30=_repStats(touches,cutoffFor(30)), sytd=_repStats(touches,cutoffFor('ytd'));
   var defs=[
     {label:'Reach-outs', key:'reach', ico:'\u2197'},
-    {label:'Unique contacts', key:'uniq', ico:'\u2713'},
-    {label:'New contacts', key:'fresh', ico:'\u2728'},
+    {label:'Builder divisions', key:'divisions', ico:'\u2713'},
+    {label:'New people', key:'fresh', ico:'\u2728'},
     {label:'Pricing sent', key:'price', ico:'\ud83d\udcb2'}
   ];
   var cells=defs.map(function(d){
     return `<td valign='top' style='width:25%;padding:0 5px'>
-      <div style='border:1px solid #dbe6f0;border-top:3px solid ${opts.accent||'#1395d3'};border-radius:8px;padding:6px 10px 6px;background:#fff'>
+      <div style='border:1px solid #dbe6f0;border-top:3px solid ${opts.accent||'#1395d3'};border-radius:8px;padding:4px 10px;background:#fff'>
         <div style='font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#687d92'>${d.label}</div>
         <div style='font-size:23px;font-weight:800;color:#0e2f4a;line-height:1.0;margin:2px 0 1px'>${s7[d.key]}</div>
         <div style='font-size:11px;color:#8a99a9'>this week</div>
@@ -2112,7 +2136,7 @@ function _kpiCards(touches, opts){
         </div>
       </div></td>`;
   }).join('');
-  return `<table width='100%' style='border-collapse:separate;border-spacing:0;margin:10px -5px 6px;table-layout:fixed'><tr>${cells}</tr></table>`;
+  return `<table width='100%' style='border-collapse:separate;border-spacing:0;margin:6px -5px 4px;table-layout:fixed'><tr>${cells}</tr></table>`;
 }
 function _sectionHead(num, title, sub, accent){
   return `<table width='100%' style='border-collapse:collapse;margin:0 0 4px'><tr>
@@ -2130,20 +2154,20 @@ function buildReportHTML(){
   var cov=totC?Math.round(touchedEver/totC*100):0;
   var realReps=REPS.filter(function(r){return r!=='Unassigned';});
   var activeThisWeek=realReps.filter(function(r){return all.filter(function(t){return t.rep===r && t.date>=cutoffFor(7);}).length>0;}).length;
-  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Unique contacts','uniq'),mk('New contacts (1st ever touch)','fresh'),mk('Touches per contact','perContact'),mk('Meetings','meet'),mk('Pricing sent','price')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
+  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Builder divisions','divisions'),mk('People touched','uniq'),mk('New people (never touched before)','fresh'),mk('Touches per person','perContact'),mk('Meetings','meet'),mk('Pricing sent','price')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
   var html=`<div style="font-family:Arial,Helvetica,sans-serif;color:#12263a;max-width:720px">`;
   // ================= PAGE 1 — TEAM =================
   html+=`<div style='page-break-after:always'>`;
   // ---- Masthead ----
-  html+=`<table width='100%' style='border-collapse:collapse;margin-bottom:11px'><tr>
-    <td bgcolor='#0e2f4a' style='background:#0e2f4a;padding:17px 22px;border-radius:9px'>
+  html+=`<table width='100%' style='border-collapse:collapse;margin-bottom:7px'><tr>
+    <td bgcolor='#0e2f4a' style='background:#0e2f4a;padding:13px 22px;border-radius:9px'>
       <table width='100%'><tr>
         <td valign='middle'><div style='font-size:23px;font-weight:800;color:#ffffff;letter-spacing:.6px'>TACOMA ENERGY</div><div style='font-size:12px;color:#8fb4d6;margin-top:3px;letter-spacing:2px;font-weight:600'>WEEKLY SALES REPORT</div></td>
         <td valign='middle' align='right'><div style='font-size:11px;color:#8fb4d6;letter-spacing:.3px'>Reps active this week</div><div style='font-size:20px;font-weight:800;color:${activeThisWeek<realReps.length?"#ffb454":"#4fd18a"};text-align:right'>${activeThisWeek} <span style='font-size:13px;color:#8fb4d6;font-weight:600'>of ${realReps.length}</span></div></td>
       </tr></table>
     </td></tr></table>`;
-  html+=`<div style='display:flex;font-size:11px;color:#687d92;margin-bottom:14px'><span style='background:#eef4fa;border-left:3px solid #1395d3;padding:6px 11px;border-radius:0 5px 5px 0'><b style='color:#12263a'>As of ${_stamp}</b> \u00b7 later touches excluded \u00b7 coverage ${cov}% of ${totC.toLocaleString()} active contacts</span></div>`;
+  html+=`<div style='display:flex;font-size:11px;color:#687d92;margin-bottom:8px'><span style='background:#eef4fa;border-left:3px solid #1395d3;padding:5px 11px;border-radius:0 5px 5px 0'><b style='color:#12263a'>As of ${_stamp}</b> \u00b7 later touches excluded \u00b7 coverage ${cov}% of ${totC.toLocaleString()} active contacts</span></div>`;
 
   // ---- Team section ----
   html+=_sectionHead('1','Team Overview','all reps combined','#06a951');
@@ -2151,9 +2175,9 @@ function buildReportHTML(){
   html+=statBlock(all, ['New contacts added', contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(7);}).length,
                                               contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(30);}).length,
                                               contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor('ytd');}).length]);
-  html+=`<table width='100%' style='border-collapse:collapse;margin:8px 0 14px'><tr>
+  html+=`<table width='100%' style='border-collapse:collapse;margin:4px 0 6px'><tr>
     <td valign='top' style='width:50%;padding-right:9px'>
-      <div style='border:1px solid #dbe6f0;border-radius:8px;padding:11px 14px;background:#f8fbfd'>
+      <div style='border:1px solid #dbe6f0;border-radius:8px;padding:8px 14px;background:#f8fbfd'>
         <div style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#687d92;margin-bottom:5px'>Pace</div>
         ${_summaryBlock(all, cutoffFor(7), 'This week', true)}
         ${_summaryBlock(all, cutoffFor(30), 'Last 30 days', false)}
@@ -2161,7 +2185,7 @@ function buildReportHTML(){
       </div>
     </td>
     <td valign='top' style='width:50%;padding-left:9px'>
-      <div style='border:1px solid #f0dcc4;border-radius:8px;padding:11px 14px;background:#fffaf3'>
+      <div style='border:1px solid #f0dcc4;border-radius:8px;padding:8px 14px;background:#fffaf3'>
         <div style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#b5711f;margin-bottom:5px'>\ud83d\udd25 Hot leads (${_hotFor(null)})</div>
         ${_hotList()}
       </div>
@@ -2169,7 +2193,7 @@ function buildReportHTML(){
 
   // Trajectory — turns this week's number into a direction the CEO can read
   // at a glance, which the KPI cards alone can't convey.
-  html+=`<div style='margin-top:12px'>` + _trendChart(all, 8, '#06a951') + `</div>`;
+  html+=`<div style='margin-top:6px'>` + _trendChart(all, 8, '#06a951') + `</div>`;
 
   // ================= PAGE 2 — BY REP =================
   html+=`</div>`;
@@ -2600,11 +2624,16 @@ function coverageStats(days) {
   const cut = days ? cutoffFor(days) : null;
   const cs = getContacts().filter(c => c.active && contactInDashGeo(c));
   const touchedIds = new Set(getTouches().filter(t => !cut || t.date >= cut).map(t => t.contactId));
+  // A builder's Austin division and Houston division are separate relationships —
+  // reaching one tells you nothing about the other. Count company+city so the
+  // number reflects actual sales territory, matching how Contacts groups them.
   const allB = new Set(), hitB = new Set();
   let hitC = 0;
   cs.forEach(c => {
-    if (c.company) allB.add(c.company);
-    if (touchedIds.has(c.contactId)) { hitC++; if (c.company) hitB.add(c.company); }
+    if (!c.company) return;
+    const key = c.company + '|' + (c.city || '') + '|' + (c.state || '');
+    allB.add(key);
+    if (touchedIds.has(c.contactId)) { hitC++; hitB.add(key); }
   });
   return {
     contacts: cs.length, contactsHit: hitC,
@@ -2612,6 +2641,80 @@ function coverageStats(days) {
     builders: allB.size, buildersHit: hitB.size,
     builderPct: allB.size ? Math.round(hitB.size / allB.size * 100) : 0
   };
+}
+// Clicking the coverage KPI answers the question the number raises: which
+// builders specifically haven't we reached? Scoped to the same timeframe and
+// territory filter as the card, so the list matches the percentage.
+function openCoverage(kind) {
+  const days = (state.dashRange === 'ytd' || state.dashRange === 0) ? 0 : (state.dashRange || 90);
+  const cut = days ? cutoffFor(days) : null;
+  const g = dashGeoFilter();
+  const scope = g.active ? [g.city, g.state].filter(Boolean).join(', ') : 'all markets';
+  const win = days ? ('last ' + days + ' days') : 'all time';
+
+  const cs = getContacts().filter(c => c.active && contactInDashGeo(c));
+  const touched = new Set(getTouches().filter(t => !cut || t.date >= cut).map(t => t.contactId));
+  const lastByContact = {};
+  getTouches().forEach(t => { const d = t.date || ''; if (!lastByContact[t.contactId] || d > lastByContact[t.contactId]) lastByContact[t.contactId] = d; });
+
+  const byBuilder = {};
+  cs.forEach(c => {
+    const co = (c.company || '').trim(); if (!co) return;
+    const place = [c.city, c.state].filter(Boolean).join(', ');
+    const key = co + '|' + place;
+    if (!byBuilder[key]) byBuilder[key] = { name: co, place: place || '\u2014', city: c.city || '', state: c.state || '', people: 0, hit: 0, last: '' };
+    const b = byBuilder[key];
+    b.people++;
+    if (touched.has(c.contactId)) b.hit++;
+    const lt = lastByContact[c.contactId] || '';
+    if (lt > b.last) b.last = lt;
+  });
+  const all = Object.values(byBuilder);
+  const cold = all.filter(b => !b.hit).sort((a, b) => a.place.localeCompare(b.place) || b.people - a.people || a.name.localeCompare(b.name));
+  const warm = all.filter(b => b.hit).sort((a, b) => (b.last || '').localeCompare(a.last || ''));
+
+  const row = b => `<div style="display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:8px;padding:8px 11px;background:#fff">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.name)}</div>
+        <div style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.place)}</div>
+      </div>
+      <div style="text-align:right;font-size:11.5px;color:var(--muted);white-space:nowrap">
+        ${b.people} contact${b.people === 1 ? '' : 's'}<br>
+        ${b.last ? 'last ' + fmtDate(b.last) : '<span style="color:#a8322a;font-weight:700">never touched</span>'}
+      </div>
+      <button class="btn ghost sm" onclick="coverageOpenBuilder('${escArg(b.name)}','${escArg(b.city)}','${escArg(b.state)}')">Open</button>
+    </div>`;
+
+  const pct = all.length ? Math.round(warm.length / all.length * 100) : 0;
+  document.getElementById('covTitle').textContent = 'Builder divisions \u2014 ' + scope;
+  document.getElementById('coverageBody').innerHTML =
+    `<div style="font-size:13px;color:var(--muted);line-height:1.5">
+       <b style="color:var(--navy);font-size:15px">${pct}%</b> of builder divisions reached \u00b7 ${win}
+       \u2014 <b style="color:var(--navy)">${warm.length}</b> contacted, <b style="color:#a8322a">${cold.length}</b> not.
+     </div>` +
+    (cold.length ? `<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#a8322a;margin-top:2px">Not contacted (${cold.length})</div>
+       <div style="display:grid;gap:5px;max-height:230px;overflow:auto">${cold.slice(0, 200).map(row).join('')}</div>
+       ${cold.length > 200 ? `<div style="font-size:11.5px;color:var(--muted)">+ ${cold.length - 200} more \u2014 narrow by state or city to see the rest</div>` : ''}` : '')
+    +
+    (warm.length ? `<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#1c7a2e;margin-top:6px">Contacted (${warm.length})</div>
+       <div style="display:grid;gap:5px;max-height:190px;overflow:auto">${warm.slice(0, 200).map(row).join('')}</div>` : '');
+  document.getElementById('coverageModal').classList.add('open');
+}
+function closeCoverage() { document.getElementById('coverageModal').classList.remove('open'); }
+// Jump straight to that builder's contacts so the list is actionable.
+function coverageOpenBuilder(name, city, stateAbbr) {
+  closeCoverage();
+  switchView('contacts');
+  setTimeout(() => {
+    const sel = document.getElementById('contactCompanyFilter');
+    if (sel && [...sel.options].some(o => o.value === name)) sel.value = name;
+    const st = document.getElementById('contactStateFilter');
+    if (st && stateAbbr && [...st.options].some(o => o.value === stateAbbr)) st.value = stateAbbr;
+    rebuildCityFilter();
+    const ct = document.getElementById('contactCityFilter');
+    if (ct && city && [...ct.options].some(o => o.value === city)) ct.value = city;
+    renderContacts();
+  }, 60);
 }
 function renderDashboard() {
   renderMyDay();          // personal actions first, team metrics after
@@ -2647,7 +2750,7 @@ function renderDashboard() {
     <div class="kpi k-reach"><div class="kpi-top"><label>Reach-Outs</label><span class="kpi-ico">📈</span></div><div class="num tnum" data-to="${totalReachOuts}">0</div><div class="sub">${trend} <span>${state.dashRange==='ytd' ? 'year to date' : 'vs prior ' + (state.dashRange ? state.dashRange+'d' : '—')}</span></div></div>
     <div class="kpi k-hot clickable" onclick="switchView('hotleads')"><div class="kpi-top"><label>Hot Leads</label><span class="kpi-ico">🔥</span></div><div class="num tnum" data-to="${hotCount}">0</div><div class="sub">close to closing →</div></div>
     <div class="kpi k-due"><div class="kpi-top"><label>Follow-Ups Due</label><span class="kpi-ico">⏰</span></div><div class="num tnum" data-to="${fusDue}">0</div><div class="sub">${repLabel}</div></div>
-    <div class="kpi k-untouched"><div class="kpi-top"><label>Builder coverage</label><span class="kpi-ico">🏘️</span></div><div class="num tnum" data-to="${_cov.builderPct}" data-suffix="%">0</div><div class="sub" style="display:block;line-height:1.4"><b>${_cov.buildersHit.toLocaleString()}</b> of ${_cov.builders.toLocaleString()} builders<br><span style="font-weight:500;opacity:.75">${_covWindow}${_covScope}</span></div></div>
+    <div class="kpi k-untouched clickable" onclick="openCoverage('builder')" title="See which builders have and haven\u2019t been contacted"><div class="kpi-top"><label>Builder coverage</label><span class="kpi-ico">🏘️</span></div><div class="num tnum" data-to="${_cov.builderPct}" data-suffix="%">0</div><div class="sub" style="display:block;line-height:1.4"><b>${_cov.buildersHit.toLocaleString()}</b> of ${_cov.builders.toLocaleString()} builder divisions<br><span style="font-weight:500;opacity:.75">${_covWindow}${_covScope}</span></div></div>
     <div class="kpi k-reached"><div class="kpi-top"><label>Contact coverage</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${_cov.contactPct}" data-suffix="%">0</div><div class="sub" style="display:block;line-height:1.4"><b>${_cov.contactsHit.toLocaleString()}</b> of ${_cov.contacts.toLocaleString()} contacts<br><span style="font-weight:500;opacity:.75">${_covWindow}${_covScope}</span></div></div>`;
   document.querySelectorAll('#dashKpis .num').forEach(el => animateNum(el, el.dataset.to));
 
