@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v73 · viewer access)</title>
+<title>Tacoma Energy — Sales CRM (v74 · coverage + per-rep pages)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v73</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v74</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -478,6 +478,11 @@
         <button class="seg-btn" data-range="90" onclick="setDashRange(90)">90 days</button>
         <button class="seg-btn" data-range="ytd" onclick="setDashRange('ytd')">YTD</button>
         <button class="seg-btn" data-range="0" onclick="setDashRange(0)">All time</button>
+      </div>
+      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+        <select id="dashStateFilter" onchange="onDashStateChange()" style="width:auto;min-width:118px;padding:7px 10px;font-size:13px"><option value="">All states</option></select>
+        <select id="dashCityFilter" onchange="renderDashboard()" style="width:auto;min-width:130px;padding:7px 10px;font-size:13px"><option value="">All cities</option></select>
+        <span id="dashGeoClear" onclick="clearDashGeo()" style="display:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--accent)">Clear</span>
       </div>
     </div>
 
@@ -1927,9 +1932,33 @@ async function loadTouchesFromSharePoint() {
 let state = { view:'dashboard', selectedContact:null, actingRep:'', openBuilders:new Set(), dashRange:30, dashRep:'', dashBreakdown:'builder' };
 
 function _mtdCutoff(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'; }
-function _repStats(touches, cutoff){
+function _repStats(touches, cutoff, allTouchesForNewCalc){
   var w = cutoff ? touches.filter(function(t){return t.date>=cutoff;}) : touches;
-  return { reach:w.length, reached:new Set(w.filter(function(t){return CONNECT_RESULTS.includes(t.result);}).map(function(t){return t.contactId;})).size, meet:w.filter(function(t){return t.method==='In Person';}).length, price:w.filter(function(t){return t.result==='Pricing sent';}).length };
+  // uniq  = distinct people touched at all (any result). Reach-outs divided by
+  //         this is the tell for logging the same handful of contacts repeatedly.
+  // fresh = people whose FIRST EVER touch (by anyone) falls in this window —
+  //         i.e. genuinely new ground rather than recycling a list.
+  var uniqSet = new Set(w.map(function(t){return t.contactId;}));
+  var everything = allTouchesForNewCalc || getTouches();
+  var firstEver = {};
+  everything.forEach(function(t){
+    var d = t.date || '';
+    if (!firstEver[t.contactId] || d < firstEver[t.contactId]) firstEver[t.contactId] = d;
+  });
+  var fresh = 0;
+  uniqSet.forEach(function(cid){
+    var f = firstEver[cid];
+    if (f && (!cutoff || f >= cutoff)) fresh++;
+  });
+  return {
+    reach:   w.length,
+    reached: new Set(w.filter(function(t){return CONNECT_RESULTS.includes(t.result);}).map(function(t){return t.contactId;})).size,
+    uniq:    uniqSet.size,
+    fresh:   fresh,
+    perContact: uniqSet.size ? Math.round((w.length / uniqSet.size) * 10) / 10 : 0,
+    meet:    w.filter(function(t){return t.method==='In Person';}).length,
+    price:   w.filter(function(t){return t.result==='Pricing sent';}).length
+  };
 }
 function _overdueFor(rep){ var today=todayISO(), n=0; getContacts().forEach(function(c){ if(!c.active) return; var fu=nextFollowUp(c.contactId); if(fu && fu<today){ var lt=lastTouch(c.contactId); var owner=lt?lt.rep:'Unassigned'; if(rep===null || owner===rep) n++; } }); return n; }
 function _priorWeek(touches){ var a=cutoffFor(14), b=cutoffFor(7); return touches.filter(function(t){return t.date>=a && t.date<b;}).length; }
@@ -1942,7 +1971,7 @@ function _detailList(rep, kind){
   // Capped at 3 and each entry clamped to a single line. With every rep active
   // these lists are what pushes the By Rep section past one page and turns the
   // report into 4 pages — the detail is a highlight, not a full log.
-  var CAP=2;   // two entries with readable notes beats three truncated ones
+  var CAP=6;   // a full page per rep means the detail can breathe again
   var one='overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word';
   var li=rows.slice(0,CAP).map(function(t){ var c=byId[t.contactId]||{}; var nm=((c.first||'')+' '+(c.last||'')).trim()||'(unknown)'; var co=c.company||''; var note=(t.notes||'').trim(); var noteHtml= note? `<span style='color:#12263a'>\u2014 ${esc(note)}</span>` : `<span style='color:#d64545;font-style:italic'>\u2014 (no note)</span>`; return `<li style='margin:0 0 1px;${one}'>${esc(t.date)} \u00b7 <b>${esc(nm)}</b>${co?` (${esc(co)})`:''} ${noteHtml}</li>`; }).join('');
   var more=rows.length>CAP?`<li style='color:#687d92;list-style:none'>+${rows.length-CAP} more</li>`:'';
@@ -2027,8 +2056,8 @@ function _kpiCards(touches, opts){
   var s7=_repStats(touches,cutoffFor(7)), s30=_repStats(touches,cutoffFor(30)), sytd=_repStats(touches,cutoffFor('ytd'));
   var defs=[
     {label:'Reach-outs', key:'reach', ico:'\u2197'},
-    {label:'Contacts reached', key:'reached', ico:'\u2713'},
-    {label:'Meetings', key:'meet', ico:'\ud83e\udd1d'},
+    {label:'Unique contacts', key:'uniq', ico:'\u2713'},
+    {label:'New contacts', key:'fresh', ico:'\u2728'},
     {label:'Pricing sent', key:'price', ico:'\ud83d\udcb2'}
   ];
   var cells=defs.map(function(d){
@@ -2060,7 +2089,7 @@ function buildReportHTML(){
   var cov=totC?Math.round(touchedEver/totC*100):0;
   var realReps=REPS.filter(function(r){return r!=='Unassigned';});
   var activeThisWeek=realReps.filter(function(r){return all.filter(function(t){return t.rep===r && t.date>=cutoffFor(7);}).length>0;}).length;
-  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Contacts reached','reached'),mk('Meetings','meet'),mk('Pricing sent','price')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
+  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Unique contacts','uniq'),mk('New contacts (1st ever touch)','fresh'),mk('Touches per contact','perContact'),mk('Meetings','meet'),mk('Pricing sent','price')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
   var html=`<div style="font-family:Arial,Helvetica,sans-serif;color:#12263a;max-width:720px">`;
   // ================= PAGE 1 — TEAM =================
@@ -2078,6 +2107,9 @@ function buildReportHTML(){
   // ---- Team section ----
   html+=_sectionHead('1','Team Overview','all reps combined','#06a951');
   html+=_kpiCards(all, {accent:'#06a951'});
+  html+=statBlock(all, ['New contacts added', contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(7);}).length,
+                                              contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(30);}).length,
+                                              contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor('ytd');}).length]);
   html+=`<table width='100%' style='border-collapse:collapse;margin:8px 0 14px'><tr>
     <td valign='top' style='width:50%;padding-right:9px'>
       <div style='border:1px solid #dbe6f0;border-radius:8px;padding:11px 14px;background:#f8fbfd'>
@@ -2101,7 +2133,7 @@ function buildReportHTML(){
   // ================= PAGE 2 — BY REP =================
   html+=`</div>`;
   html+=`<div>`;
-  html+=_sectionHead('2','By Rep','individual breakdown','#1395d3');
+  var _repPageNo = 2;   // team is page 1; each rep takes the next number
   // Include anyone who actually logged a touch, not just the hardcoded reps —
   // otherwise their activity silently vanishes from the report.
   var _reportReps = REPS.filter(function(r){ return r !== 'Unassigned'; });
@@ -2112,7 +2144,11 @@ function buildReportHTML(){
     var col=REP_COLOR[rep]||'#12263a';
     var r7=rt.filter(function(t){return t.date>=cutoffFor(7);}).length;
     var badge = r7>0 ? `<span style='background:#06a951;color:#fff;font-size:9px;padding:2px 8px;border-radius:9px;font-weight:800;letter-spacing:.4px'>ACTIVE</span>` : `<span style='background:#d64545;color:#fff;font-size:9px;padding:2px 8px;border-radius:9px;font-weight:800;letter-spacing:.4px'>NO ACTIVITY</span>`;
-    html+=`<div style='page-break-inside:avoid;margin-top:6px;border:1px solid #dbe6f0;border-radius:9px;overflow:hidden'>
+    // Each rep gets a full page: no height ceiling, no overflow risk however many
+    // reps there are, and room for the full pricing/meeting detail.
+    html+=`<div style='page-break-before:always;padding-top:2px'>` +
+          _sectionHead(String(_repPageNo++), esc(rep), 'individual breakdown', col) +
+          `<div style='margin-top:6px;border:1px solid #dbe6f0;border-radius:9px;overflow:hidden'>
       <table width='100%' style='border-collapse:collapse'><tr><td style='background:${col};padding:5px 14px'>
         <table width='100%'><tr>
           <td valign='middle'><span style='display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;margin-right:8px;opacity:.85'></span><b style='color:#fff;font-size:15px'>${esc(rep)}</b> &nbsp;${badge}</td>
@@ -2129,17 +2165,21 @@ function buildReportHTML(){
             <div style='font-size:11px;font-weight:700;color:#0c2d47;margin-bottom:1px'>Meetings <span style='color:#8a99a9;font-weight:400'>(30d)</span></div>${_detailList(rep,'meet')}
           </td>
         </tr></table>
+        ${statBlock(rt)}
       </div>
-    </div>`;
+    </div></div>`;
   });
 
-  // ================= PAGE 3 — GEOGRAPHY =================
-  // Kept as one unbreakable block so the heading can never be stranded at the
-  // bottom of page 2 while its tables move on. No forced break is used here —
-  // that reintroduces a phantom trailing page in Chromium.
+  // ================= FINAL PAGE — GEOGRAPHY =================
+  // Gets its own page: without a forced break it trails the last rep and fills
+  // whatever space is left, so the page count moved with the data volume.
+  // Still one unbreakable block so the heading can't be stranded from its tables.
+  // The phantom trailing page this used to cause in Chromium is handled by the
+  // print rule that zeroes the last child's trailing margin/padding (see @media
+  // print), so a forced break BEFORE is safe — it was break-after that hurt.
   html+=`</div>`;
-  html+=`<div style='page-break-inside:avoid'>`;
-  html+=_sectionHead('3','Where We\u2019re Working','outreaches by market','#f2622a');
+  html+=`<div style='page-break-before:always;page-break-inside:avoid'>`;
+  html+=_sectionHead(String(_repPageNo),'Where We\u2019re Working','coverage by market','#f2622a');
   html+=`<div style='font-size:12px;font-weight:700;margin:8px 0 3px;color:#0c2d47;text-transform:uppercase;letter-spacing:.4px'>By Builder <span style='color:#8a99a9;font-weight:400;text-transform:none;letter-spacing:0'>(top 15)</span></div>`;
   html+=_breakdownTable(function(c){return c.company;}, 'Builder', 15);
   html+=`<table width='100%' style='border-collapse:collapse;margin-top:12px'><tr>
@@ -2478,6 +2518,60 @@ function renderSignalDetail(tch) {
       </tbody></table></div>
     </div>`;
 }
+// Territory filter for the dashboard. Coverage only means something scoped to a
+// market — "we've touched 62% of Austin builders" is a planning number, "62% of
+// everything" isn't.
+function dashGeoFilter() {
+  const s = (document.getElementById('dashStateFilter') || {}).value || '';
+  const c = (document.getElementById('dashCityFilter') || {}).value || '';
+  return { state: s, city: c, active: !!(s || c) };
+}
+function contactInDashGeo(c) {
+  const f = dashGeoFilter();
+  if (f.state && c.state !== f.state) return false;
+  if (f.city && c.city !== f.city) return false;
+  return true;
+}
+function rebuildDashGeoFilters() {
+  const cs = getContacts().filter(c => c.active);
+  const stateSel = document.getElementById('dashStateFilter');
+  const citySel  = document.getElementById('dashCityFilter');
+  if (!stateSel || !citySel) return;
+  const curS = stateSel.value, curC = citySel.value;
+  const states = [...new Set(cs.map(c => c.state).filter(Boolean))].sort();
+  stateSel.innerHTML = '<option value="">All states</option>' + states.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  if (curS && states.includes(curS)) stateSel.value = curS;
+  const cities = [...new Set(cs.filter(c => !stateSel.value || c.state === stateSel.value).map(c => c.city).filter(Boolean))].sort();
+  citySel.innerHTML = '<option value="">All cities</option>' + cities.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  citySel.value = cities.includes(curC) ? curC : '';
+  const clr = document.getElementById('dashGeoClear');
+  if (clr) clr.style.display = (stateSel.value || citySel.value) ? '' : 'none';
+}
+function onDashStateChange() { rebuildDashGeoFilters(); renderDashboard(); }
+function clearDashGeo() {
+  const s = document.getElementById('dashStateFilter'), c = document.getElementById('dashCityFilter');
+  if (s) s.value = ''; if (c) c.value = '';
+  rebuildDashGeoFilters(); renderDashboard();
+}
+// Coverage within the current territory filter: how much of this market have we
+// actually reached, by builder and by person.
+function coverageStats(days) {
+  const cut = days ? cutoffFor(days) : null;
+  const cs = getContacts().filter(c => c.active && contactInDashGeo(c));
+  const touchedIds = new Set(getTouches().filter(t => !cut || t.date >= cut).map(t => t.contactId));
+  const allB = new Set(), hitB = new Set();
+  let hitC = 0;
+  cs.forEach(c => {
+    if (c.company) allB.add(c.company);
+    if (touchedIds.has(c.contactId)) { hitC++; if (c.company) hitB.add(c.company); }
+  });
+  return {
+    contacts: cs.length, contactsHit: hitC,
+    contactPct: cs.length ? Math.round(hitC / cs.length * 100) : 0,
+    builders: allB.size, buildersHit: hitB.size,
+    builderPct: allB.size ? Math.round(hitB.size / allB.size * 100) : 0
+  };
+}
 function renderDashboard() {
   renderMyDay();          // personal actions first, team metrics after
   const allTouches = getTouches();
@@ -2502,12 +2596,17 @@ function renderDashboard() {
     trend = trendBadge(totalReachOuts, prev);
   } else if (!state.dashRange) { trend = '<span class="trend flat">all time</span>'; }
 
+  rebuildDashGeoFilters();
+  const _covDays = (state.dashRange === 'ytd' || state.dashRange === 0) ? 0 : (state.dashRange || 90);
+  const _cov = coverageStats(_covDays);
+  const _g = dashGeoFilter();
+  const _covScope = _g.active ? ' \u00b7 ' + esc([_g.city, _g.state].filter(Boolean).join(', ')) : '';
   document.getElementById('dashKpis').innerHTML = `
     <div class="kpi k-reach"><div class="kpi-top"><label>Reach-Outs</label><span class="kpi-ico">📈</span></div><div class="num tnum" data-to="${totalReachOuts}">0</div><div class="sub">${trend} <span>${state.dashRange==='ytd' ? 'year to date' : 'vs prior ' + (state.dashRange ? state.dashRange+'d' : '—')}</span></div></div>
-    <div class="kpi k-reached"><div class="kpi-top"><label>Contacts Reached</label><span class="kpi-ico">🤝</span></div><div class="num tnum" data-to="${contactsReached}">0</div><div class="sub">people reached · ${rangeLabel}</div></div>
     <div class="kpi k-hot clickable" onclick="switchView('hotleads')"><div class="kpi-top"><label>Hot Leads</label><span class="kpi-ico">🔥</span></div><div class="num tnum" data-to="${hotCount}">0</div><div class="sub">close to closing →</div></div>
     <div class="kpi k-due"><div class="kpi-top"><label>Follow-Ups Due</label><span class="kpi-ico">⏰</span></div><div class="num tnum" data-to="${fusDue}">0</div><div class="sub">${repLabel}</div></div>
-    <div class="kpi k-untouched"><div class="kpi-top"><label>Coverage %</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${(function(){var _t=getContacts().filter(function(x){return x.active;}).length;return _t?Math.round((_t-untouched)/_t*100):0;})()}">0</div><div class="sub">${(getContacts().filter(function(x){return x.active;}).length-untouched).toLocaleString()} of ${getContacts().filter(function(x){return x.active;}).length.toLocaleString()} ever touched</div></div>`;
+    <div class="kpi k-untouched"><div class="kpi-top"><label>Builder coverage</label><span class="kpi-ico">🏘️</span></div><div class="num tnum" data-to="${_cov.builderPct}">0</div><div class="sub">${_cov.buildersHit} of ${_cov.builders} builders${_covScope}</div></div>
+    <div class="kpi k-reached"><div class="kpi-top"><label>Contact coverage</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${_cov.contactPct}">0</div><div class="sub">${_cov.contactsHit.toLocaleString()} of ${_cov.contacts.toLocaleString()} people${_covScope}</div></div>`;
   document.querySelectorAll('#dashKpis .num').forEach(el => animateNum(el, el.dataset.to));
 
   // Deal Signals — high-intent outcomes in the current window (respects rep + timeframe)
