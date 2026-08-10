@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v75 · clearer coverage)</title>
+<title>Tacoma Energy — Sales CRM (v77 · readable coverage cards)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -413,7 +413,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v75</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v77</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -1242,7 +1242,7 @@ async function pushPA(action, payload, opts) {
     console.log(`[Power Automate stub] ${action}:`, payload); return true;
   }
   try {
-    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, key: getAppKey() }) });
+    const r = await flowFetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, key: getAppKey() }) });
     if (r.status !== 200) throw new Error('HTTP ' + r.status + (r.status === 202 ? ' (accepted but not run — likely key rejected)' : ''));
     return true;
   } catch(e) {
@@ -1729,12 +1729,41 @@ function normDate(v) {
 // Shared paged fetcher. Fires requests in waves (not all at once) to stay under
 // the Excel connector's throttle, retries failed pages once, and REPORTS which
 // pages still failed — so a throttled page can't silently drop 256 rows anymore.
+// ---- Global limit on concurrent Power Automate calls -------------------
+// Capping the wave size inside fetchPages wasn't enough: contacts, touches and
+// users all load at once, so three readers each firing four requests meant
+// twelve hitting Excel Online simultaneously. Excel throttles on concurrency
+// per workbook, which is what produced a few hundred failed runs a week. This
+// gate is shared by EVERY flow call, so the real in-flight number can't exceed
+// the limit no matter how many things ask at the same time.
+const _flowGate = { max: 4, active: 0, queue: [] };
+async function flowFetch(url, opts) {
+  if (_flowGate.active >= _flowGate.max) {
+    await new Promise(resolve => _flowGate.queue.push(resolve));
+  }
+  _flowGate.active++;
+  try {
+    return await fetch(url, opts);
+  } finally {
+    _flowGate.active--;
+    const next = _flowGate.queue.shift();
+    if (next) next();
+  }
+}
+
 async function fetchPages(url, maxPages, pageSize) {
-  const WAVE = 8;
+  // Excel Online throttles concurrent requests against the same workbook. Eight
+  // at once was producing a few hundred failed runs a week, and it got worse as
+  // more reps polled simultaneously. Four is slower per read but the retry pass
+  // below now backs off instead of hammering a connector that's already saying
+  // "too many" — reads happen in the background, so latency is cheap and
+  // failures are not.
+  const WAVE = 4;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
   const results = new Array(maxPages).fill(null);   // null = failed / not fetched
   async function fetchOne(i) {
     try {
-      const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ skip: i * pageSize, key: getAppKey() }) });
+      const r = await flowFetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ skip: i * pageSize, key: getAppKey() }) });
       if (!r.ok) return null;
       const d = await r.json();
       return Array.isArray(d) ? d : (d.value || []);
@@ -1744,13 +1773,22 @@ async function fetchPages(url, maxPages, pageSize) {
     const idx = Array.from({ length: Math.min(WAVE, maxPages - start) }, (_, k) => start + k);
     const out = await Promise.all(idx.map(fetchOne));
     idx.forEach((i, k) => results[i] = out[k]);
+    if (start + WAVE < maxPages) await sleep(120);   // breathe between waves
     // Stop early once we hit a fully-empty page — the table has ended.
     const lastFull = results[start + idx.length - 1];
     if (Array.isArray(lastFull) && lastFull.length === 0) break;
   }
-  // One retry pass for failed pages (transient throttles usually clear)
-  const failedFirst = results.map((v, i) => v === null ? i : -1).filter(i => i >= 0);
-  for (const i of failedFirst) results[i] = await fetchOne(i);
+  // Retry failed pages with a pause. Throttling clears with time, not with an
+  // immediate re-ask — the old version retried instantly and mostly failed again.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const stillFailed = results.map((v, i) => v === null ? i : -1).filter(i => i >= 0);
+    if (!stillFailed.length) break;
+    await sleep(600 * (attempt + 1));
+    for (const i of stillFailed) {
+      results[i] = await fetchOne(i);
+      await sleep(80);                                // serial, gently paced
+    }
+  }
   const failedPages = results.map((v, i) => v === null ? i : -1).filter(i => i >= 0);
   const rows = results.filter(Array.isArray).flat();
   return { rows, failedPages };
@@ -2609,8 +2647,8 @@ function renderDashboard() {
     <div class="kpi k-reach"><div class="kpi-top"><label>Reach-Outs</label><span class="kpi-ico">📈</span></div><div class="num tnum" data-to="${totalReachOuts}">0</div><div class="sub">${trend} <span>${state.dashRange==='ytd' ? 'year to date' : 'vs prior ' + (state.dashRange ? state.dashRange+'d' : '—')}</span></div></div>
     <div class="kpi k-hot clickable" onclick="switchView('hotleads')"><div class="kpi-top"><label>Hot Leads</label><span class="kpi-ico">🔥</span></div><div class="num tnum" data-to="${hotCount}">0</div><div class="sub">close to closing →</div></div>
     <div class="kpi k-due"><div class="kpi-top"><label>Follow-Ups Due</label><span class="kpi-ico">⏰</span></div><div class="num tnum" data-to="${fusDue}">0</div><div class="sub">${repLabel}</div></div>
-    <div class="kpi k-untouched"><div class="kpi-top"><label>Builder coverage</label><span class="kpi-ico">🏘️</span></div><div class="num tnum" data-to="${_cov.builderPct}" data-suffix="%">0</div><div class="sub"><b>${_cov.buildersHit} of ${_cov.builders}</b> builders touched \u00b7 ${_covWindow}${_covScope}</div></div>
-    <div class="kpi k-reached"><div class="kpi-top"><label>Contact coverage</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${_cov.contactPct}" data-suffix="%">0</div><div class="sub"><b>${_cov.contactsHit.toLocaleString()} of ${_cov.contacts.toLocaleString()}</b> people touched \u00b7 ${_covWindow}${_covScope}</div></div>`;
+    <div class="kpi k-untouched"><div class="kpi-top"><label>Builder coverage</label><span class="kpi-ico">🏘️</span></div><div class="num tnum" data-to="${_cov.builderPct}" data-suffix="%">0</div><div class="sub" style="display:block;line-height:1.4"><b>${_cov.buildersHit.toLocaleString()}</b> of ${_cov.builders.toLocaleString()} builders<br><span style="font-weight:500;opacity:.75">${_covWindow}${_covScope}</span></div></div>
+    <div class="kpi k-reached"><div class="kpi-top"><label>Contact coverage</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${_cov.contactPct}" data-suffix="%">0</div><div class="sub" style="display:block;line-height:1.4"><b>${_cov.contactsHit.toLocaleString()}</b> of ${_cov.contacts.toLocaleString()} contacts<br><span style="font-weight:500;opacity:.75">${_covWindow}${_covScope}</span></div></div>`;
   document.querySelectorAll('#dashKpis .num').forEach(el => animateNum(el, el.dataset.to));
 
   // Deal Signals — high-intent outcomes in the current window (respects rep + timeframe)
@@ -3292,7 +3330,7 @@ async function serverMaxContactId() {
     const local = getContacts();
     if (!local.length) return 0;
     const pageIdx = Math.floor((local.length - 1) / CONTACT_PAGE_SIZE);
-    const r = await fetch(url, {
+    const r = await flowFetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ skip: pageIdx * CONTACT_PAGE_SIZE, key: getAppKey() })
     });
@@ -3904,7 +3942,7 @@ async function verifyAppKey(key) {
     // Send the SAME body shape the roster loader uses (fetchPages sends skip).
     // The flow's Skip Count expression needs `skip` present — omit it and Excel
     // receives an empty $skip, returns 400, and that surfaces here as a 502.
-    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key: String(key||'').trim(), skip: 0 }) });
+    const r = await flowFetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key: String(key||'').trim(), skip: 0 }) });
     // IMPORTANT: the key is enforced as a *trigger condition* on each flow. When it
     // doesn't match, Power Automate accepts the request and simply skips the run —
     // returning 202 with an empty body, NOT a 401. Treating any 2xx as success
@@ -4008,7 +4046,7 @@ async function probeContactsTail() {
     if (!local.length) return false;
     const pageIdx  = Math.floor((local.length - 1) / CONTACT_PAGE_SIZE);
     const expected = local.length - (pageIdx * CONTACT_PAGE_SIZE);
-    const r = await fetch(url, {
+    const r = await flowFetch(url, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ skip: pageIdx * CONTACT_PAGE_SIZE, key: getAppKey() })
     });
