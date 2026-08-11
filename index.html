@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v81 · bounded team page)</title>
+<title>Tacoma Energy — Sales CRM (v82 · layout + filter clarity)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -46,9 +46,10 @@
 
   /* ---- Top nav ---- */
   .nav {
-    height: 66px; background: rgba(255,255,255,.88); backdrop-filter: saturate(140%) blur(10px);
-    display: flex; align-items: center; padding: 0 26px; gap: 26px; position: sticky; top: 0; z-index: 30;
+    min-height: 66px; background: rgba(255,255,255,.88); backdrop-filter: saturate(140%) blur(10px);
+    display: flex; align-items: center; padding: 6px 22px; gap: 8px 20px; position: sticky; top: 0; z-index: 30;
     border-bottom: 1px solid var(--border); box-shadow: 0 1px 0 rgba(14,47,74,.02), 0 6px 18px rgba(14,47,74,.04);
+    flex-wrap: wrap;   /* content width varies with tab labels and badges — never assume one line fits */
   }
   .nav-brand { display: flex; align-items: center; gap: 14px; }
   .nav-logo { height: 34px; width: auto; display: block; }
@@ -56,7 +57,8 @@
   .nav-eyebrow { line-height: 1.05; }
   .nav-eyebrow b { display: block; font-size: 12.5px; font-weight: 800; color: var(--navy); letter-spacing: .14em; }
   .nav-eyebrow span { font-size: 10px; color: var(--blue); text-transform: uppercase; letter-spacing: .16em; font-weight: 700; }
-  .nav-tabs { display: flex; gap: 2px; margin-left: 6px; flex: 1; }
+  .nav-tabs { display: flex; gap: 2px; margin-left: 6px; flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .nav-tabs::-webkit-scrollbar { display: none; }
   .nav-tab {
     position: relative; color: var(--muted); font-size: 14px; font-weight: 700; padding: 9px 14px; border-radius: 9px;
     cursor: pointer; border: none; background: none; transition: .15s; white-space: nowrap; font-family: var(--font);
@@ -69,8 +71,21 @@
     font-size: 11px; font-weight: 800; background: var(--hot); color: #fff; border-radius: 999px;
     min-width: 18px; height: 18px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center;
   }
-  .nav-right { display: flex; align-items: center; gap: 10px; }
+  .nav-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .nav-right .lbl { color: var(--muted); font-size: 12px; font-weight: 700; }
+
+  /* The nav outgrew one line. Below ~1320px it wraps to two rows instead of
+     pushing sync status, the rep picker and Log out past the viewport edge. */
+  @media (max-width: 1400px) {
+    .nav-brand { order: 1; }
+    .nav-right { order: 2; margin-left: auto; }
+    .nav-tabs { order: 3; flex-basis: 100%; margin-left: 0; padding-bottom: 2px; }
+  }
+  @media (max-width: 900px) {
+    .nav { padding: 8px 12px; }
+    .nav-right .lbl { display: none; }          /* "Logging as" — the dropdown says it */
+    .nav-tab { font-size: 13px; padding: 8px 11px; }
+  }
   .rep-switch {
     background: #fff; color: var(--navy); border: 1px solid var(--border);
     border-radius: 9px; padding: 8px 12px; font-size: 13px; font-weight: 700; font-family: var(--font); cursor: pointer;
@@ -179,9 +194,13 @@
   .panel-head .hint { font-size: 12px; color: var(--muted); font-weight: 600; }
   .panel-body { padding: 17px 19px; }
   .cols { display: grid; grid-template-columns: 1.25fr .9fr; gap: 18px; align-items: start; margin-bottom: 18px; }
+  /* Grid children default to min-width:auto, so a wide table can force its
+     column past the container instead of shrinking. */
+  .cols > * { min-width: 0; }
+  .panel table { max-width: 100%; }
 
   /* ---- Breakdown bars ---- */
-  .bd-row { display: grid; grid-template-columns: 150px 1fr 46px; align-items: center; gap: 12px; padding: 7px 0; }
+  .bd-row { display: grid; grid-template-columns: 205px 1fr 46px; align-items: center; gap: 12px; padding: 7px 0; }
   .bd-label { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 7px; }
   .bd-track { background: var(--border-2); border-radius: 7px; height: 24px; overflow: hidden; }
   .bd-fill { height: 100%; border-radius: 7px; background: linear-gradient(90deg, var(--blue), var(--blue-2)); min-width: 3px; width: 0; transition: width .5s cubic-bezier(.22,1,.36,1); }
@@ -277,16 +296,16 @@
   .hot-banner .big { font-size: 30px; }
   .hot-banner b { color: var(--hot); }
   .hot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 15px; }
-  .hot-card { background: var(--panel); border: 1px solid var(--border); border-top: 3px solid var(--hot); border-radius: var(--radius); padding: 16px 17px; box-shadow: var(--shadow-sm); transition: .16s; cursor: pointer; }
+  .hot-card { background: var(--panel); border: 1px solid var(--border); border-top: 3px solid var(--hot); border-radius: var(--radius); padding: 16px 17px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: .16s; cursor: pointer; }
   .hot-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-  .hot-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .hot-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex: 1; }
   .hot-card-name { font-size: 16px; font-weight: 800; color: var(--navy); }
   .hot-card-co { font-size: 12.5px; color: var(--muted); font-weight: 600; margin-top: 1px; }
   .hot-card-meta { display: flex; gap: 14px; margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--border-2); }
   .hot-card-meta .m { flex: 1; }
   .hot-card-meta .m label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 800; margin-bottom: 3px; }
   .hot-card-meta .m strong { font-size: 12.5px; color: var(--navy); font-weight: 700; }
-  .hot-card-actions { display: flex; gap: 8px; margin-top: 13px; }
+  .hot-card-actions { display: flex; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
 
   /* ---- Modal ---- */
   .modal-bg { position: fixed; inset: 0; background: rgba(14,47,74,.5); backdrop-filter: blur(3px); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 50; }
@@ -350,7 +369,7 @@
   .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--navy); color: #fff; padding: 13px 22px; border-radius: 12px; font-size: 14px; font-weight: 700; box-shadow: var(--shadow-lg); opacity: 0; pointer-events: none; transition: .25s; z-index: 100; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  @media (max-width: 1180px) { .kpis { grid-template-columns: repeat(3, 1fr); } .filters-2row { grid-template-columns: 1fr 1fr 1fr; } }
+  @media (max-width: 1180px) { .kpis { grid-template-columns: repeat(3, 1fr); } .filters-2row { grid-template-columns: 1fr 1fr 1fr; } .cols { grid-template-columns: 1fr; } }
   @media (max-width: 960px) {
     .nav-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     .nav-tabs::-webkit-scrollbar { display: none; }
@@ -413,7 +432,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v81</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v82</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -479,11 +498,7 @@
         <button class="seg-btn" data-range="ytd" onclick="setDashRange('ytd')">YTD</button>
         <button class="seg-btn" data-range="0" onclick="setDashRange(0)">All time</button>
       </div>
-      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-        <select id="dashStateFilter" onchange="onDashStateChange()" style="width:auto;min-width:118px;padding:7px 10px;font-size:13px"><option value="">All states</option></select>
-        <select id="dashCityFilter" onchange="renderDashboard()" style="width:auto;min-width:130px;padding:7px 10px;font-size:13px"><option value="">All cities</option></select>
-        <span id="dashGeoClear" onclick="clearDashGeo()" style="display:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--accent)">Clear</span>
-      </div>
+      <span style="font-size:11.5px;color:var(--muted);font-weight:600;align-self:center">applies to everything below except Market coverage</span>
     </div>
 
     <div id="myDayStrip" style="display:none"></div>
@@ -523,6 +538,29 @@
         <div class="panel-head"><h3>By Method</h3></div>
         <div class="panel-body" id="dashByMethod"></div>
       </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:22px">
+      <div class="panel-head" style="flex-wrap:wrap;gap:10px;align-items:flex-start">
+        <div style="min-width:230px">
+          <h3>Market coverage</h3>
+          <div style="font-size:11.5px;color:var(--muted);font-weight:600;margin-top:3px;max-width:430px;line-height:1.45">
+            How much of a market we've actually reached. Own filters &mdash; the rep and date controls above don't apply here.
+          </div>
+        </div>
+        <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+          <select id="dashStateFilter" onchange="onDashStateChange()" style="width:auto;min-width:110px;padding:7px 10px;font-size:13px"><option value="">All states</option></select>
+          <select id="dashCityFilter" onchange="renderDashboard()" style="width:auto;min-width:122px;padding:7px 10px;font-size:13px"><option value="">All cities</option></select>
+          <select id="dashCovWindow" onchange="renderDashboard()" style="width:auto;min-width:132px;padding:7px 10px;font-size:13px">
+            <option value="0">Ever touched</option>
+            <option value="365">Last 12 months</option>
+            <option value="180" selected>Last 6 months</option>
+            <option value="90">Last 90 days</option>
+          </select>
+          <span id="dashGeoClear" onclick="clearDashGeo()" style="display:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--accent)">Clear</span>
+        </div>
+      </div>
+      <div class="panel-body"><div class="kpis" id="dashCoverage" style="margin:0"></div></div>
     </div>
 
     <div class="cols">
@@ -625,7 +663,7 @@
     <div class="panel">
       <div style="overflow:auto;">
         <table style="table-layout:fixed;width:100%">
-          <thead><tr><th style="width:105px">Date</th><th style="width:125px">Rep</th><th style="width:300px">Contact</th><th style="width:90px">Method</th><th style="width:140px">Result</th><th>Notes</th></tr></thead>
+          <thead><tr><th style="width:100px">Date</th><th style="width:118px">Rep</th><th style="width:275px">Contact</th><th style="width:132px">Method</th><th style="width:128px">Result</th><th>Notes</th></tr></thead>
           <tbody id="activityRows"></tbody>
         </table>
       </div>
@@ -2449,11 +2487,11 @@ function renderHotLeads() {
     const fuChip = fu ? (d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Due today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`) : '<span class="chip gray">No follow-up set</span>';
     return `<div class="hot-card" onclick="openContactFromDash('${c.contactId}')">
       <div class="hot-card-top">
-        <div><div class="hot-card-name">${esc(c.first)} ${esc(c.last)}</div><div class="hot-card-co">${esc(c.title||'—')} · ${esc(c.company)}</div><div style="margin-top:4px">${lt?repChip(lt.rep):'<span class="chip gray">Unassigned</span>'}</div>${why?`<div style="font-size:11.5px;font-weight:800;color:var(--red);margin-top:3px">🔥 ${esc(why.result)} · ${fmtDate(why.date)}</div>`:''}</div>
+        <div><div class="hot-card-name">${esc(c.first)} ${esc(c.last)}</div><div class="hot-card-co">${esc([c.title, c.company].filter(Boolean).join(' · ')) || '—'}</div><div style="margin-top:4px">${lt?repChip(lt.rep):'<span class="chip gray">Unassigned</span>'}</div>${why?`<div style="font-size:11.5px;font-weight:800;color:var(--red);margin-top:3px">🔥 ${esc(why.result)} · ${fmtDate(why.date)}</div>`:''}</div>
         ${flameIcon(c, 17)}
       </div>
       <div class="hot-card-meta">
-        <div class="m"><label>Location</label><strong>${esc(c.city)}, ${esc(c.state)}</strong></div>
+        <div class="m"><label>Location</label><strong>${esc([c.city, c.state].filter(Boolean).join(', ')) || '—'}</strong></div>
         <div class="m"><label>Last touch</label><strong>${lt ? fmtDate(lt.date) : 'None yet'}</strong></div>
         <div class="m"><label>Next step</label><strong>${fuChip}</strong></div>
       </div>
@@ -2530,7 +2568,7 @@ function barRows(counts, opts) {
     const fillStyle = color ? `background:${color}` : '';
     const dot = opts.repColor ? `<span class="rep-dot" style="background:${color}"></span>` : '';
     return `<div class="bd-row">
-      <div class="bd-label">${dot}${label}</div>
+      <div class="bd-label" title="${esc(String(label).replace(/<[^>]*>/g,""))}">${dot}${label}</div>
       <div class="bd-track"><div class="bd-fill ${opts.green?'g':''}" style="${fillStyle}" data-w="${Math.round(val/max*100)}"></div></div>
       <div class="bd-val tnum">${val}</div>
     </div>`;
@@ -2647,7 +2685,8 @@ function coverageStats(days) {
 // builders specifically haven't we reached? Scoped to the same timeframe and
 // territory filter as the card, so the list matches the percentage.
 function openCoverage(kind) {
-  const days = (state.dashRange === 'ytd' || state.dashRange === 0) ? 0 : (state.dashRange || 90);
+  const _cw = document.getElementById('dashCovWindow');
+  const days = _cw ? (parseInt(_cw.value, 10) || 0) : 180;
   const cut = days ? cutoffFor(days) : null;
   const g = dashGeoFilter();
   const scope = g.active ? [g.city, g.state].filter(Boolean).join(', ') : 'all markets';
@@ -2741,19 +2780,33 @@ function renderDashboard() {
     trend = trendBadge(totalReachOuts, prev);
   } else if (!state.dashRange) { trend = '<span class="trend flat">all time</span>'; }
 
+  // Coverage has its OWN window, deliberately separate from the activity date
+  // range. "What % of the market did we touch in the last 7 days" is a
+  // meaningless number — coverage is a cumulative question, so it defaults to
+  // six months and offers longer options.
   rebuildDashGeoFilters();
-  const _covDays = (state.dashRange === 'ytd' || state.dashRange === 0) ? 0 : (state.dashRange || 90);
+  const _covSel  = document.getElementById('dashCovWindow');
+  const _covDays = _covSel ? (parseInt(_covSel.value, 10) || 0) : 180;
   const _cov = coverageStats(_covDays);
   const _g = dashGeoFilter();
   const _covScope = _g.active ? ' \u00b7 ' + esc([_g.city, _g.state].filter(Boolean).join(', ')) : '';
-  const _covWindow = _covDays ? ('last ' + _covDays + ' days') : 'all time';
+  const _covWindow = _covDays === 0 ? 'ever touched'
+                   : _covDays >= 365 ? 'last 12 months'
+                   : _covDays >= 180 ? 'last 6 months'
+                   : 'last ' + _covDays + ' days';
   document.getElementById('dashKpis').innerHTML = `
     <div class="kpi k-reach"><div class="kpi-top"><label>Reach-Outs</label><span class="kpi-ico">📈</span></div><div class="num tnum" data-to="${totalReachOuts}">0</div><div class="sub">${trend} <span>${state.dashRange==='ytd' ? 'year to date' : 'vs prior ' + (state.dashRange ? state.dashRange+'d' : '—')}</span></div></div>
     <div class="kpi k-hot clickable" onclick="switchView('hotleads')"><div class="kpi-top"><label>Hot Leads</label><span class="kpi-ico">🔥</span></div><div class="num tnum" data-to="${hotCount}">0</div><div class="sub">close to closing →</div></div>
-    <div class="kpi k-due"><div class="kpi-top"><label>Follow-Ups Due</label><span class="kpi-ico">⏰</span></div><div class="num tnum" data-to="${fusDue}">0</div><div class="sub">${repLabel}</div></div>
-    <div class="kpi k-untouched clickable" onclick="openCoverage('builder')" title="See which builders have and haven\u2019t been contacted"><div class="kpi-top"><label>Builder coverage</label><span class="kpi-ico">🏘️</span></div><div class="num tnum" data-to="${_cov.builderPct}" data-suffix="%">0</div><div class="sub" style="display:block;line-height:1.4"><b>${_cov.buildersHit.toLocaleString()}</b> of ${_cov.builders.toLocaleString()} builder divisions<br><span style="font-weight:500;opacity:.75">${_covWindow}${_covScope}</span></div></div>
-    <div class="kpi k-reached"><div class="kpi-top"><label>Contact coverage</label><span class="kpi-ico">🎯</span></div><div class="num tnum" data-to="${_cov.contactPct}" data-suffix="%">0</div><div class="sub" style="display:block;line-height:1.4"><b>${_cov.contactsHit.toLocaleString()}</b> of ${_cov.contacts.toLocaleString()} contacts<br><span style="font-weight:500;opacity:.75">${_covWindow}${_covScope}</span></div></div>`;
+    <div class="kpi k-due"><div class="kpi-top"><label>Follow-Ups Due</label><span class="kpi-ico">⏰</span></div><div class="num tnum" data-to="${fusDue}">0</div><div class="sub">${repLabel}</div></div>`;
   document.querySelectorAll('#dashKpis .num').forEach(el => animateNum(el, el.dataset.to));
+
+  const _covBox = document.getElementById('dashCoverage');
+  if (_covBox) {
+    _covBox.innerHTML = `
+    <div class="kpi k-untouched clickable" onclick="openCoverage('builder')" title="See which builder divisions have and haven't been contacted"><div class="kpi-top"><label>Builder divisions</label><span class="kpi-ico">\u{1F3D8}\uFE0F</span></div><div class="num tnum" data-to="${_cov.builderPct}" data-suffix="%">0</div><div class="sub" style="display:block;line-height:1.4"><b>${_cov.buildersHit.toLocaleString()}</b> of ${_cov.builders.toLocaleString()} reached<br><span style="font-weight:500;opacity:.75">${_covWindow}${_covScope}</span></div></div>
+    <div class="kpi k-reached"><div class="kpi-top"><label>Contacts</label><span class="kpi-ico">\u{1F3AF}</span></div><div class="num tnum" data-to="${_cov.contactPct}" data-suffix="%">0</div><div class="sub" style="display:block;line-height:1.4"><b>${_cov.contactsHit.toLocaleString()}</b> of ${_cov.contacts.toLocaleString()} reached<br><span style="font-weight:500;opacity:.75">${_covWindow}${_covScope}</span></div></div>`;
+    document.querySelectorAll('#dashCoverage .num').forEach(el => animateNum(el, el.dataset.to));
+  }
 
   // Deal Signals — high-intent outcomes in the current window (respects rep + timeframe)
   const meetings = tch.filter(t => t.method === 'In Person').length;
