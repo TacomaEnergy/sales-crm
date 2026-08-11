@@ -205,7 +205,9 @@
      width instead of leaving a column of dead space, and the first few — the
      most overdue, since the list is date-sorted — are visible without scrolling. */
   .fu-strip { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 10px; scroll-snap-type: x proximity; }
-  .fu-card { flex: 0 0 232px; scroll-snap-align: start; border: 1px solid var(--border); border-left: 4px solid var(--blue);
+  /* Sized so 3-4 cards land in view at once — wide enough for Log/Snooze/Dismiss
+     to sit on one row without wrapping. */
+  .fu-card { flex: 0 0 296px; scroll-snap-align: start; border: 1px solid var(--border); border-left: 4px solid var(--blue);
              border-radius: 11px; padding: 11px 13px; background: var(--panel); cursor: pointer; transition: .16s; }
   .fu-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--blue-2); }
   .fu-card.is-overdue { border-left-color: var(--red); }
@@ -214,7 +216,16 @@
              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fu-meta { font-size: 11.5px; color: var(--muted); font-weight: 600; margin-top: 2px;
              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .fu-card .btn { margin-top: 9px; width: 100%; }
+  .fu-owner { display: flex; align-items: center; gap: 6px; margin-top: 7px; padding-top: 7px;
+              border-top: 1px solid var(--border-2); font-size: 11.5px; font-weight: 700; color: var(--muted);
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fu-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .fu-acts { display: flex; gap: 6px; margin-top: 9px; }
+  /* .btn is inline-flex with no justify-content, so stretching it to flex:1
+     would strand the label on the left edge. box-sizing keeps the bordered
+     ghost buttons the same width as the borderless primary one. */
+  .fu-acts .btn { flex: 1 1 0; justify-content: center; box-sizing: border-box;
+                  padding-left: 0; padding-right: 0; gap: 0; }
   /* Rail scrollbar: visible enough to signal "there's more", not loud. */
   .fu-strip::-webkit-scrollbar { height: 8px; }
   .fu-strip::-webkit-scrollbar-track { background: var(--border-2); border-radius: 99px; }
@@ -536,7 +547,7 @@
         <button class="seg-btn" data-range="ytd" onclick="setDashRange('ytd')">YTD</button>
         <button class="seg-btn" data-range="0" onclick="setDashRange(0)">All time</button>
       </div>
-      <span style="font-size:11.5px;color:var(--muted);font-weight:600;align-self:center">applies to everything below except the Reached % in Market coverage</span>
+      <span style="font-size:11.5px;color:var(--muted);font-weight:600;align-self:center">applies to everything below except Market coverage, which has its own filters</span>
     </div>
 
     <div id="myDayStrip" style="display:none"></div>
@@ -589,8 +600,7 @@
           <h3>Market coverage</h3>
           <div style="font-size:11.5px;color:var(--muted);font-weight:600;margin-top:3px;max-width:470px;line-height:1.45">
             How much of a market we've actually reached, and where the activity went.
-            The state/city/window pickers here drive <b>Reached</b>; the rep and date
-            controls at the top drive <b>Activity</b>.
+            Both sides follow the pickers here &mdash; the rep and date controls at the top don't apply.
           </div>
         </div>
         <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
@@ -601,6 +611,7 @@
             <option value="365">Last 12 months</option>
             <option value="180" selected>Last 6 months</option>
             <option value="90">Last 90 days</option>
+            <option value="30">Last 30 days</option>
           </select>
           <span id="dashGeoClear" onclick="clearDashGeo()" style="display:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--accent)">Clear</span>
         </div>
@@ -618,7 +629,6 @@
             <div class="mkt-side-head">
               <span class="mkt-side-title" id="dashBreakdownTitle">Activity by Builder</span>
               <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
-                <span class="mkt-scope" id="dashBreakdownScope"></span>
                 <div class="seg" id="dashBreakdownSeg">
                   <button class="seg-btn active" data-bd="builder" onclick="setDashBreakdown('builder')">Builder</button>
                   <button class="seg-btn" data-bd="state" onclick="setDashBreakdown('state')">State</button>
@@ -3007,18 +3017,22 @@ function renderDashboard() {
   animateBars('dashByMethod');
 
   // breakdown: builder / state / city
+  // Scoped to the Market coverage panel's OWN filters (state/city/window), not
+  // the rep+date controls at the top. Both halves of the panel must answer the
+  // same question: with GA selected, coverage read "0 of 90 reached" while this
+  // list happily showed builders in Texas, which reads as a contradiction.
   const mode = state.dashBreakdown;
   document.getElementById('dashBreakdownTitle').textContent = 'Activity by ' + (mode==='builder'?'Builder':mode==='state'?'State':'City');
-  // Sits next to the coverage %, which answers to different filters — so say
-  // out loud which window and rep this side is showing.
-  const _bdScopeEl = document.getElementById('dashBreakdownScope');
-  if (_bdScopeEl) _bdScopeEl.textContent = repLabel + ' · ' + rangeLabel;
-  const allContacts = getContacts();
+  const _bdCut = _covDays ? cutoffFor(_covDays) : null;
   const bdCounts = {};
   const bdSub = {};
-  tch.forEach(t => {
+  getTouches().forEach(t => {
+    if (_bdCut && t.date < _bdCut) return;
     const c = contactById(t.contactId);
-    if (!c) return;
+    // Inactive contacts keep their touches here on purpose: the work happened,
+    // and hiding it would undercount activity in a market. Coverage counts only
+    // active contacts because that's a "who's left to reach" question.
+    if (!c || !contactInDashGeo(c)) return;
     let key;
     if (mode==='builder') key = c.company || '—';
     else if (mode==='city') key = (c.city||'\u2014')+', '+(c.state||'\u2014');
@@ -3033,23 +3047,34 @@ function renderDashboard() {
   // follow-ups due (sort, then render only the top 40)
   document.getElementById('dashFuHint').textContent = repLabel;
   const dueList = summaries.filter(s => s.nextFu && (!state.dashRep || s.lastRep === state.dashRep))
-    .map(s => ({ c: s.c, fu: s.nextFu }))
+    .map(s => ({ c: s.c, fu: s.nextFu, rep: s.lastRep }))
     .sort((a,b) => a.fu.localeCompare(b.fu))
     .slice(0, 40);
   // Horizontal rail of cards. The list is already date-sorted, so the most
   // overdue sit at the left edge and are seen without scrolling.
-  const fuRows = dueList.map(({c, fu}) => {
+  const fuRows = dueList.map(({c, fu, rep}) => {
     const d = daysBetween(fu);
     const chip = d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`;
     const cls  = d > 0 ? ' is-overdue' : d === 0 ? ' is-today' : '';
     const where = [c.city, c.state].filter(Boolean).join(', ');
     const sub = [c.company, where].filter(Boolean).join(' · ');
     const name = ((c.first||'') + ' ' + (c.last||'')).trim() || c.contactId;
-    return `<div class="fu-card${cls}" onclick="openContactFromDash('${escArg(c.contactId)}')" title="${esc(name)}${sub?' — '+esc(sub):''}">
+    const cid = escArg(c.contactId);
+    // Whoever logged the last touch is the de-facto owner — without it the rail
+    // is a pile of names with no indication of whose follow-up it is.
+    const owner = rep
+      ? `<span class="fu-dot" style="background:${repColor(rep)}"></span>${esc(rep)}`
+      : `<span class="fu-dot" style="background:var(--muted)"></span>Unassigned`;
+    return `<div class="fu-card${cls}" onclick="openContactFromDash('${cid}')" title="${esc(name)}${sub?' — '+esc(sub):''}">
         ${chip}
         <div class="fu-name">${c.hot ? '\u{1F525} ' : ''}${esc(name)}</div>
         <div class="fu-meta">${esc(sub || '—')}</div>
-        <button class="btn sm" onclick="event.stopPropagation();quickTouch('${escArg(c.contactId)}')">Log</button>
+        <div class="fu-owner">${owner}</div>
+        <div class="fu-acts" onclick="event.stopPropagation()">
+          <button class="btn sm" onclick="quickTouch('${cid}')">Log</button>
+          <button class="btn ghost sm" onclick="snoozeFollowUp('${cid}')" title="Push the follow-up out one week">Snooze</button>
+          <button class="btn ghost sm" onclick="dismissFollowUp('${cid}')" title="Clear the follow-up date entirely">Dismiss</button>
+        </div>
       </div>`;
   });
   document.getElementById('dashFollowups').innerHTML = fuRows.length
