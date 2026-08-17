@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v86 · no idle repaints)</title>
+<title>Tacoma Energy — Sales CRM (v87 · plain metrics)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -481,7 +481,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v86</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v87</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -2257,19 +2257,20 @@ function _kpiCards(touches, opts){
   var s7=_repStats(touches,cutoffFor(7)), s30=_repStats(touches,cutoffFor(30)), sytd=_repStats(touches,cutoffFor('ytd'));
   var defs=[
     {label:'Reach-outs', key:'reach', ico:'\u2197'},
-    {label:'Builder divisions', key:'divisions', ico:'\u2713'},
-    {label:'New people', key:'fresh', ico:'\u2728'},
-    {label:'Pricing sent', key:'price', ico:'\ud83d\udcb2'}
+    {label:'Builders hit', key:'divisions', ico:'\ud83c\udfd8\ufe0f'},
+    {label:'First-time contacts', key:'fresh', ico:'\u2728'},
+    {label:'Pricing sent', key:'price', ico:'\ud83d\udcb2'},
+    {label:'Meetings', key:'meet', ico:'\ud83e\udd1d'}
   ];
+  // Cards give this week at a glance; the table below carries 30d and YTD.
+  // Repeating all three windows in both places was the duplication that made
+  // the page feel like it was saying the same thing twice.
   var cells=defs.map(function(d){
-    return `<td valign='top' style='width:25%;padding:0 5px'>
-      <div style='border:1px solid #dbe6f0;border-top:3px solid ${opts.accent||'#1395d3'};border-radius:8px;padding:4px 10px;background:#fff'>
-        <div style='font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#687d92'>${d.label}</div>
-        <div style='font-size:23px;font-weight:800;color:#0e2f4a;line-height:1.0;margin:2px 0 1px'>${s7[d.key]}</div>
-        <div style='font-size:11px;color:#8a99a9'>this week</div>
-        <div style='margin-top:5px;padding-top:4px;border-top:1px solid #eef3f8;font-size:11px;color:#5b6b7c'>
-          <b style='color:#12263a'>${s30[d.key]}</b> in 30d &nbsp;\u00b7&nbsp; <b style='color:#12263a'>${sytd[d.key]}</b> YTD
-        </div>
+    return `<td valign='top' style='width:20%;padding:0 4px'>
+      <div style='border:1px solid #dbe6f0;border-top:3px solid ${opts.accent||'#1395d3'};border-radius:8px;padding:7px 9px 8px;background:#fff'>
+        <div style='font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#687d92;line-height:1.25;min-height:23px'>${d.label}</div>
+        <div style='font-size:26px;font-weight:800;color:#0e2f4a;line-height:1.0;margin:3px 0 1px'>${s7[d.key]}</div>
+        <div style='font-size:10.5px;color:#8a99a9'>this week</div>
       </div></td>`;
   }).join('');
   return `<table width='100%' style='border-collapse:separate;border-spacing:0;margin:6px -5px 4px;table-layout:fixed'><tr>${cells}</tr></table>`;
@@ -2290,7 +2291,7 @@ function buildReportHTML(){
   var cov=totC?Math.round(touchedEver/totC*100):0;
   var realReps=REPS.filter(function(r){return r!=='Unassigned';});
   var activeThisWeek=realReps.filter(function(r){return all.filter(function(t){return t.rep===r && t.date>=cutoffFor(7);}).length>0;}).length;
-  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Builder divisions','divisions'),mk('People touched','uniq'),mk('New people (never touched before)','fresh'),mk('Touches per person','perContact'),mk('Meetings','meet'),mk('Pricing sent','price')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
+  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Builders hit','divisions'),mk('First-time contacts','fresh'),mk('Pricing sent','price'),mk('Meetings','meet')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
   var html=`<div style="font-family:Arial,Helvetica,sans-serif;color:#12263a;max-width:720px">`;
   // ================= PAGE 1 — TEAM =================
@@ -3061,7 +3062,10 @@ function renderDashboard() {
   state.dashBreakdown = mode;
   document.getElementById('dashBreakdownTitle').textContent = 'Activity by builder';
   const _bdScopeEl = document.getElementById('dashBreakdownScope');
-  if (_bdScopeEl) _bdScopeEl.textContent = _bdG.city ? esc(_bdG.city) : (_bdG.state ? esc(_bdG.state) : 'all markets');
+  // No esc() here: textContent escapes on its own, so escaping first would
+  // render a city like "Lee & Bell" as "Lee &amp; Bell". esc() is for strings
+  // being spliced into innerHTML.
+  if (_bdScopeEl) _bdScopeEl.textContent = _bdG.city || _bdG.state || 'all markets';
   const _bdCut = _covDays ? cutoffFor(_covDays) : null;
   const bdCounts = {};
   const bdSub = {};
