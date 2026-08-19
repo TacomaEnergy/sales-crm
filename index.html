@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v88 · full-width rep detail)</title>
+<title>Tacoma Energy — Sales CRM (v89 · per-workday + cleanup)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -481,7 +481,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v88</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v89</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -2178,9 +2178,9 @@ function _hotList(){
   var hot=getContacts().filter(function(c){return c.active && c.hot;});
   if(!hot.length) return `<div style='color:#a9b7c6;font-size:12px;margin:2px 0 10px'>none currently flagged</div>`;
   var HOTCAP=8;   // page 1 must stay one page; the list grows with the data
-  var li=hot.slice(0,HOTCAP).map(function(c){ var nm=((c.first||'')+' '+(c.last||'')).trim()||'(unknown)'; var lt=lastTouch(c.contactId); var rep=lt?lt.rep:'Unassigned'; var loc=[c.city,c.state].filter(Boolean).join(', '); return `<li style='margin:1px 0'><b>${esc(nm)}</b>${c.company?` (${esc(c.company)})`:''}${loc?` \u00b7 ${esc(loc)}`:''} <span style='color:#687d92'>\u2014 ${esc(rep)}</span></li>`; }).join('');
+  var li=hot.slice(0,HOTCAP).map(function(c){ var nm=((c.first||'')+' '+(c.last||'')).trim()||'(unknown)'; var lt=lastTouch(c.contactId); var rep=lt?lt.rep:'Unassigned'; var loc=[c.city,c.state].filter(Boolean).join(', '); return `<li style='margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'><b>${esc(nm)}</b>${c.company?` (${esc(c.company)})`:''}${loc?` \u00b7 ${esc(loc)}`:''} <span style='color:#687d92'>\u2014 ${esc(rep)}</span></li>`; }).join('');
   var more=hot.length>HOTCAP?`<li style='color:#687d92;list-style:none'>+${hot.length-HOTCAP} more \u2014 see the Hot Leads tab</li>`:'';
-  return `<ul style='font-size:12px;margin:2px 0 10px 16px;padding-left:16px'>${li}${more}</ul>`;
+  return `<ul style='font-size:12px;margin:2px 0 10px 16px;padding-left:16px;max-width:100%'>${li}${more}</ul>`;
 }
 function _summaryBlock(touches, cutoff, label, showDelta){
   var reach=touches.filter(function(t){return t.date>=cutoff;}).length;
@@ -2291,7 +2291,13 @@ function buildReportHTML(){
   var cov=totC?Math.round(touchedEver/totC*100):0;
   var realReps=REPS.filter(function(r){return r!=='Unassigned';});
   var activeThisWeek=realReps.filter(function(r){return all.filter(function(t){return t.rep===r && t.date>=cutoffFor(7);}).length>0;}).length;
-  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Builders hit','divisions'),mk('First-time contacts','fresh'),mk('Pricing sent','price'),mk('Meetings','meet')]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
+  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); };
+    // Reach-outs divided by working days in the window. A raw weekly count can't
+    // be compared across a holiday week or a partial month; a daily rate can.
+    var perDay=function(){ return ['Reach-outs per workday'].concat(wins.map(function(cut){
+      var n=_repStats(touches,cut).reach, d=_bizDays(cut);
+      return d ? (Math.round(n/d*10)/10).toFixed(1) : '0.0';
+    })); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Builders hit','divisions'),mk('First-time contacts','fresh'),mk('Pricing sent','price'),mk('Meetings','meet'),perDay()]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
   var html=`<div style="font-family:Arial,Helvetica,sans-serif;color:#12263a;max-width:720px">`;
   // ================= PAGE 1 — TEAM =================
@@ -2312,21 +2318,14 @@ function buildReportHTML(){
   html+=statBlock(all, ['New contacts added', contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(7);}).length,
                                               contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(30);}).length,
                                               contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor('ytd');}).length]);
-  html+=`<table width='100%' style='border-collapse:collapse;margin:4px 0 6px'><tr>
-    <td valign='top' style='width:50%;padding-right:9px'>
-      <div style='border:1px solid #dbe6f0;border-radius:8px;padding:8px 14px;background:#f8fbfd'>
-        <div style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#687d92;margin-bottom:5px'>Pace</div>
-        ${_summaryBlock(all, cutoffFor(7), 'This week', true)}
-        ${_summaryBlock(all, cutoffFor(30), 'Last 30 days', false)}
-        <div style='font-size:12px;margin-top:4px;color:#5b6b7c'>New contacts added: <b style='color:#12263a'>${contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(7);}).length}</b> wk \u00b7 <b style='color:#12263a'>${contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor('ytd');}).length}</b> YTD</div>
-      </div>
-    </td>
-    <td valign='top' style='width:50%;padding-left:9px'>
-      <div style='border:1px solid #f0dcc4;border-radius:8px;padding:8px 14px;background:#fffaf3'>
-        <div style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#b5711f;margin-bottom:5px'>\ud83d\udd25 Hot leads (${_hotFor(null)})</div>
-        ${_hotList()}
-      </div>
-    </td></tr></table>`;
+  // Pace panel removed: it repeated reach-outs and the workday rate that are now
+  // rows in the table above, and the 8-week chart below shows the week-over-week
+  // direction better than a "+22 vs last week" badge did. Hot leads gets the
+  // full width, so names and builders stop wrapping.
+  html+=`<div style='border:1px solid #f0dcc4;border-radius:8px;padding:8px 14px;background:#fffaf3;margin:6px 0'>
+      <div style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#b5711f;margin-bottom:4px'>\ud83d\udd25 Hot leads (${_hotFor(null)})</div>
+      ${_hotList()}
+    </div>`;
 
   // Trajectory — turns this week's number into a direction the CEO can read
   // at a glance, which the KPI cards alone can't convey.
