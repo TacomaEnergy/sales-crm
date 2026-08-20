@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v89 · per-workday + cleanup)</title>
+<title>Tacoma Energy — Sales CRM (v91 · adaptive sync speed)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -481,7 +481,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v89</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v91</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -1878,15 +1878,57 @@ function normDate(v) {
 // per workbook, which is what produced a few hundred failed runs a week. This
 // gate is shared by EVERY flow call, so the real in-flight number can't exceed
 // the limit no matter how many things ask at the same time.
-const _flowGate = { max: 4, active: 0, queue: [] };
+// Adaptive concurrency. A fixed cap is always wrong somewhere: 12 was fast but
+// Excel Online throttled and produced hundreds of failed runs a week; 4 never
+// throttled but made a full read of 5,500 contacts take ~16 seconds. This starts
+// optimistic, backs off the moment the connector pushes back, and creeps up
+// again once it's been clean for a while — so a healthy SharePoint is fast and
+// a struggling one is treated gently, without anyone tuning a number.
+const _flowGate = {
+  max: 8, active: 0, queue: [],
+  MIN: 2, MAX: 8,
+  okStreak: 0, lastBackoff: 0
+};
+function _gateSawThrottle() {
+  _flowGate.okStreak = 0;
+  _flowGate.lastBackoff = Date.now();
+  if (_flowGate.max > _flowGate.MIN) {
+    _flowGate.max = Math.max(_flowGate.MIN, _flowGate.max - 2);
+    console.warn('[gate] backing off to ' + _flowGate.max + ' concurrent');
+  }
+}
+function _gateSawSuccess() {
+  _flowGate.okStreak++;
+  // only widen after a solid run of clean calls and a pause since the last knock-back
+  if (_flowGate.max < _flowGate.MAX && _flowGate.okStreak >= 12 &&
+      Date.now() - _flowGate.lastBackoff > 20000) {
+    _flowGate.max = Math.min(_flowGate.MAX, _flowGate.max + 1);
+    _flowGate.okStreak = 0;
+    console.warn('[gate] widening to ' + _flowGate.max + ' concurrent');
+  }
+}
 async function flowFetch(url, opts) {
   if (_flowGate.active >= _flowGate.max) {
     await new Promise(resolve => _flowGate.queue.push(resolve));
   }
   _flowGate.active++;
+  // A request that never settles would hold its gate slot forever and slowly
+  // starve the app of capacity. Power Automate occasionally hangs rather than
+  // erroring, so every call gets a hard ceiling.
+  const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => { try { ctl.abort(); } catch(e) {} }, 45000) : null;
   try {
-    return await fetch(url, opts);
+    const res = await fetch(url, ctl ? { ...opts, signal: ctl.signal } : opts);
+    // 429 = throttled, 503 = connector busy. Both mean "slow down", not "broken".
+    if (res.status === 429 || res.status === 503) _gateSawThrottle(); else _gateSawSuccess();
+    return res;
+  } catch (e) {
+    // Deliberately NOT backing off here. A dropped connection or an offline
+    // laptop is not the connector asking us to slow down, and treating it as
+    // one pinned the gate at its minimum and kept it there.
+    throw e;
   } finally {
+    if (timer) clearTimeout(timer);
     _flowGate.active--;
     const next = _flowGate.queue.shift();
     if (next) next();
@@ -1900,7 +1942,7 @@ async function fetchPages(url, maxPages, pageSize) {
   // below now backs off instead of hammering a connector that's already saying
   // "too many" — reads happen in the background, so latency is cheap and
   // failures are not.
-  const WAVE = 4;
+  const WAVE = 8;   // the global gate is the real limiter now; this just batches
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const results = new Array(maxPages).fill(null);   // null = failed / not fetched
   async function fetchOne(i) {
