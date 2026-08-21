@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v91 · adaptive sync speed)</title>
+<title>Tacoma Energy — Sales CRM (v94 · known email formats)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -481,7 +481,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v91</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v94</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -887,7 +887,8 @@
       </div>
       <div><label class="fld">Title / Position</label><input type="text" id="cmTitleField" placeholder="e.g. Purchasing Manager" /></div>
       <div class="frow">
-        <div><label class="fld">Email</label><input type="email" id="cmEmail" oninput="checkDup()" placeholder="name@builder.com" /></div>
+        <div><label class="fld">Email</label><input type="email" id="cmEmail" oninput="onEmailInput()" placeholder="name@builder.com" />
+          <div id="cmEmailHint" style="display:none;font-size:11px;color:#8a6212;margin-top:3px;line-height:1.4"></div></div>
         <div><label class="fld">Phone</label><input type="tel" id="cmPhone" placeholder="555-555-0000" /></div>
       </div>
       <div><label class="fld">LinkedIn URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="url" id="cmLinkedin" placeholder="https://www.linkedin.com/in/..." /></div>
@@ -1384,7 +1385,7 @@ async function pushPA(action, payload, opts) {
     console.log(`[Power Automate stub] ${action}:`, payload); return true;
   }
   try {
-    const r = await flowFetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, key: getAppKey() }) });
+    const r = await flowFetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, key: getAppKey() }) }, true);
     if (r.status !== 200) throw new Error('HTTP ' + r.status + (r.status === 202 ? ' (accepted but not run — likely key rejected)' : ''));
     return true;
   } catch(e) {
@@ -1907,8 +1908,12 @@ function _gateSawSuccess() {
     console.warn('[gate] widening to ' + _flowGate.max + ' concurrent');
   }
 }
-async function flowFetch(url, opts) {
-  if (_flowGate.active >= _flowGate.max) {
+async function flowFetch(url, opts, priority) {
+  // Writes skip the queue. Reads are bulk (22 pages for contacts) and are what
+  // throttles Excel; a single write adds almost nothing. Making a rep's touch
+  // wait behind a background refresh is the one delay that actually costs
+  // something — logging has to stay instant or people stop doing it.
+  if (!priority && _flowGate.active >= _flowGate.max) {
     await new Promise(resolve => _flowGate.queue.push(resolve));
   }
   _flowGate.active++;
@@ -3196,17 +3201,187 @@ function clearContactFilters() {
   try { if (typeof onContactStateChange === 'function') onContactStateChange(); } catch(e){}
   renderContacts();
 }
+// Known email formats, supplied by Arick. These take priority over pattern
+// detection: he knows formats the data can't reveal, and inference will always
+// be wrong somewhere. A null entry means "this builder has no derivable
+// pattern" — D.R. Horton uses first+middle initial+last, which no rule
+// captures, so guessing there produces confident-looking wrong addresses.
+// Codes: first | first.last | firstlast | flast | firstl | f.last | lastf
+const EMAIL_FORMATS = {
+  'Adair Homes': ['flast','adairhomes.com'],
+  'Adams Homes': ['flast','adamshomes.com'],
+  'Addison Homes': ['first','addisonhomestx.com'],
+  'Alair Homes': ['first.last','alairhomes.com'],
+  'American Legend Homes': ['flast','alhtld.com'],
+  'America\'s Home Place': ['flast','americashomeplace.com'],
+  'AMH': ['flast','amh.com'],
+  'Arbor Homes': ['first.last','yourarborhome.com'],
+  'Arthur Rutenberg Homes': ['firstlast','arhomes.com'],
+  'Ashton Woods Homes': ['first.last','ashtonwoods.com'],
+  'Beazer Homes': ['first.last','beazer.com'],
+  'Betenbough Homes': ['firstl','betenbough.com'],
+  'Bloomfield Homes': ['firstl','bloomfieldhomes.net'],
+  'Brackett Builders': ['flast','brackettbuilders.com'],
+  'Bridge Tower Homes': ['first','bridgetowergp.com'],
+  'Brightland Homes': ['flast','gehanhomes.com'],
+  'Brock Built Homes': ['firstlast','brockbuilt.com'],
+  'Brohn Homes': ['firstl','brohnhomes.com'],
+  'Brookfield Residential': ['first.last','brookfieldrp.com'],
+  'Cadence Homes': ['first','cadencehomes.com'],
+  'Camden Homes': ['first.last','camden-homes.com'],
+  'Camelot Homes': ['firstl','camelothomes.com'],
+  'Caruso Homes': ['flast','carusohomes.com'],
+  'Casa Fresca Homes': ['f.last','casafrescahomes.com'],
+  'Castle Group': ['flast','castlegroup.com'],
+  'CastleRock Communities': ['flast','c-rock.com'],
+  'CB JENI Homes': ['flast','cbjenihomes.com'],
+  'Centre Living Homes': ['flast','centrelivinghomes.com'],
+  'Century Communities': ['flast','centurycommunities.com'],
+  'CitySide Homes': ['flast','citysidehomes.com'],
+  'Clayton Homes': ['first.last','claytonhomes.com'],
+  'Copper Builders': ['first','copperbuilders.com'],
+  'CORE': ['firstlast','coreconstruction.com'],
+  'Coventry Homes': ['flast','coventryhomes.com'],
+  'Crawford Hoying': ['flast','crawfordhoying.com'],
+  'Crescent Communities': ['flast','crescentcommunities.com'],
+  'Darling Homes': ['flast','darlinghomes.com'],
+  'David Weekley Homes': ['flast','dwhomes.com'],
+  'Davidson Homes': ['flast','davidsonhomesllc.com'],
+  'Davis Homes': ['flast','davishomes.com'],
+  'Doug Parr Custom Homes': ['first.last','dougparrhomes.com'],
+  'DRB Group': ['flast','drbgroup.com'],
+  'Dream Finders Homes': ['first.last','dreamfindershomes.com'],
+  'Drees Homes': ['flast','dreeshomes.com'],
+  'Duke Homes': ['firstlast','dukehomes.com'],
+  'Eastwood Homes': ['flast','eastwoodhomes.com'],
+  'Epcon Communities': ['flast','epconcommunities.com'],
+  'Evergreene Homes': ['flast','evergreenehomes.com'],
+  'First America Homes': ['flast','firstamericahomes.com'],
+  'First Texas Homes': ['flast','firsttexashomes.com'],
+  'Flintrock Builders': ['first','flintrockbuilders.com'],
+  'Garman Homes': ['first','garmanhomes.com'],
+  'Gehan Homes': ['flast','gehanhomes.com'],
+  'GFO Home': ['flast','gfohome.com'],
+  'GL Homes': ['first.last','glhomes.com'],
+  'Goodall Homes': ['first.last','goodallhomes.com'],
+  'Grand Homes': ['flast','grandhomes.com'],
+  'Hakes Brothers': ['first','hakesbrothers.com'],
+  'HHHunt Homes': ['flast','hhhunthomes.com'],
+  'Highland Homes': ['first.last','highlandhomes.com'],
+  'HistoryMaker Homes': ['first.last','historymaker.com'],
+  'Homes By Dickerson': ['first','homesbydickerson.com'],
+  'Hunter Quinn Homes': ['flast','hunterquinnhomes.com'],
+  'ICI Homes': ['flast','icihomes.com'],
+  'Impression Homes': ['firstl','impressionhomes.net'],
+  'K. Hovnanian Homes': ['flast','khov.com'],
+  'KB Home': ['flast','kbhome.com'],
+  'Landmark Homes': ['flast','landmarkhomes.com'],
+  'Landon Homes': ['flast','landonhomes.com'],
+  'Landsea Homes': ['flast','landseahomes.com'],
+  'Lennar': ['first.last','lennar.com'],
+  'LGI Homes': ['flast','lgihomes.com'],
+  'M/I Homes': ['flast','mihomes.com'],
+  'Mattamy Homes': ['first.last','mattamycorp.com'],
+  'Megatel Homes': ['first.last','megatelhomes.com'],
+  'Meritage Homes': ['first.last','meritagehomes.com'],
+  'Mungo Homes': ['flast','mungo.com'],
+  'New Home Star': ['flast','newhomestar.com'],
+  'NVR': ['flast','nvrinc.com'],
+  'Olivia Clarke Homes': ['first','oliviaclarkehomes.com'],
+  'Onyx+East': ['first.last','onyxandeast.com'],
+  'Pacesetter Homes Texas': ['first.last','pacesetterhomes.com'],
+  'Partners in Building': ['first.last','partnersinbuilding.com'],
+  'PulteGroup': ['first.last','pulte.com'],
+  'Redwood Living': ['flast','byredwood.com'],
+  'ResiBuilt Homes': ['flast','resibuilt.com'],
+  'Richmond American Homes': ['first.last','mdch.com'],
+  'Riverside Homebuilders': ['flast','rshomebuilders.com'],
+  'Ryan Homes': ['flast','nvrinc.com'],
+  'Scott Felder Homes': ['flast','sfhtx.com'],
+  'Shaddock Homes': ['first','shaddockhomes.com'],
+  'Shea Homes': ['first.last','sheahomes.com'],
+  'Smith Douglas Homes': ['flast','smithdouglas.com'],
+  'Southern Green Builders': ['f.last','southerngreenbuilders.com'],
+  'Southgate Homes': ['first','southgatehomes.com'],
+  'Stanley Martin Homes': ['lastf','stanleymartin.com'],
+  'Starlight Homes': ['first.last','starlighthomes.com'],
+  'Taylor Morrison': ['flast','taylormorrison.com'],
+  'Thomas James Homes': ['flast','tjh.com'],
+  'Thrive Companies': ['flast','thrivecos.com'],
+  'Tilson Homes': ['lastf','tilsonhome.com'],
+  'Toll Brothers': ['flast','tollbrothers.com'],
+  'Tradition Homes': ['first','traditionhomes.com'],
+  'Tri Pointe Homes': ['first.last','tripointehomes.com'],
+  'Trophy Signature Homes': ['flast','trophysignaturehomes.com'],
+  'True Homes': ['flast','truehomesusa.com'],
+  'UnionMain Homes': ['flast','unionmainhomes.com'],
+  'Veranda Homes': ['flast','verandahomesusa.com'],
+  'William David Homes': ['first','williamdavidhomes.com'],
+  'William Ryan Homes': ['flast','wmryan.com'],
+  'Woda Cooper Companies': ['flast','wodagroup.com'],
+  'Woodside Homes': ['first.last','woodsidehomes.com'],
+  'D.R. Horton': null,                       // no derivable pattern — never guess
+  'Newmark Homes': ['flast','newmarkhomes.com'],
+  'The NRP Group': ['flast','nrpgroup.com'],
+  'Dalamar Homes': ['flast','dalamarhomes.com'],
+  'Brookstone Homes': ['first.last','buildbrookstone.com'],
+  'The Annex Group': ['flast','theannexgrp.com'],
+  'Estridge Homes': ['firstlast','estridge.net'],
+  'Stockell Custom Homes': ['first','stockellhomes.com'],
+  'Chesmar Homes': ['first.last','chesmar.com'],
+  'Olthof Homes': ['flast','olthofhomes.com'],
+  'Jagoe Homes': ['first.last','jagoehomes.com'],
+  'Ball Homes': ['flast','ballhomes.com'],
+  'DSLD Homes': ['flast','dsldhomes.com'],
+  'Legacy South': ['first.last','legacysouth.com'],
+  'Holt Homes': ['first.last','holthomes.com'],
+  'Pahlisch Homes': ['firstl','pahlisch.com'],
+  'Petros Homes': ['flast','petroshomes.com'],
+  'Traton Homes': ['flast','tratonhomes.com'],
+};
+// Match on a normalised name so "D.R. Horton" and "DR Horton" resolve the same.
+function _emailFmtKey(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+const _EMAIL_FMT_LOOKUP = (function(){
+  const m = {};
+  for (const k in EMAIL_FORMATS) m[_emailFmtKey(k)] = EMAIL_FORMATS[k];
+  return m;
+})();
+function buildEmailLocal(code, f, l) {
+  switch (code) {
+    case 'first':      return f;
+    case 'first.last': return f + '.' + l;
+    case 'firstlast':  return f + l;
+    case 'flast':      return f[0] + l;
+    case 'firstl':     return f + l[0];
+    case 'f.last':     return f[0] + '.' + l;
+    case 'lastf':      return l + f[0];
+    case 'last.first': return l + '.' + f;
+    default:           return '';
+  }
+}
+
 function guessEmail(company, first, last){
   company=(company||'').trim(); first=(first||'').trim(); last=(last||'').trim();
   if(!company||!first||!last) return '';
+  var f0=first.toLowerCase(), l0=last.toLowerCase();
+  var known=_EMAIL_FMT_LOOKUP[_emailFmtKey(company)];
+  if(known===null) return '';                       // explicitly not guessable
+  if(known){
+    var built=buildEmailLocal(known[0], f0, l0);
+    if(built) return built+'@'+known[1];
+  }
   var rows=getContacts().filter(function(c){ return c.company===company && c.email && c.email.indexOf('@')>-1; });
   if(rows.length<2) return '';
   var f=first.toLowerCase(), l=last.toLowerCase();
-  var counts={}, domain=null;
+  var counts={}, domains={}, matched=0, considered=0;
   rows.forEach(function(c){
-    var parts=c.email.toLowerCase().split('@'); var local=parts[0]; domain=parts[1];
+    var parts=c.email.toLowerCase().split('@'); var local=parts[0]; var dom=parts[1];
     var cf=(c.first||'').trim().toLowerCase(), cl=(c.last||'').trim().toLowerCase();
-    if(!cf||!cl) return;
+    if(!cf||!cl||!dom) return;
+    considered++;
+    domains[dom]=(domains[dom]||0)+1;
     var pat=null;
     if(local===cf+'.'+cl) pat='first.last';
     else if(local===cf[0]+cl) pat='flast';
@@ -3214,19 +3389,45 @@ function guessEmail(company, first, last){
     else if(local===cf+cl) pat='firstlast';
     else if(local===cl+'.'+cf) pat='last.first';
     else if(local===cl+cf[0]) pat='lastf';
-    if(pat) counts[pat]=(counts[pat]||0)+1;
+    if(pat){ counts[pat]=(counts[pat]||0)+1; matched++; }
   });
+  // Most common domain, not whichever row happened to be last.
+  var domain=Object.keys(domains).sort(function(a,b){return domains[b]-domains[a];})[0];
   var best=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];})[0];
-  if(!best || counts[best]<2 || !domain) return '';
+  if(!best || !domain || considered<3) return '';
+  // The pattern has to describe MOST of this builder's known emails, not just a
+  // couple of them. Builders like D.R. Horton use middle initials, so a handful
+  // of coincidental first.last matches shouldn't imply a house format for
+  // everyone — a wrong address is worse than an empty box.
+  if(counts[best] / considered < 0.6) return '';
+  if(matched / considered < 0.6) return '';
   var build={'first.last':f+'.'+l,'flast':f[0]+l,'firstl':f+l[0],'firstlast':f+l,'last.first':l+'.'+f,'lastf':l+f[0]};
   return (build[best]||'')+'@'+domain;
 }
 function maybeGuessEmail(){
   var em=document.getElementById('cmEmail'); if(!em) return;
+  var hint=document.getElementById('cmEmailHint');
   var cur=em.value.trim();
-  if(cur && cur!==window.__lastGuess) return;
+  if(cur && cur!==window.__lastGuess) return;      // they typed their own — leave it
   var g=guessEmail(document.getElementById('cmCompany').value, document.getElementById('cmFirst').value, document.getElementById('cmLast').value);
-  if(g){ em.value=g; window.__lastGuess=g; }
+  if(g){
+    em.value=g; window.__lastGuess=g;
+    // Two very different confidence levels, so say which one this is. A known
+    // format is reliable; a pattern inferred from other rows is a guess, and a
+    // wrong address that looks confirmed is worse than an empty field.
+    var known=_EMAIL_FMT_LOOKUP[_emailFmtKey(document.getElementById('cmCompany').value)];
+    if(hint){
+      if(known){ hint.textContent='Filled using this builder\u2019s known email format.'; hint.style.color='#1c7a2e'; }
+      else { hint.textContent='\u26a0 Guessed from other contacts at this builder \u2014 verify before relying on it.'; hint.style.color='#8a6212'; }
+      hint.style.display='';
+    }
+  } else if(hint){ hint.style.display='none'; }
+}
+// Once someone edits the box themselves it's no longer a guess.
+function onEmailInput(){
+  var em=document.getElementById('cmEmail'), hint=document.getElementById('cmEmailHint');
+  if(hint && em && em.value.trim()!==window.__lastGuess) hint.style.display='none';
+  checkDup();
 }
 // A forgotten filter looks identical to missing data. Six filters live on this
 // screen and none of them announced themselves, so "not all the builders are
@@ -4283,7 +4484,7 @@ async function verifyAppKey(key) {
     // Send the SAME body shape the roster loader uses (fetchPages sends skip).
     // The flow's Skip Count expression needs `skip` present — omit it and Excel
     // receives an empty $skip, returns 400, and that surfaces here as a 502.
-    const r = await flowFetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key: String(key||'').trim(), skip: 0 }) });
+    const r = await flowFetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key: String(key||'').trim(), skip: 0 }) }, true);
     // IMPORTANT: the key is enforced as a *trigger condition* on each flow. When it
     // doesn't match, Power Automate accepts the request and simply skips the run —
     // returning 202 with an empty body, NOT a 401. Treating any 2xx as success
