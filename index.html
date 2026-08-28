@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v94 · known email formats)</title>
+<title>Tacoma Energy — Sales CRM (v96 · matching time windows)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -481,7 +481,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v94</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v96</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -713,6 +713,8 @@
         <option>Call</option><option>Email</option><option>LinkedIn</option><option>Text</option><option value="In Person">In Person / Virtual</option><option>Other</option>
       </select>
       <select id="actBuilderFilter" onchange="renderActivity()"><option value="">All builders</option></select>
+      <select id="actStateFilter" onchange="onActStateChange()"><option value="">All states</option></select>
+      <select id="actCityFilter" onchange="renderActivity()"><option value="">All cities</option></select>
       <input type="text" id="actSearch" placeholder="Search contact or notes..." oninput="renderActivity()" />
     </div>
     <div class="panel">
@@ -2659,7 +2661,10 @@ function setDashRep(rep) {
 }
 // setDashBreakdown removed in v84 — grouping is derived from the geo filter.
 
-function cutoffFor(days) { if (!days) return null; if (days === 'ytd') return new Date().getFullYear() + '-01-01'; const d = new Date(); d.setDate(d.getDate() - days); return _localISO(d); }
+// Windows are INCLUSIVE of both ends: callers filter with `date >= cutoff`, so
+// "last 7 days" must start 6 days back, not 7. Starting 7 back counted 8 days
+// and made the KPI disagree with the weekly chart, which buckets a true 7 days.
+function cutoffFor(days) { if (!days) return null; if (days === 'ytd') return new Date().getFullYear() + '-01-01'; const d = new Date(); d.setDate(d.getDate() - (days - 1)); return _localISO(d); }
 
 function dashTouches() {
   const cutoff = cutoffFor(state.dashRange);
@@ -3710,9 +3715,32 @@ function rebuildBuilderFilter() {
   sel.innerHTML = '<option value="">All builders</option>' + names.map(function(n){ return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
   if (cur && names.includes(cur)) sel.value = cur;
 }
+// State/city options built from the contacts behind the touches, so the lists
+// only offer markets that actually appear in the log. City narrows to the
+// chosen state, same as the Contacts page.
+function rebuildActGeoFilters() {
+  const stateSel = document.getElementById('actStateFilter');
+  const citySel  = document.getElementById('actCityFilter');
+  if (!stateSel || !citySel) return;
+  const cs = getContacts();
+  const curS = stateSel.value, curC = citySel.value;
+  const states = [...new Set(cs.map(c => c.state).filter(Boolean))].sort();
+  stateSel.innerHTML = '<option value="">All states</option>' +
+    states.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  if (curS && states.includes(curS)) stateSel.value = curS;
+  const cities = [...new Set(cs.filter(c => !stateSel.value || c.state === stateSel.value)
+    .map(c => c.city).filter(Boolean))].sort();
+  citySel.innerHTML = '<option value="">All cities</option>' +
+    cities.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  citySel.value = cities.includes(curC) ? curC : '';
+}
+function onActStateChange() { rebuildActGeoFilters(); renderActivity(); }
 function renderActivity() {
   rebuildBuilderFilter();
+  rebuildActGeoFilters();
   const builderF = (document.getElementById('actBuilderFilter')||{}).value || '';
+  const stateF = (document.getElementById('actStateFilter')||{}).value || '';
+  const cityF  = (document.getElementById('actCityFilter')||{}).value || '';
   const _cmap = {}; getContacts().forEach(function(x){ _cmap[x.contactId] = x; });
   const repF = document.getElementById('actRepFilter').value;
   const methodF = document.getElementById('actMethodFilter').value;
@@ -3723,6 +3751,8 @@ function renderActivity() {
     if (repF && t.rep !== repF) return false;
     if (methodF && t.method !== methodF) return false;
     if (builderF) { const cb = _cmap[t.contactId]; if (!cb || cb.company !== builderF) return false; }
+    if (stateF)   { const cs2 = _cmap[t.contactId]; if (!cs2 || cs2.state !== stateF) return false; }
+    if (cityF)    { const cc = _cmap[t.contactId]; if (!cc || cc.city !== cityF) return false; }
     if (q) {
       const c = contactById(t.contactId);
       const name = c ? `${esc(c.first)} ${esc(c.last)} ${esc(c.company)}` : '';
