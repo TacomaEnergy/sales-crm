@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v96 · matching time windows)</title>
+<title>Tacoma Energy — Sales CRM (v97 · convergent contacts probe)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -481,7 +481,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v96</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v97</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -4617,7 +4617,6 @@ async function probeContactsTail() {
     const local = getContacts();
     if (!local.length) return false;
     const pageIdx  = Math.floor((local.length - 1) / CONTACT_PAGE_SIZE);
-    const expected = local.length - (pageIdx * CONTACT_PAGE_SIZE);
     const r = await flowFetch(url, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ skip: pageIdx * CONTACT_PAGE_SIZE, key: getAppKey() })
@@ -4627,9 +4626,30 @@ async function probeContactsTail() {
     try { d = await r.json(); } catch(e) { return false; }
     const rows = Array.isArray(d) ? d : (d && d.value) || null;
     if (!Array.isArray(rows)) return false;
-    // More rows on the tail page than we hold locally => somebody added contacts.
-    if (rows.length !== expected) {
-      console.warn('[probe] contacts tail changed (' + expected + ' local vs ' + rows.length + ' on server) — pulling full list');
+    // Compare IDENTITIES, not row counts.
+    //
+    // This used to compare the tail page's raw row count against
+    // local.length - (pageIdx * PAGE). Those two numbers can never agree once
+    // the sheet holds a row the full read legitimately discards — a blank
+    // trailing row (dropped by the `Contact ID` filter) or a duplicate from a
+    // retried add (collapsed by the dedupe). The probe would report "changed",
+    // force a 24-call full read, the read would discard those rows again, and
+    // sixty seconds later the mismatch was identical. It never converged, so a
+    // single stray row in the table meant a full contacts read EVERY MINUTE,
+    // for every open tab, forever — thousands of Power Automate runs a day and
+    // the throttling that comes with them.
+    //
+    // Asking "is there an ID on this page we've never seen?" ignores blanks and
+    // duplicates by construction and still catches a genuine addition on the
+    // next tick. Deletions and edits stay the 15-minute full read's job, which
+    // is what it was always the safety net for.
+    const known = new Set(local.map(c => String(c.contactId)));
+    const added = rows
+      .filter(row => row && row['Contact ID'])
+      .map(row => String(row['Contact ID']).trim())
+      .filter(id => id && !known.has(id));
+    if (added.length) {
+      console.log('[probe] ' + added.length + ' new contact(s) on the tail page — pulling full list');
       readIfStale('contacts', true);
       return true;
     }
