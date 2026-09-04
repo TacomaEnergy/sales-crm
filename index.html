@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v97 · convergent contacts probe)</title>
+<title>Tacoma Energy — Sales CRM (v98 · title picklist + safe name casing)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -481,7 +481,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v97</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v98</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -887,7 +887,7 @@
         <div class="new-hint" id="cmNewHint">✓ New builder — will be added to the directory</div>
         <div id="cmCompanyHint" style="display:none;font-size:12px;margin-top:5px;background:var(--amber-light,#fdf6e7);border:1px solid #f0d28a;color:#7a5200;border-radius:7px;padding:8px 10px;line-height:1.5"></div>
       </div>
-      <div><label class="fld">Title / Position</label><input type="text" id="cmTitleField" placeholder="e.g. Purchasing Manager" /></div>
+      <div><label class="fld">Title / Position</label><input type="text" id="cmTitleField" list="cmTitleList" autocomplete="off" placeholder="Start typing — e.g. Purchasing Manager" /><datalist id="cmTitleList"></datalist><div id="cmTitleHint" style="display:none;font-size:11px;color:#1c7a2e;margin-top:3px;line-height:1.4"></div></div>
       <div class="frow">
         <div><label class="fld">Email</label><input type="email" id="cmEmail" oninput="onEmailInput()" placeholder="name@builder.com" />
           <div id="cmEmailHint" style="display:none;font-size:11px;color:#8a6212;margin-top:3px;line-height:1.4"></div></div>
@@ -4095,6 +4095,20 @@ function openContactModal(cid) {
 
   const builders = [...new Set(getContacts().map(c => c.company))].sort();
   document.getElementById('cmCompanyList').innerHTML = builders.map(b => `<option value="${b}">`).join('');
+  // Titles the rep can pick instead of typing. Canonical list first, then any
+  // title already used 5+ times in the book — deliberately NOT every distinct
+  // value, or the 1,420 spellings in there would autocomplete the typos too.
+  (function () {
+    const el = document.getElementById('cmTitleList');
+    if (!el) return;
+    const counts = {};
+    getContacts().forEach(c => { const t = _squash(c.title); if (t) counts[t] = (counts[t] || 0) + 1; });
+    const seen = new Set(TITLE_CANON.map(t => t.toLowerCase()));
+    const extra = Object.keys(counts)
+      .filter(t => counts[t] >= 5 && !seen.has(t.toLowerCase()))
+      .sort();
+    el.innerHTML = TITLE_CANON.concat(extra).map(t => `<option value="${esc(t)}">`).join('');
+  })();
   document.getElementById('cmState').innerHTML =
     '<option value="">— State —</option>' + STATE_LIST.map(s => `<option value="${s}">${s}</option>`).join('');
 
@@ -4259,7 +4273,92 @@ function similarPeople(first, last, company, excludeId) {
   }).slice(0, 4);
 }
 
-function capName(s) { return (s||'').trim().toLowerCase().replace(/\b\w/g, function(c){return c.toUpperCase();}); }
+// ---- Text normalisers -------------------------------------------------
+// Canonical job titles, ordered roughly by how often they actually occur in
+// tblContacts. Two jobs: they populate the Title datalist (so picking beats
+// typing), and they are the snap-to list for normTitle() below — which is what
+// collapses "Director Of Purchasing" onto "Director of Purchasing" instead of
+// leaving both in the sheet as separate values.
+// Adding a title here is safe; anything not on the list is still accepted.
+const TITLE_CANON = [
+  'Construction Manager','Purchasing Manager','Division President','Project Manager',
+  'Purchasing Agent','Director of Purchasing','Area Construction Manager','President',
+  'Director of Construction','Procurement Agent','Senior Construction Manager',
+  'Purchasing Coordinator','Superintendent','Vice President of Operations',
+  'Vice President of Purchasing','Construction Superintendent','Senior Project Manager',
+  'Senior Procurement Agent','Production Manager','General Manager','Owner',
+  'Senior Purchasing Agent','Vice President of Construction','Builder',
+  'VP of Construction','Division Manager','Estimator','Operations Manager',
+  'Assistant Purchasing Manager','VP of Purchasing','Area Manager',
+  'Land Development Manager','Senior Purchasing Manager','Regional President',
+  'Vice President','Chief Operating Officer','Chief Executive Officer',
+  'Chief Financial Officer','Director of Operations','Construction Project Manager',
+  'Senior Builder','VP of Operations','Land Acquisition Manager',
+  'Area Production Manager','National Purchasing Manager','Vice President of Finance',
+  'Area President','Partner','Senior Superintendent','Purchasing Director',
+  'Regional Purchasing Manager','Assistant Superintendent','Field Manager'
+];
+const _TITLE_MAP = (function () {
+  const m = new Map();
+  TITLE_CANON.forEach(t => m.set(t.toLowerCase().replace(/\s+/g, ' ').trim(), t));
+  return m;
+})();
+// Stay uppercase wherever they appear.
+const _ACRONYMS = new Set(['CEO','COO','CFO','CIO','CTO','CMO','VP','EVP','SVP','AVP',
+  'GM','DP','ACM','PM','HR','IT','LLC','INC','II','III','IV','MEP','HVAC','HERS','NAHB','US','USA']);
+// Stay lowercase unless they lead the string.
+const _SMALL = new Set(['of','and','the','for','to','at','in','on','a','an','or']);
+
+function _squash(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+// Capitalise a single word, respecting hyphens and apostrophes so
+// "smith-jones" -> "Smith-Jones" and "o'brien" -> "O'Brien".
+function _capWord(w) {
+  return w.replace(/[^\s]+/g, function (part) {
+    return part.replace(/(^|[-'’])([a-z])/g, function (_, sep, ch) { return sep + ch.toUpperCase(); });
+  });
+}
+// Title Case for JOB TITLES only — acronyms stay shouty, small words stay small
+// (except in first position). Not used on people's names; see capName.
+function titleCaseJob(s) {
+  const words = _squash(s).split(' ');
+  return words.map(function (w, i) {
+    const bare = w.replace(/[^A-Za-z]/g, '');
+    if (bare && _ACRONYMS.has(bare.toUpperCase())) return w.toUpperCase();
+    const lower = w.toLowerCase();
+    if (i > 0 && _SMALL.has(lower.replace(/[^a-z]/g, ''))) return lower;
+    return _capWord(lower);
+  }).join(' ');
+}
+// Normalise a typed job title:
+//   1. squash whitespace (152 rows in the book differ only by stray spaces)
+//   2. if it matches a canonical title ignoring case, use the canonical spelling
+//      — this is what kills "Director Of Purchasing" vs "Director of Purchasing"
+//   3. otherwise only re-case it when the rep typed it all-lower or ALL-CAPS;
+//      a title they capitalised deliberately is left exactly as typed, because
+//      builder titles are genuinely varied and we are not the authority on them.
+function normTitle(s) {
+  const t = _squash(s);
+  if (!t) return '';
+  const hit = _TITLE_MAP.get(t.toLowerCase());
+  if (hit) return hit;
+  if (t === t.toLowerCase() || t === t.toUpperCase()) return titleCaseJob(t);
+  return t;
+}
+// Names are NOT job titles. The previous version of this function lowercased the
+// whole string and then capitalised each word boundary, which silently turned
+// McDonald into Mcdonald and DeAngelo into Deangelo on every single save — the
+// book already holds ~96 flattened Mc- surnames against 14 intact ones.
+// So: if the rep typed any internal capital, trust them completely and only fix
+// whitespace. Re-case only when the input carries no capitalisation information
+// at all (all lower, or ALL CAPS).
+function capName(s) {
+  const n = _squash(s);
+  if (!n) return '';
+  const allLower = n === n.toLowerCase();
+  const allUpper = n === n.toUpperCase();
+  if (!allLower && !allUpper) return n;      // mixed case = deliberate, hands off
+  return _capWord(n.toLowerCase());
+}
 async function saveContact() {
   { var _b=document.getElementById('cmSaveBtn'); if(_b){ if(_b.disabled) return; _b.disabled=true; _b.textContent='Saving\u2026'; setTimeout(function(){ _b.disabled=false; _b.textContent='Save Contact'; }, 1500); } }
   const first = capName(document.getElementById('cmFirst').value);
@@ -4272,7 +4371,7 @@ async function saveContact() {
   const contacts = getContacts();
   const payload = {
     first, last, company,
-    title: document.getElementById('cmTitleField').value.trim(),
+    title: normTitle(document.getElementById('cmTitleField').value),
     email: document.getElementById('cmEmail').value.trim().toLowerCase(),
     phone: formatPhone(document.getElementById('cmPhone').value),   // store consistently going forward
     linkedin: document.getElementById('cmLinkedin').value.trim(),
