@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v98 · title picklist + safe name casing)</title>
+<title>Tacoma Energy — Sales CRM (v99 · email re-suggest on job change)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -481,7 +481,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v98</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v99</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -3409,28 +3409,67 @@ function guessEmail(company, first, last){
   var build={'first.last':f+'.'+l,'flast':f[0]+l,'firstl':f+l[0],'firstlast':f+l,'last.first':l+'.'+f,'lastf':l+f[0]};
   return (build[best]||'')+'@'+domain;
 }
+function _emailDomain(e){ var p=String(e||'').toLowerCase().split('@'); return p.length>1?p[1].trim():''; }
+function _emailConfidence(company){
+  return _EMAIL_FMT_LOOKUP[_emailFmtKey(company)]
+    ? ['Filled using this builder’s known email format.', '#1c7a2e']
+    : ['⚠ Guessed from other contacts at this builder — verify before relying on it.', '#8a6212'];
+}
+// Accept the offered address (the "Use this" link below the Email box).
+function useGuessedEmail(){
+  var em=document.getElementById('cmEmail'), hint=document.getElementById('cmEmailHint');
+  var g=window.__offeredEmail; if(!em||!g) return;
+  em.value=g; window.__lastGuess=g; window.__offeredEmail=null;
+  var conf=_emailConfidence(document.getElementById('cmCompany').value);
+  if(hint){ hint.textContent=conf[0]; hint.style.color=conf[1]; hint.style.display=''; }
+  checkDup();
+}
 function maybeGuessEmail(){
   var em=document.getElementById('cmEmail'); if(!em) return;
   var hint=document.getElementById('cmEmailHint');
+  var company=document.getElementById('cmCompany').value;
   var cur=em.value.trim();
-  if(cur && cur!==window.__lastGuess) return;      // they typed their own — leave it
-  var g=guessEmail(document.getElementById('cmCompany').value, document.getElementById('cmFirst').value, document.getElementById('cmLast').value);
-  if(g){
-    em.value=g; window.__lastGuess=g;
-    // Two very different confidence levels, so say which one this is. A known
-    // format is reliable; a pattern inferred from other rows is a guess, and a
-    // wrong address that looks confirmed is worse than an empty field.
-    var known=_EMAIL_FMT_LOOKUP[_emailFmtKey(document.getElementById('cmCompany').value)];
+  var g=guessEmail(company, document.getElementById('cmFirst').value, document.getElementById('cmLast').value);
+
+  // Nothing to say.
+  if(!g){ window.__offeredEmail=null; if(hint) hint.style.display='none'; return; }
+
+  // Empty box, or a box still holding our own previous guess: just fill it.
+  if(!cur || cur===window.__lastGuess){
+    em.value=g; window.__lastGuess=g; window.__offeredEmail=null;
+    var conf=_emailConfidence(company);
+    if(hint){ hint.textContent=conf[0]; hint.style.color=conf[1]; hint.style.display=''; }
+    return;
+  }
+
+  // The box holds an address a person put there. Never overwrite it. But if the
+  // builder changed during this edit and the address still points at the old
+  // employer's domain, that address is now wrong — a contact who moved from
+  // Brohn to Toll Brothers keeps a @brohnhomes.com address forever otherwise.
+  // Offer the new one and let the rep decide; a job change is exactly when the
+  // old address stops working and nobody thinks to update it.
+  var companyChanged = _squash(company).toLowerCase() !== _squash(window.__origCompany||'').toLowerCase();
+  var domainStale    = _emailDomain(cur) && _emailDomain(g) && _emailDomain(cur) !== _emailDomain(g);
+  if(companyChanged && domainStale){
+    window.__offeredEmail=g;
     if(hint){
-      if(known){ hint.textContent='Filled using this builder\u2019s known email format.'; hint.style.color='#1c7a2e'; }
-      else { hint.textContent='\u26a0 Guessed from other contacts at this builder \u2014 verify before relying on it.'; hint.style.color='#8a6212'; }
-      hint.style.display='';
+      hint.innerHTML = '⚠ This address is still on <b>' + esc(_emailDomain(cur)) + '</b>, but ' +
+        esc(_squash(company)) + ' uses <b>' + esc(_emailDomain(g)) + '</b>. ' +
+        '<span onclick="useGuessedEmail()" style="color:#1395d3;font-weight:800;cursor:pointer;text-decoration:underline">' +
+        'Use ' + esc(g) + '</span>';
+      hint.style.color='#8a6212'; hint.style.display='';
     }
-  } else if(hint){ hint.style.display='none'; }
+    return;
+  }
+  window.__offeredEmail=null;
+  if(hint) hint.style.display='none';
 }
 // Once someone edits the box themselves it's no longer a guess.
 function onEmailInput(){
   var em=document.getElementById('cmEmail'), hint=document.getElementById('cmEmailHint');
+  // Emptying the box is a request for help, not a rejection of it — previously
+  // clearing the old address left the field dead with no way to re-trigger.
+  if(em && !em.value.trim()){ window.__lastGuess=undefined; maybeGuessEmail(); checkDup(); return; }
   if(hint && em && em.value.trim()!==window.__lastGuess) hint.style.display='none';
   checkDup();
 }
@@ -4092,6 +4131,13 @@ function openContactModal(cid) {
   document.getElementById('cmReactivateBtn').style.display = _isInactive ? 'inline-flex' : 'none';
   document.getElementById('cmDupWarn').classList.remove('show');
   document.getElementById('cmNewHint').classList.remove('show');
+  // Remember the record as it was opened. A job change is "company differs from
+  // what it was when this modal opened", which is what lets us offer a new email
+  // without nagging on every edit.
+  window.__origCompany = _editing ? (_editing.company || '') : '';
+  window.__origEmail   = _editing ? (_editing.email   || '') : '';
+  window.__lastGuess   = undefined;
+  { const h = document.getElementById('cmEmailHint'); if (h) h.style.display = 'none'; }
 
   const builders = [...new Set(getContacts().map(c => c.company))].sort();
   document.getElementById('cmCompanyList').innerHTML = builders.map(b => `<option value="${b}">`).join('');
