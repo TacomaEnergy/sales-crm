@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v102 · what's new card)</title>
+<title>Tacoma Energy — Sales CRM (v103 · builder follow-ups on the dashboard)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -505,7 +505,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v102</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v103</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -3171,42 +3171,29 @@ function renderDashboard() {
   window.__bdGreen = (mode==='builder'); window.__bdSub = bdSub; document.getElementById('dashBreakdown').innerHTML = renderBreakdownRows(bdCounts, bdSub);
   animateBars('dashBreakdown');
 
-  // follow-ups due (sort, then render only the top 40)
+  // Follow-ups due — the surface reps actually live on.
+  //
+  // Shows everything OVERDUE, DUE TODAY or DUE TOMORROW, grouped by builder+city
+  // using the same card component as the Follow-Ups tab. Replaces a horizontal
+  // rail that capped at 40 and silently hid the rest behind a scrollbar most
+  // people never touched. The cut-off is a real boundary rather than a round
+  // number: everything that needs acting on now is here, and the count of what
+  // is merely scheduled sits underneath as one line.
   document.getElementById('dashFuHint').textContent = repLabel;
-  const dueList = summaries.filter(s => s.nextFu && (!state.dashRep || s.lastRep === state.dashRep))
-    .map(s => ({ c: s.c, fu: s.nextFu, rep: s.lastRep }))
-    .sort((a,b) => a.fu.localeCompare(b.fu))
-    .slice(0, 40);
-  // Horizontal rail of cards. The list is already date-sorted, so the most
-  // overdue sit at the left edge and are seen without scrolling.
-  const fuRows = dueList.map(({c, fu, rep}) => {
-    const d = daysBetween(fu);
-    const chip = d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`;
-    const cls  = d > 0 ? ' is-overdue' : d === 0 ? ' is-today' : '';
-    const where = [c.city, c.state].filter(Boolean).join(', ');
-    const sub = [c.company, where].filter(Boolean).join(' · ');
-    const name = ((c.first||'') + ' ' + (c.last||'')).trim() || c.contactId;
-    const cid = escArg(c.contactId);
-    // Whoever logged the last touch is the de-facto owner — without it the rail
-    // is a pile of names with no indication of whose follow-up it is.
-    const owner = rep
-      ? `<span class="fu-dot" style="background:${repColor(rep)}"></span>${esc(rep)}`
-      : `<span class="fu-dot" style="background:var(--muted)"></span>Unassigned`;
-    return `<div class="fu-card${cls}" onclick="openContactFromDash('${cid}')" title="${esc(name)}${sub?' — '+esc(sub):''}">
-        ${chip}
-        <div class="fu-name">${c.hot ? '\u{1F525} ' : ''}${esc(name)}</div>
-        <div class="fu-meta">${esc(sub || '—')}</div>
-        <div class="fu-owner">${owner}</div>
-        <div class="fu-acts" onclick="event.stopPropagation()">
-          <button class="btn sm" onclick="quickTouch('${cid}')">Log</button>
-          <button class="btn ghost sm" onclick="snoozeFollowUp('${cid}')" title="Push the follow-up out one week">Snooze</button>
-          <button class="btn ghost sm" onclick="dismissFollowUp('${cid}')" title="Clear the follow-up date entirely">Dismiss</button>
-        </div>
-      </div>`;
-  });
-  document.getElementById('dashFollowups').innerHTML = fuRows.length
-    ? `<div class="fu-strip">${fuRows.join('')}</div>`
-    : '<div class="empty">No follow-ups scheduled.</div>';
+  _fuPeerIdx = null;                                  // peers must reflect current contacts
+  const _dueAll = summaries
+    .filter(s2 => s2.nextFu && (!state.dashRep || s2.lastRep === state.dashRep))
+    .map(s2 => ({ c: s2.c, fu: s2.nextFu, lt: lastTouch(s2.c.contactId) }))
+    .sort((a, b) => a.fu.localeCompare(b.fu));
+  const _dueNow    = _dueAll.filter(x => daysBetween(x.fu) >= -1);
+  const _dueLater  = _dueAll.length - _dueNow.length;
+  const _openFuIds = new Set(summaries.filter(s2 => s2.nextFu).map(s2 => s2.c.contactId));
+  const _laterLine = _dueLater
+    ? `<div class="sub" style="padding:11px 2px 0">${_dueLater} more scheduled after tomorrow — <span onclick="switchView('followups')" style="color:var(--blue);font-weight:700;cursor:pointer">see all follow-ups</span></div>`
+    : '';
+  document.getElementById('dashFollowups').innerHTML = _dueNow.length
+    ? fuBuilderCardsHTML(_dueNow, 'dash', _openFuIds) + _laterLine
+    : `<div class="empty">Nothing overdue or due in the next day.${_dueLater ? ' ' + _dueLater + ' scheduled after tomorrow.' : ''}</div>${_laterLine}`;
 
   // recent activity
   // Lead with builder + location (what leadership cares about), person secondary.
@@ -3764,20 +3751,27 @@ function _fuPeers(c){
   }
   return _fuPeerIdx.get(_fuKey(c)) || [];
 }
-let _fuCardMeta = [];
+// Expandable "other contacts" panels are built on demand. Two surfaces render
+// these cards now (the dashboard panel and the Follow-Ups tab), so the store is
+// keyed per surface — a plain array meant one re-render invalidated the other's
+// indices and the wrong names appeared under the wrong builder.
+let _fuCardMeta = new Map();
+function _fuMetaReset(surface) {
+  for (const k of [..._fuCardMeta.keys()]) if (k.startsWith(surface + ':')) _fuCardMeta.delete(k);
+}
 function toggleFuOthers(el){
   const card = el.closest('.fub-card'); if (!card) return;
   const body = card.querySelector('.fub-others-body');
   if (body && !body.dataset.built) {
-    const meta = _fuCardMeta[+el.dataset.fubidx];
-    body.innerHTML = (meta ? meta.others : []).map(o => {
+    const meta = _fuCardMeta.get(el.dataset.fubkey);
+    body.innerHTML = (meta || []).map(o => {
       const olt = lastTouch(o.contactId);
       return `<div class="fub-other">
         <div onclick="openContactFromDash('${escArg(o.contactId)}')" style="cursor:pointer">
           <b style="color:var(--navy)">${esc(`${o.first||''} ${o.last||''}`.trim()) || '(no name)'}</b>
-          <span class="sub"> \u00b7 ${esc(o.title || '\u2014')}</span>
+          <span class="sub"> · ${esc(o.title || '—')}</span>
         </div>
-        <div class="sub">${olt ? `Last: ${fmtDate(olt.date)} \u00b7 ${esc(olt.rep)}` : 'Never contacted'}</div>
+        <div class="sub">${olt ? `Last: ${fmtDate(olt.date)} · ${esc(olt.rep)}` : 'Never contacted'}</div>
         <div style="text-align:right"><button class="btn sm" onclick="quickTouch('${escArg(o.contactId)}')">Log</button></div>
       </div>`;
     }).join('');
@@ -3786,8 +3780,68 @@ function toggleFuOthers(el){
   card.classList.toggle('show-others');
 }
 
+// One date chip, used by both surfaces.
+function _fuChip(fu) {
+  const d = daysBetween(fu);
+  if (d > 0)   return `<span class="chip red">${d}d overdue</span>`;
+  if (d === 0) return '<span class="chip amber">Today</span>';
+  if (d === -1) return '<span class="chip blue">Tomorrow</span>';
+  return `<span class="chip blue">${fmtDate(fu)}</span>`;
+}
+
+// THE shared card renderer. rows = [{c, fu, lt}], already filtered. Groups them
+// by builder+city, earliest due first, and returns the cards' HTML.
+// `openFuIds` is every contact anywhere with something scheduled, so the
+// "others" panel can exclude people who are due elsewhere on the page.
+function fuBuilderCardsHTML(rows, surface, openFuIds) {
+  _fuMetaReset(surface);
+  const groups = new Map();
+  rows.forEach(x => { const k = _fuKey(x.c); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); });
+  const ordered = [...groups.values()].sort((a, b) => a[0].fu.localeCompare(b[0].fu));
+
+  return ordered.map((grp, gi) => {
+    const c0 = grp[0].c;
+    const dueIds = new Set(grp.map(r => r.c.contactId));
+    const others = _fuPeers(c0).filter(pp => !dueIds.has(pp.contactId) && !openFuIds.has(pp.contactId));
+    const metaKey = surface + ':' + gi;
+    if (others.length) _fuCardMeta.set(metaKey, others);
+
+    const people = grp.map(({ c, fu, lt }) => `<div class="fub-person">
+        <div>${_fuChip(fu)}</div>
+        <div onclick="openContactFromDash('${escArg(c.contactId)}')" style="cursor:pointer">
+          <div class="fub-pname">${c.hot ? '\u{1F525} ' : ''}${esc(`${c.first||''} ${c.last||''}`.trim()) || '(no name)'}</div>
+          <div class="fub-ptitle">${esc(c.title || '—')}</div>
+          ${lt && lt.notes ? `<div class="fub-note" title="${esc(lt.notes)}">${esc(lt.notes)}</div>` : ''}
+        </div>
+        <div>${lt ? repChip(lt.rep) : '—'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+          <button class="btn sm" onclick="quickTouch('${escArg(c.contactId)}')">Log</button>
+          <button class="btn ghost sm" onclick="editFollowUp('${escArg(c.contactId)}')">Edit date</button>
+          <button class="btn ghost sm" onclick="snoozeFollowUp('${escArg(c.contactId)}')">Snooze 1wk</button>
+          <button class="btn ghost sm" onclick="dismissFollowUp('${escArg(c.contactId)}')">Dismiss</button>
+        </div>
+      </div>`).join('');
+
+    const othersBlock = others.length ? `<div class="fub-others">
+        <div class="fub-others-btn" data-fubkey="${esc(metaKey)}" onclick="toggleFuOthers(this)">▸ ${others.length} other contact${others.length===1?'':'s'} at this builder</div>
+        <div class="fub-others-body"></div>
+      </div>` : '';
+
+    return `<div class="fub-card">
+        <div class="fub-head">
+          <span class="fub-builder">${esc(c0.company || '(no builder)')}</span>
+          <span class="fub-city">${esc([c0.city, c0.state].filter(Boolean).join(', ') || '—')}</span>
+          <span class="spacer"></span>
+          <span class="chip gray">${grp.length} follow-up${grp.length===1?'':'s'}</span>
+        </div>
+        ${people}
+        ${othersBlock}
+      </div>`;
+  }).join('');
+}
+
 function renderFollowups() {
-  _fuPeerIdx = null; _fuCardMeta = [];    // rebuild against current data each render
+  _fuPeerIdx = null;                      // rebuild against current data each render
   const repF = document.getElementById('fuRepFilter') ? document.getElementById('fuRepFilter').value : '';
   const q = (document.getElementById('fuSearch') ? document.getElementById('fuSearch').value : '').toLowerCase();
 
@@ -3826,65 +3880,9 @@ function renderFollowups() {
     if (!buckets[k].length) return;
     const shown = buckets[k].slice(0, CAP);
     const overflow = buckets[k].length - shown.length;
-
-    // builder+city groups, earliest due first
-    const groups = new Map();
-    shown.forEach(x => { const key=_fuKey(x.c); if(!groups.has(key)) groups.set(key,[]); groups.get(key).push(x); });
-    const ordered = [...groups.values()].sort((a,b) => a[0].fu.localeCompare(b[0].fu));
-
-    const chipClass = k==='overdue' ? 'red' : k==='today' ? 'amber' : 'blue';
-
     html += `<div class="fu-group"><div class="fu-group-label ${k}">${labels[k]} <span class="cnt">${buckets[k].length}</span></div>` +
-      ordered.map(rows => {
-        const c0 = rows[0].c;
-        const dueIds = new Set(rows.map(r => r.c.contactId));
-        // Only people with NOTHING scheduled. A peer whose follow-up sits in a
-        // different bucket is already on this page under that heading, and
-        // listing them here as "Last: ..." reads as if nothing were due for them.
-        const others = _fuPeers(c0).filter(p => !dueIds.has(p.contactId) && !openFuIds.has(p.contactId));
-
-        const people = rows.map(({c, fu, lt}) => {
-          const d = daysBetween(fu);
-          const when = d > 0 ? `${d}d overdue` : d === 0 ? 'Today' : fmtDate(fu);
-          return `<div class="fub-person">
-            <div><span class="chip ${chipClass}">${esc(when)}</span></div>
-            <div onclick="openContactFromDash('${escArg(c.contactId)}')" style="cursor:pointer">
-              <div class="fub-pname">${esc(`${c.first||''} ${c.last||''}`.trim()) || '(no name)'}</div>
-              <div class="fub-ptitle">${esc(c.title || '—')}</div>
-              ${lt && lt.notes ? `<div class="fub-note" title="${esc(lt.notes)}">${esc(lt.notes)}</div>` : ''}
-            </div>
-            <div>${lt ? repChip(lt.rep) : '—'}</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
-              <button class="btn sm" onclick="quickTouch('${escArg(c.contactId)}')">Log</button>
-              <button class="btn ghost sm" onclick="editFollowUp('${escArg(c.contactId)}')">Edit date</button>
-              <button class="btn ghost sm" onclick="snoozeFollowUp('${escArg(c.contactId)}')">Snooze 1wk</button>
-              <button class="btn ghost sm" onclick="dismissFollowUp('${escArg(c.contactId)}')">Dismiss</button>
-            </div>
-          </div>`;
-        }).join('');
-
-        // The rep's actual request: who else do we know at this builder.
-        // Rendered ON EXPAND, not up front. Building every card's panel eagerly
-        // meant ~14k rows of HTML per render for a panel almost nobody opens,
-        // which is what took this page from 50ms to over a second.
-        const metaIdx = _fuCardMeta.push({ others }) - 1;
-        const othersBlock = others.length ? `<div class="fub-others">
-          <div class="fub-others-btn" data-fubidx="${metaIdx}" onclick="toggleFuOthers(this)">▸ ${others.length} other contact${others.length===1?'':'s'} at this builder</div>
-          <div class="fub-others-body"></div>
-        </div>` : '';
-
-        return `<div class="fub-card">
-          <div class="fub-head">
-            <span class="fub-builder">${esc(c0.company || '(no builder)')}</span>
-            <span class="fub-city">${esc([c0.city, c0.state].filter(Boolean).join(', ') || '—')}</span>
-            <span class="spacer"></span>
-            <span class="chip gray">${rows.length} follow-up${rows.length===1?'':'s'}</span>
-          </div>
-          ${people}
-          ${othersBlock}
-        </div>`;
-      }).join('') +
-      (overflow>0 ? `<div class="sub" style="text-align:center;padding:12px">+ ${overflow} more — use the rep filter or search to narrow.</div>` : '') +
+      fuBuilderCardsHTML(shown, 'tab-' + k, openFuIds) +
+      (overflow > 0 ? `<div class="sub" style="text-align:center;padding:12px">+ ${overflow} more \u2014 use the rep filter or search to narrow.</div>` : '') +
       `</div>`;
   });
 
