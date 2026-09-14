@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v103 · builder follow-ups on the dashboard)</title>
+<title>Tacoma Energy — Sales CRM (v104 · emails on builder contact lists)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -505,7 +505,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v103</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v104</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -1152,7 +1152,7 @@ function contactIndex() {
   _cache.cById = m;
   return m;
 }
-function saveContacts(c) { store.set('crm_contacts', JSON.stringify(c)); _cache.contacts = c; _cache.cById = null; _cache.summ = null; }
+function saveContacts(c) { store.set('crm_contacts', JSON.stringify(c)); _cache.contacts = c; _cache.cById = null; _cache.summ = null; _fuPeerIdx = null; }
 function saveTouches(t) { store.set('crm_touches', JSON.stringify(t)); _cache.touches = t; _cache.byContact = null; _cache.summ = null; }
 function contactById(cid) { return contactIndex().get(cid); }
 
@@ -3700,6 +3700,21 @@ function renderContactDetail(cid) {
         <span class="btn-row"><button class="btn ghost sm" onclick="snoozeFollowUp('${c.contactId}')">Snooze 1wk</button><button class="btn ghost sm" onclick="dismissFollowUp('${c.contactId}')">Dismiss</button></span>
       </div>` : ''}
     </div>
+    ${(() => {
+      // Everyone else at this builder + city, with their email right here.
+      const peers = _fuPeers(c).filter(x => x.contactId !== c.contactId);
+      if (!peers.length) return '';
+      const where = [c.city, c.state].filter(Boolean).join(', ');
+      return `<div style="margin-top:16px">
+        <div class="panel-head" style="padding:0 0 9px;border:none">
+          <h3>Also at ${esc(c.company || 'this builder')}</h3>
+          <span class="hint">${peers.length} contact${peers.length===1?'':'s'}${where ? ' · ' + esc(where) : ''}</span>
+        </div>
+        <div style="max-height:250px;overflow:auto;border:1px solid var(--border);border-radius:9px;padding:2px 11px 8px;background:var(--bg-2)">
+          ${peers.map(fuOtherRowHTML).join('')}
+        </div>
+      </div>`;
+    })()}
     <div style="margin-top:16px">
       <div class="panel-head" style="padding:0 0 11px;border:none"><h3>Touch History</h3><span class="hint">${history.length} logged</span></div>
       ${history.length ? `<div class="timeline">${history.map(t => `
@@ -3759,22 +3774,33 @@ let _fuCardMeta = new Map();
 function _fuMetaReset(surface) {
   for (const k of [..._fuCardMeta.keys()]) if (k.startsWith(surface + ':')) _fuCardMeta.delete(k);
 }
+// One row for a colleague at the same builder. Email and phone are ON the row:
+// the first version listed name + title only, so getting someone's address meant
+// clicking through to their record and reading it off the detail panel — which
+// is exactly the lookup this panel exists to save.
+function fuOtherRowHTML(o) {
+  const olt = lastTouch(o.contactId);
+  const mail = o.email
+    ? `<a href="mailto:${esc(o.email)}" onclick="event.stopPropagation()" style="color:var(--blue);font-weight:600">${esc(o.email)}</a>`
+    : '<span class="sub">no email on file</span>';
+  const tel = o.phone
+    ? ` <span class="sub">· <a href="tel:${esc(phoneHref(o.phone))}" onclick="event.stopPropagation()" style="color:var(--blue)">${esc(formatPhone(o.phone))}</a></span>`
+    : '';
+  return `<div class="fub-other">
+    <div onclick="openContactFromDash('${escArg(o.contactId)}')" style="cursor:pointer">
+      <div><b style="color:var(--navy)">${esc(`${o.first||''} ${o.last||''}`.trim()) || '(no name)'}</b>
+        <span class="sub"> · ${esc(o.title || '—')}</span></div>
+      <div style="font-size:12px;margin-top:2px">${mail}${tel}</div>
+    </div>
+    <div class="sub">${olt ? `Last: ${fmtDate(olt.date)} · ${esc(olt.rep)}` : 'Never contacted'}</div>
+    <div style="text-align:right"><button class="btn sm" onclick="event.stopPropagation();quickTouch('${escArg(o.contactId)}')">Log</button></div>
+  </div>`;
+}
 function toggleFuOthers(el){
   const card = el.closest('.fub-card'); if (!card) return;
   const body = card.querySelector('.fub-others-body');
   if (body && !body.dataset.built) {
-    const meta = _fuCardMeta.get(el.dataset.fubkey);
-    body.innerHTML = (meta || []).map(o => {
-      const olt = lastTouch(o.contactId);
-      return `<div class="fub-other">
-        <div onclick="openContactFromDash('${escArg(o.contactId)}')" style="cursor:pointer">
-          <b style="color:var(--navy)">${esc(`${o.first||''} ${o.last||''}`.trim()) || '(no name)'}</b>
-          <span class="sub"> · ${esc(o.title || '—')}</span>
-        </div>
-        <div class="sub">${olt ? `Last: ${fmtDate(olt.date)} · ${esc(olt.rep)}` : 'Never contacted'}</div>
-        <div style="text-align:right"><button class="btn sm" onclick="quickTouch('${escArg(o.contactId)}')">Log</button></div>
-      </div>`;
-    }).join('');
+    body.innerHTML = (_fuCardMeta.get(el.dataset.fubkey) || []).map(fuOtherRowHTML).join('');
     body.dataset.built = '1';
   }
   card.classList.toggle('show-others');
