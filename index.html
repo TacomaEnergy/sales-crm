@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v99 · email re-suggest on job change)</title>
+<title>Tacoma Energy — Sales CRM (v102 · what's new card)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -339,6 +339,30 @@
   .fu-group-label.today { color: var(--amber); }
   .fu-group-label.week { color: var(--blue); }
   .fu-group-label.later { color: var(--muted); }
+  /* Builder-led follow-up cards. The builder division is the account; the
+     contact is the route in — so the builder leads and the person sits under it. */
+  .fub-card { border: 1px solid var(--border); border-radius: 11px; background: #fff; margin-bottom: 9px; overflow: hidden; box-shadow: var(--shadow-sm); }
+  .fub-card:last-child { margin-bottom: 0; }
+  .fub-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: var(--bg-2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .fub-builder { font-size: 14.5px; font-weight: 800; color: var(--navy); }
+  .fub-city { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+  .fub-head .spacer { flex: 1 1 auto; }
+  .fub-person { display: grid; grid-template-columns: 118px 1fr 118px 230px; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid #eef3f8; }
+  .fub-person:first-of-type { border-top: none; }
+  .fub-person:hover { background: #fafcfe; }
+  .fub-pname { font-weight: 700; color: var(--navy); font-size: 13.5px; }
+  .fub-ptitle { font-size: 11.5px; color: var(--muted); }
+  .fub-note { font-size: 12px; color: #44515f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fub-others { border-top: 1px solid var(--border); background: #fafcfe; }
+  .fub-others-btn { padding: 8px 14px; font-size: 12px; font-weight: 700; color: var(--blue); cursor: pointer; user-select: none; }
+  .fub-others-btn:hover { background: var(--sky-light); }
+  .fub-others-body { display: none; padding: 4px 14px 11px; }
+  .fub-card.show-others .fub-others-body { display: block; }
+  .fub-other { display: grid; grid-template-columns: 1fr 150px 64px; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid #eef3f8; font-size: 12.5px; }
+  @media (max-width: 900px) {
+    .fub-person { grid-template-columns: 1fr; gap: 6px; }
+    .fub-other  { grid-template-columns: 1fr; gap: 4px; }
+  }
 
   /* ---- Hot leads view ---- */
   .hot-banner { background: linear-gradient(110deg, #fff 0%, var(--hot-light) 100%); border: 1px solid #f6d3c2; border-left: 5px solid var(--hot);
@@ -481,7 +505,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v99</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v102</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -774,6 +798,19 @@
     </div>
     <div class="modal-foot">
       <button class="btn green" onclick="closeFirstRun()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- WHAT'S NEW — shown once per release, to people who have used the app before -->
+<div class="modal-bg" id="whatsNewModal">
+  <div class="modal" style="width:min(580px,100%)">
+    <div class="modal-head" style="background:#0e2f4a">
+      <h3 style="color:#fff">What's new <span id="wnVer" style="font-weight:600;font-size:13px;color:#9fc4dd"></span></h3>
+    </div>
+    <div class="modal-body" id="whatsNewBody" style="gap:14px"></div>
+    <div class="modal-foot">
+      <button class="btn green" onclick="closeWhatsNew()">Got it</button>
     </div>
   </div>
 </div>
@@ -3442,22 +3479,32 @@ function maybeGuessEmail(){
     return;
   }
 
-  // The box holds an address a person put there. Never overwrite it. But if the
-  // builder changed during this edit and the address still points at the old
-  // employer's domain, that address is now wrong — a contact who moved from
-  // Brohn to Toll Brothers keeps a @brohnhomes.com address forever otherwise.
-  // Offer the new one and let the rep decide; a job change is exactly when the
-  // old address stops working and nobody thinks to update it.
-  var companyChanged = _squash(company).toLowerCase() !== _squash(window.__origCompany||'').toLowerCase();
-  var domainStale    = _emailDomain(cur) && _emailDomain(g) && _emailDomain(cur) !== _emailDomain(g);
-  if(companyChanged && domainStale){
+  // The box holds something a person put there. Never overwrite it — but do
+  // offer, in two cases that both mean "this address is not usable yet":
+  //
+  //   * no "@" at all — a half-typed local part like "dmez". The first version
+  //     of this checked whether the CURRENT domain was stale, which is silent
+  //     when there is no domain to compare, so typing got no help at all.
+  //   * an "@" on a domain the builder does not use — the job-change case.
+  //
+  // Deliberately NOT conditional on the builder changing during this edit: by
+  // the time anyone notices the address is wrong, the move is usually already
+  // saved, and requiring an in-session change meant reopening the record never
+  // offered anything.
+  var curDom = _emailDomain(cur), newDom = _emailDomain(g);
+  var incomplete = cur.indexOf('@') === -1;
+  var wrongDomain = curDom && newDom && curDom !== newDom;
+  if(incomplete || wrongDomain){
     window.__offeredEmail=g;
     if(hint){
-      hint.innerHTML = '⚠ This address is still on <b>' + esc(_emailDomain(cur)) + '</b>, but ' +
-        esc(_squash(company)) + ' uses <b>' + esc(_emailDomain(g)) + '</b>. ' +
+      hint.innerHTML = (wrongDomain
+          ? '⚠ This address is on <b>' + esc(curDom) + '</b>, but ' + esc(_squash(company)) +
+            ' uses <b>' + esc(newDom) + '</b>. '
+          : esc(_squash(company)) + ' uses <b>' + esc(newDom) + '</b>. ') +
         '<span onclick="useGuessedEmail()" style="color:#1395d3;font-weight:800;cursor:pointer;text-decoration:underline">' +
         'Use ' + esc(g) + '</span>';
-      hint.style.color='#8a6212'; hint.style.display='';
+      hint.style.color = wrongDomain ? '#8a6212' : '#3d5164';
+      hint.style.display='';
     }
     return;
   }
@@ -3466,11 +3513,12 @@ function maybeGuessEmail(){
 }
 // Once someone edits the box themselves it's no longer a guess.
 function onEmailInput(){
-  var em=document.getElementById('cmEmail'), hint=document.getElementById('cmEmailHint');
-  // Emptying the box is a request for help, not a rejection of it — previously
-  // clearing the old address left the field dead with no way to re-trigger.
-  if(em && !em.value.trim()){ window.__lastGuess=undefined; maybeGuessEmail(); checkDup(); return; }
-  if(hint && em && em.value.trim()!==window.__lastGuess) hint.style.display='none';
+  var em=document.getElementById('cmEmail');
+  // Always re-evaluate. maybeGuessEmail only ever FILLS an empty box or OFFERS a
+  // link, so running it on every keystroke cannot clobber what is being typed —
+  // and not running it was why typing "dmez" produced no suggestion at all.
+  if(em && !em.value.trim()) window.__lastGuess=undefined;
+  maybeGuessEmail();
   checkDup();
 }
 // A forgotten filter looks identical to missing data. Six filters live on this
@@ -3693,12 +3741,65 @@ function applyMyFollowUpFilter(force) {
   const me = state.actingRep || currentUserName();
   if (me && [...sel.options].some(o => o.value === me)) sel.value = me;
 }
+// Follow-ups, grouped by BUILDER + CITY inside each due bucket.
+//
+// The follow-up itself stays per-contact: the promise ("send pricing Thursday")
+// was made by a person and the notes live on their touch. What changed is which
+// thing leads the row. Tacoma sells to a builder division, not to an individual
+// — that division is the account, and the contact is the route in — so the
+// builder heads the card and the people sit under it.
+//
+// Grouping happens WITHIN a bucket, not across: a builder with one contact
+// overdue and another due next week appears under both headings, each time
+// showing only the people actually due in that window. Collapsing across
+// buckets would have meant picking one date to represent the group, which
+// silently hides the others.
+function _fuKey(c){ return `${(c.company||'').toLowerCase()}|${(c.city||'').toLowerCase()}|${(c.state||'').toLowerCase()}`; }
+// Everyone at a builder+city, built once per render rather than per row.
+let _fuPeerIdx = null;
+function _fuPeers(c){
+  if (!_fuPeerIdx) {
+    _fuPeerIdx = new Map();
+    for (const x of getContacts()) { if (!x.active) continue; const k=_fuKey(x); if(!_fuPeerIdx.has(k)) _fuPeerIdx.set(k,[]); _fuPeerIdx.get(k).push(x); }
+  }
+  return _fuPeerIdx.get(_fuKey(c)) || [];
+}
+let _fuCardMeta = [];
+function toggleFuOthers(el){
+  const card = el.closest('.fub-card'); if (!card) return;
+  const body = card.querySelector('.fub-others-body');
+  if (body && !body.dataset.built) {
+    const meta = _fuCardMeta[+el.dataset.fubidx];
+    body.innerHTML = (meta ? meta.others : []).map(o => {
+      const olt = lastTouch(o.contactId);
+      return `<div class="fub-other">
+        <div onclick="openContactFromDash('${escArg(o.contactId)}')" style="cursor:pointer">
+          <b style="color:var(--navy)">${esc(`${o.first||''} ${o.last||''}`.trim()) || '(no name)'}</b>
+          <span class="sub"> \u00b7 ${esc(o.title || '\u2014')}</span>
+        </div>
+        <div class="sub">${olt ? `Last: ${fmtDate(olt.date)} \u00b7 ${esc(olt.rep)}` : 'Never contacted'}</div>
+        <div style="text-align:right"><button class="btn sm" onclick="quickTouch('${escArg(o.contactId)}')">Log</button></div>
+      </div>`;
+    }).join('');
+    body.dataset.built = '1';
+  }
+  card.classList.toggle('show-others');
+}
+
 function renderFollowups() {
+  _fuPeerIdx = null; _fuCardMeta = [];    // rebuild against current data each render
   const repF = document.getElementById('fuRepFilter') ? document.getElementById('fuRepFilter').value : '';
   const q = (document.getElementById('fuSearch') ? document.getElementById('fuSearch').value : '').toLowerCase();
 
-  const items = getContacts().filter(c => c.active)
-    .map(c => ({ c, fu: nextFollowUp(c.contactId), lt: lastTouch(c.contactId) }))
+  // Resolve follow-up + last touch ONCE for every active contact. The "others"
+  // panel needs to know whether a peer has anything scheduled, and asking
+  // nextFollowUp() per peer per card was ~14k calls and turned a 110ms render
+  // into 1.6s. One pass here, then a Set lookup.
+  const all = getContacts().filter(c => c.active)
+    .map(c => ({ c, fu: nextFollowUp(c.contactId), lt: lastTouch(c.contactId) }));
+  const openFuIds = new Set(all.filter(x => x.fu).map(x => x.c.contactId));
+
+  const items = all
     .filter(x => x.fu)
     .filter(x => !repF || (x.lt && x.lt.rep === repF))
     .filter(x => {
@@ -3708,38 +3809,85 @@ function renderFollowups() {
     })
     .sort((a,b) => a.fu.localeCompare(b.fu));
 
-  const groups = { overdue:[], today:[], week:[], later:[] };
+  const buckets = { overdue:[], today:[], week:[], later:[] };
   items.forEach(x => {
     const d = daysBetween(x.fu);
-    if (d > 0) groups.overdue.push(x);
-    else if (d === 0) groups.today.push(x);
-    else if (d >= -7) groups.week.push(x);
-    else groups.later.push(x);
+    if (d > 0) buckets.overdue.push(x);
+    else if (d === 0) buckets.today.push(x);
+    else if (d >= -7) buckets.week.push(x);
+    else buckets.later.push(x);
   });
 
   const labels = { overdue:'Overdue', today:'Due Today', week:'This Week', later:'Later' };
   const CAP = 150;
   let html = '';
+
   ['overdue','today','week','later'].forEach(k => {
-    if (!groups[k].length) return;
-    const rows = groups[k].slice(0, CAP);
-    const overflow = groups[k].length - rows.length;
-    html += `<div class="fu-group"><div class="fu-group-label ${k}">${labels[k]} <span class="cnt">${groups[k].length}</span></div>
-      <table><tbody>${rows.map(({c, fu, lt}) => {
-        return `<tr onclick="openContactFromDash('${c.contactId}')">
-          <td style="width:128px"><span class="chip ${k==='overdue'?'red':k==='today'?'amber':'blue'}">${fmtDate(fu)}</span></td>
-          <td>${contactCell(c)}</td>
-          <td style="width:120px">${lt?repChip(lt.rep):'—'}</td>
-          <td class="sub" style="width:260px;max-width:260px;overflow:hidden;text-overflow:ellipsis">${esc((lt&&lt.notes)||'')}</td>
-          <td onclick="event.stopPropagation()" style="width:240px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
-            <button class="btn sm" onclick="quickTouch('${c.contactId}')">Log</button>
-            <button class="btn ghost sm" onclick="editFollowUp('${c.contactId}')">Edit date</button>
-            <button class="btn ghost sm" onclick="snoozeFollowUp('${c.contactId}')">Snooze 1wk</button>
-            <button class="btn ghost sm" onclick="dismissFollowUp('${c.contactId}')">Dismiss</button>
-          </div></td>
-        </tr>`;
-      }).join('')}${overflow>0?`<tr><td colspan="5" class="sub" style="text-align:center;padding:12px">+ ${overflow} more — use the rep filter or search to narrow.</td></tr>`:''}</tbody></table></div>`;
+    if (!buckets[k].length) return;
+    const shown = buckets[k].slice(0, CAP);
+    const overflow = buckets[k].length - shown.length;
+
+    // builder+city groups, earliest due first
+    const groups = new Map();
+    shown.forEach(x => { const key=_fuKey(x.c); if(!groups.has(key)) groups.set(key,[]); groups.get(key).push(x); });
+    const ordered = [...groups.values()].sort((a,b) => a[0].fu.localeCompare(b[0].fu));
+
+    const chipClass = k==='overdue' ? 'red' : k==='today' ? 'amber' : 'blue';
+
+    html += `<div class="fu-group"><div class="fu-group-label ${k}">${labels[k]} <span class="cnt">${buckets[k].length}</span></div>` +
+      ordered.map(rows => {
+        const c0 = rows[0].c;
+        const dueIds = new Set(rows.map(r => r.c.contactId));
+        // Only people with NOTHING scheduled. A peer whose follow-up sits in a
+        // different bucket is already on this page under that heading, and
+        // listing them here as "Last: ..." reads as if nothing were due for them.
+        const others = _fuPeers(c0).filter(p => !dueIds.has(p.contactId) && !openFuIds.has(p.contactId));
+
+        const people = rows.map(({c, fu, lt}) => {
+          const d = daysBetween(fu);
+          const when = d > 0 ? `${d}d overdue` : d === 0 ? 'Today' : fmtDate(fu);
+          return `<div class="fub-person">
+            <div><span class="chip ${chipClass}">${esc(when)}</span></div>
+            <div onclick="openContactFromDash('${escArg(c.contactId)}')" style="cursor:pointer">
+              <div class="fub-pname">${esc(`${c.first||''} ${c.last||''}`.trim()) || '(no name)'}</div>
+              <div class="fub-ptitle">${esc(c.title || '—')}</div>
+              ${lt && lt.notes ? `<div class="fub-note" title="${esc(lt.notes)}">${esc(lt.notes)}</div>` : ''}
+            </div>
+            <div>${lt ? repChip(lt.rep) : '—'}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+              <button class="btn sm" onclick="quickTouch('${escArg(c.contactId)}')">Log</button>
+              <button class="btn ghost sm" onclick="editFollowUp('${escArg(c.contactId)}')">Edit date</button>
+              <button class="btn ghost sm" onclick="snoozeFollowUp('${escArg(c.contactId)}')">Snooze 1wk</button>
+              <button class="btn ghost sm" onclick="dismissFollowUp('${escArg(c.contactId)}')">Dismiss</button>
+            </div>
+          </div>`;
+        }).join('');
+
+        // The rep's actual request: who else do we know at this builder.
+        // Rendered ON EXPAND, not up front. Building every card's panel eagerly
+        // meant ~14k rows of HTML per render for a panel almost nobody opens,
+        // which is what took this page from 50ms to over a second.
+        const metaIdx = _fuCardMeta.push({ others }) - 1;
+        const othersBlock = others.length ? `<div class="fub-others">
+          <div class="fub-others-btn" data-fubidx="${metaIdx}" onclick="toggleFuOthers(this)">▸ ${others.length} other contact${others.length===1?'':'s'} at this builder</div>
+          <div class="fub-others-body"></div>
+        </div>` : '';
+
+        return `<div class="fub-card">
+          <div class="fub-head">
+            <span class="fub-builder">${esc(c0.company || '(no builder)')}</span>
+            <span class="fub-city">${esc([c0.city, c0.state].filter(Boolean).join(', ') || '—')}</span>
+            <span class="spacer"></span>
+            <span class="chip gray">${rows.length} follow-up${rows.length===1?'':'s'}</span>
+          </div>
+          ${people}
+          ${othersBlock}
+        </div>`;
+      }).join('') +
+      (overflow>0 ? `<div class="sub" style="text-align:center;padding:12px">+ ${overflow} more — use the rep filter or search to narrow.</div>` : '') +
+      `</div>`;
   });
+
   document.getElementById('followupList').innerHTML = html || '<div class="empty">No follow-ups match your filters.</div>';
 }
 
@@ -4170,6 +4318,9 @@ function openContactModal(cid) {
   rebuildModalCityList();
   document.getElementById('cmCity').value = c?.city || '';
 
+  // Evaluate once on open so a record already holding a wrong-domain address
+  // surfaces the offer without the rep having to touch anything.
+  maybeGuessEmail();
   document.getElementById('contactModal').classList.add('open');
 }
 function closeContactModal() { document.getElementById('contactModal').classList.remove('open'); editingContactId = null; var _b=document.getElementById('cmSaveBtn'); if(_b){ _b.disabled=false; _b.textContent='Save Contact'; } }
@@ -4853,9 +5004,75 @@ function maybeShowFirstRun() {
   if (store.get(FIRSTRUN_KEY) === '1') return;
   setTimeout(openFirstRun, 700);          // let the app paint first
 }
+
+// ---- What's new -------------------------------------------------------
+// Same idea as the first-run card, but keyed to the release instead of a
+// boolean: remember the last version a person acknowledged, and on sign-in show
+// everything shipped since. Reps don't read release emails; they do read a card
+// that is already in front of them.
+//
+// To announce the next release, add one entry here. Nothing else to touch.
+const WHATSNEW_KEY = 'crm_seen_whatsnew';
+const RELEASE_NOTES = [
+  { v: 101, title: 'Follow-ups now lead with the builder', items: [
+      'Follow-ups are grouped by <b>builder and city</b> — the division is the account, so it heads the card and the contact sits underneath.',
+      'Each card has <b>“other contacts at this builder”</b>. Open it to see everyone else in that division, when they were last contacted, and log a touch without leaving the page.',
+      'Nothing changed about the reminders themselves. They are still per person, with the same notes, dates, Snooze and Dismiss.'
+    ]},
+  { v: 100, title: 'Email addresses suggest themselves', items: [
+      'Start typing an email and the app offers the address in that builder’s format — click to accept.',
+      'If a contact changes jobs, their old address is flagged and the new one offered. Your typing is never overwritten.'
+    ]},
+  { v: 98, title: 'Cleaner job titles and safer names', items: [
+      'Title / Position is now a <b>picklist</b> of the titles already in use — pick instead of typing.',
+      'Names with capitals inside them (McDonald, O’Brien, DeAngelo) are no longer flattened when a contact is saved.'
+    ]}
+];
+function _buildNum() {
+  const m = (document.title.match(/\(v(\d+)/) || [])[1];
+  return m ? parseInt(m, 10) : 0;
+}
+function renderWhatsNew(notes) {
+  document.getElementById('wnVer').textContent = 'v' + _buildNum();
+  document.getElementById('whatsNewBody').innerHTML = notes.map(function (n) {
+    return '<div>' +
+      '<div style="font-weight:800;color:var(--navy);font-size:14.5px;margin-bottom:5px">' + esc(n.title) + '</div>' +
+      '<ul style="margin:0 0 0 18px;padding:0;display:grid;gap:5px;font-size:13.5px;line-height:1.5;color:#3d5164">' +
+        n.items.map(function (i) { return '<li>' + i + '</li>'; }).join('') +
+      '</ul></div>';
+  }).join('') +
+  '<div style="border-top:1px solid var(--border);padding-top:10px;font-size:12.5px;color:var(--muted);line-height:1.5">' +
+    'Anything look wrong, tell Arick the same day. The <b>?</b> in the top bar reopens the basics any time.' +
+  '</div>';
+}
+function openWhatsNew() {
+  const cur = _buildNum();
+  const notes = RELEASE_NOTES.filter(function (n) { return n.v <= cur; });
+  if (!notes.length) return;
+  renderWhatsNew(notes);
+  document.getElementById('whatsNewModal').classList.add('open');
+}
+function closeWhatsNew() {
+  document.getElementById('whatsNewModal').classList.remove('open');
+  store.set(WHATSNEW_KEY, String(_buildNum()));
+}
+function maybeShowWhatsNew() {
+  const cur = _buildNum();
+  if (!cur) return;
+  const seen = parseInt(store.get(WHATSNEW_KEY) || '0', 10);
+  if (seen >= cur) return;
+  // A brand-new device gets the three-point intro instead — stacking two cards
+  // on someone's first ever sign-in is how people learn to dismiss both unread.
+  if (store.get(FIRSTRUN_KEY) !== '1') { store.set(WHATSNEW_KEY, String(cur)); return; }
+  const notes = RELEASE_NOTES.filter(function (n) { return n.v > seen && n.v <= cur; });
+  if (!notes.length) { store.set(WHATSNEW_KEY, String(cur)); return; }
+  renderWhatsNew(notes);
+  setTimeout(function () { document.getElementById('whatsNewModal').classList.add('open'); }, 700);
+}
 async function startApp() {
   document.getElementById('navLogout').style.display = '';
   maybeShowFirstRun();
+  maybeShowWhatsNew();
   await flushPendingWrites();
   loadContactsFromSharePoint();
   loadTouchesFromSharePoint();
