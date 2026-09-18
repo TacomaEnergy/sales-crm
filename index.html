@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v104 · emails on builder contact lists)</title>
+<title>Tacoma Energy — Sales CRM (v106 · builder hint fixes)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -505,7 +505,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v104</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v106</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -900,7 +900,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <label style="display:flex;align-items:center;gap:6px;margin-right:auto;font-size:13px;cursor:pointer;font-weight:600"><input type="checkbox" id="tmHot" /> 🔥 Flag as Hot Lead</label>
+      <label style="display:flex;align-items:center;gap:6px;margin-right:auto;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap"><input type="checkbox" id="tmHot" style="flex:0 0 auto" /> <span>🔥 Flag as Hot Lead</span></label>
       <button class="btn ghost" onclick="closeTouchModal()">Cancel</button>
       <button class="btn green" id="tmSaveBtn" onclick="saveTouch()">Save Touch</button>
     </div>
@@ -3995,9 +3995,29 @@ function renderActivity() {
 // ============================================================
 function refreshTouchContext() {
   const c = contactById(state.selectedContact);
-  document.getElementById('touchContext').innerHTML = c
-    ? `<b>${c.hot?'\u{1F525} ':''}Logging for:</b> ${esc(c.first)} ${esc(c.last)} \u00b7 ${esc(c.company)} \u00b7 ${c.contactId}<button class="btn ghost sm" style="margin-left:10px" onclick="changeTouchContact()">Change</button>`
-    : 'Search above to pick the contact this touch is for.';
+  if (!c) {
+    document.getElementById('touchContext').innerHTML = 'Search above to pick the contact this touch is for.';
+    return;
+  }
+  // Their phone, email and LinkedIn sit right in the modal. You open this to log
+  // a call or an email — having to close it, find the contact, copy the address
+  // and come back was the whole reason people logged from memory later.
+  const bits = [];
+  if (c.phone)    bits.push(`<a href="tel:${esc(phoneHref(c.phone))}" style="color:var(--blue);font-weight:700">${esc(formatPhone(c.phone))}</a>`);
+  if (c.email)    bits.push(`<a href="mailto:${esc(c.email)}" style="color:var(--blue);font-weight:700">${esc(c.email)}</a>`);
+  if (c.linkedin) bits.push(`<a href="${esc(c.linkedin)}" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700">LinkedIn ↗</a>`);
+  const contactLine = bits.length
+    ? `<div style="margin-top:5px;font-size:12.5px;display:flex;flex-wrap:wrap;gap:4px 12px">${bits.join('')}</div>`
+    : `<div style="margin-top:5px;font-size:12px;color:#8a6212">No phone or email on file — worth adding one while you're here.</div>`;
+  document.getElementById('touchContext').innerHTML =
+    `<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
+       <div style="flex:1 1 auto;min-width:200px">
+         <div><b>${c.hot?'\u{1F525} ':''}Logging for:</b> ${esc(c.first)} ${esc(c.last)} · ${esc(c.title || '—')}</div>
+         <div style="font-size:12.5px;color:var(--muted);margin-top:1px">${esc(c.company)}${[c.city,c.state].filter(Boolean).length ? ' · ' + esc([c.city,c.state].filter(Boolean).join(', ')) : ''} · ${esc(c.contactId)}</div>
+         ${contactLine}
+       </div>
+       <button class="btn ghost sm" onclick="changeTouchContact()">Change</button>
+     </div>`;
 }
 function renderTouchPicker() {
   const box = document.getElementById('tmContactResults');
@@ -4310,6 +4330,10 @@ function openContactModal(cid) {
   window.__origEmail   = _editing ? (_editing.email   || '') : '';
   window.__lastGuess   = undefined;
   { const h = document.getElementById('cmEmailHint'); if (h) h.style.display = 'none'; }
+  // Same for the builder hint. Leaving it up meant a "Did you mean D.R. Horton?"
+  // raised while editing one contact reappeared over the next contact's builder,
+  // which is what made it look like it fired constantly and at random.
+  { const h = document.getElementById('cmCompanyHint'); if (h) { h.style.display = 'none'; h.innerHTML = ''; } }
 
   const builders = [...new Set(getContacts().map(c => c.company))].sort();
   document.getElementById('cmCompanyList').innerHTML = builders.map(b => `<option value="${b}">`).join('');
@@ -4451,11 +4475,21 @@ function distinctCompanies() { return [...new Set(getContacts().map(c => (c.comp
 // If this builder already exists under a different spelling/casing, return the
 // spelling already in the directory so we don't fragment it into two builders.
 function canonCompany(input) {
-  const raw = String(input||'').trim();
+  // Collapse runs of whitespace first: a rep typed "D.R.  Horton" with a double
+  // space and it became a second builder holding one contact, invisible next to
+  // the 364 on "D.R. Horton".
+  const raw = String(input||'').replace(/\s+/g, ' ').trim();
   if (!raw) return raw;
-  const list = distinctCompanies();
-  const exact = list.find(c => c.toLowerCase() === raw.toLowerCase());
-  if (exact) return exact;                      // same builder, different casing
+  const norm = x => String(x||'').replace(/\s+/g, ' ').trim().toLowerCase();
+  const target = norm(raw);
+  const matches = distinctCompanies().filter(c => norm(c) === target);
+  if (matches.length) {
+    // Several spellings collapse to the same thing — keep whichever the most
+    // contacts already use, so the majority spelling wins rather than whichever
+    // happens to sort first.
+    const count = n => getContacts().filter(c => (c.company||'').trim() === n).length;
+    return matches.slice().sort((a, b) => count(b) - count(a))[0].replace(/\s+/g, ' ').trim();
+  }
   // Deliberately NOT auto-merging suffix variants: "Adams Homes" and
   // "Adams Construction" both reduce to "adams", and silently combining two
   // real builders is worse than leaving them apart. Those are surfaced as a
@@ -4464,8 +4498,15 @@ function canonCompany(input) {
 }
 // Near-miss builders worth asking about (not confident enough to auto-snap).
 function similarCompanies(input) {
-  const raw = String(input||'').trim();
+  const raw = String(input||'').replace(/\s+/g,' ').trim();
   if (raw.length < 4) return [];
+  // If this builder is ALREADY in the directory it is a real builder, not a typo
+  // of one. Without this, 82 of 802 builders permanently accused a neighbour:
+  // "Clayton Homes" was asked whether it meant "Layton Construction", "KB Home"
+  // whether it meant "KM Homes". The hint exists to catch a NEW name that is a
+  // misspelling of an existing one, so that is the only case it should fire on.
+  const norm = x => String(x||'').replace(/\s+/g,' ').trim().toLowerCase();
+  if (distinctCompanies().some(c => norm(c) === norm(raw))) return [];
   const k = _coKey(raw); if (!k) return [];
   const max = k.length <= 6 ? 1 : 2;
   return distinctCompanies().filter(c => {
