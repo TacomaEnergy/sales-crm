@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v106 · builder hint fixes)</title>
+<title>Tacoma Energy — Sales CRM (v107 · overdue banner)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -339,6 +339,18 @@
   .fu-group-label.today { color: var(--amber); }
   .fu-group-label.week { color: var(--blue); }
   .fu-group-label.later { color: var(--muted); }
+  /* Stale-follow-up banner. Deliberately only rendered when the signed-in rep
+     actually has something 2+ days overdue — a bar that is always on screen is
+     wallpaper within a week, and then it is worse than nothing. */
+  .od-banner { background: #fdecea; border: 2px solid var(--red); border-left: 8px solid var(--red);
+    border-radius: 11px; padding: 14px 18px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .od-banner .od-head { font-size: 17px; font-weight: 900; color: #a8322a; letter-spacing: -.2px; }
+  .od-banner .od-body { font-size: 13.5px; color: #7d2b24; margin-top: 3px; line-height: 1.5; }
+  .od-banner .od-body b { color: #a8322a; }
+  .od-banner .od-main { flex: 1 1 340px; min-width: 260px; }
+  .od-banner .btn { background: var(--red); }
+  .od-banner .btn:hover { background: #b4382f; }
   /* Builder-led follow-up cards. The builder division is the account; the
      contact is the route in — so the builder leads and the person sits under it. */
   .fub-card { border: 1px solid var(--border); border-radius: 11px; background: #fff; margin-bottom: 9px; overflow: hidden; box-shadow: var(--shadow-sm); }
@@ -505,7 +517,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v106</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v107</span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -549,6 +561,8 @@
 </div>
 
 <div class="wrap">
+
+<div id="overdueBanner"></div>
 
   <!-- DASHBOARD -->
   <section class="view active" id="view-dashboard">
@@ -2498,9 +2512,10 @@ function switchView(v) {
   if (v==='followups') { applyMyFollowUpFilter(false); renderFollowups(); }
   if (v==='activity') renderActivity();
   if (v==='report') renderReport();
+  renderOverdueBanner();
   window.scrollTo({top:0});
 }
-function onRepSwitch() { state.actingRep = document.getElementById('repSwitch').value; store.set('crm_acting_rep', state.actingRep); refreshFuCount(); applyMyFollowUpFilter(true); if (state.view === 'dashboard') renderMyDay(); if (state.view === 'followups') renderFollowups(); }
+function onRepSwitch() { state.actingRep = document.getElementById('repSwitch').value; store.set('crm_acting_rep', state.actingRep); renderOverdueBanner(); refreshFuCount(); applyMyFollowUpFilter(true); if (state.view === 'dashboard') renderMyDay(); if (state.view === 'followups') renderFollowups(); }
 
 // The dashboard below this is for leadership. This strip is for whoever is
 // signed in: what they personally owe someone today, before any team metrics.
@@ -2550,6 +2565,43 @@ function myFollowUpCounts(rep) {
     else if (fu === today) dueToday++;
   });
   return { overdue, dueToday, total: overdue + dueToday };
+}
+// Follow-ups the signed-in rep has let sit. One day late is a normal busy day;
+// two or more means it has been forgotten, which is the thing worth shouting at.
+const OVERDUE_GRACE_DAYS = 2;
+function staleFollowUps(rep) {
+  const out = [];
+  getContacts().forEach(c => {
+    if (!c.active) return;
+    const fu = nextFollowUp(c.contactId);
+    if (!fu) return;
+    const lt = lastTouch(c.contactId);
+    const owner = lt ? lt.rep : 'Unassigned';
+    if (rep && owner !== rep) return;
+    const d = daysBetween(fu);
+    if (d >= OVERDUE_GRACE_DAYS) out.push({ c, fu, days: d });
+  });
+  return out.sort((a, b) => b.days - a.days);
+}
+function renderOverdueBanner() {
+  const box = document.getElementById('overdueBanner');
+  if (!box) return;
+  const me = state.actingRep || currentUserName();
+  const stale = staleFollowUps(me);
+  if (!stale.length) { box.innerHTML = ''; return; }
+  const worst = stale[0];
+  const who = `${(worst.c.first||'')} ${(worst.c.last||'')}`.trim();
+  box.innerHTML = `<div class="od-banner">
+    <div class="od-main">
+      <div class="od-head">⚠ ${stale.length} follow-up${stale.length===1?'':'s'} overdue${me ? ' for ' + esc(me) : ''}</div>
+      <div class="od-body">
+        Oldest is <b>${worst.days} days</b> past due — ${esc(who)} at ${esc(worst.c.company || 'a builder')}.
+        Nothing should sit overdue more than a day. Clear each one: <b>Log</b> a touch if you reached them,
+        <b>Edit date</b> if you agreed a new time, <b>Snooze 1wk</b> if it is not today, or <b>Dismiss</b> if it is handled.
+      </div>
+    </div>
+    <button class="btn" onclick="applyMyFollowUpFilter(true); switchView('followups')">Clear them now</button>
+  </div>`;
 }
 function refreshFuCount() {
   const b = document.getElementById('navFuCount');
@@ -2630,6 +2682,7 @@ function dismissFollowUp(cid) {
   applyFollowUpChange(cid, '', 'Dismissed');
 }
 function rerenderFollowupSurfaces() {
+  renderOverdueBanner();
   if (state.view==='followups') renderFollowups();
   if (state.view==='dashboard') renderDashboard();
   if (state.view==='hotleads') renderHotLeads();
@@ -5079,6 +5132,11 @@ function maybeShowFirstRun() {
 // To announce the next release, add one entry here. Nothing else to touch.
 const WHATSNEW_KEY = 'crm_seen_whatsnew';
 const RELEASE_NOTES = [
+  { v: 107, title: 'Contact details where you need them', items: [
+      'Opening <b>Log a Touch</b> now shows that person\u2019s phone, email and LinkedIn right in the box \u2014 tap to dial or start an email without closing it.',
+      'A contact\u2019s record, and every follow-up card, now lists the <b>other people at that builder</b> with their email addresses on the row.',
+      'If you leave a follow-up overdue more than a day, a red banner appears at the top until you clear it \u2014 Log, Edit date, Snooze or Dismiss.'
+    ]},
   { v: 101, title: 'Follow-ups now lead with the builder', items: [
       'Follow-ups are grouped by <b>builder and city</b> — the division is the account, so it heads the card and the contact sits underneath.',
       'Each card has <b>“other contacts at this builder”</b>. Open it to see everyone else in that division, when they were last contacted, and log a touch without leaving the page.',
@@ -5136,6 +5194,7 @@ function maybeShowWhatsNew() {
 }
 async function startApp() {
   document.getElementById('navLogout').style.display = '';
+  renderOverdueBanner();
   maybeShowFirstRun();
   maybeShowWhatsNew();
   await flushPendingWrites();
