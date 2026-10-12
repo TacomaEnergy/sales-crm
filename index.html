@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v108 · load speed + follow-up fixes)</title>
+<title>Tacoma Energy — Sales CRM (v109 · touch dedupe keeps first row)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -2232,8 +2232,18 @@ async function _readTouchesFromSharePoint() {
     }));
     // Dedupe by contactId+touchId — a retried addTouch that had actually
     // succeeded could duplicate a row; collapse to one.
+    //
+    // FIRST row wins, deliberately. Flow 6 (Edit Touch) updates the FIRST row in
+    // tblTouches matching the Touch ID, so when a touch has a twin, the first
+    // row is the one that carries every edit and the later twin is frozen at
+    // the original values. Keeping the last row shows that stale copy — a
+    // dismissed or snoozed follow-up reappears on the next read, every time.
+    // Do not change this to last-wins.
     const seenT = new Map();
-    for (const t of touches) seenT.set(t.contactId + '|' + t.touchId, t);
+    for (const t of touches) {
+      const k = t.contactId + '|' + t.touchId;
+      if (!seenT.has(k)) seenT.set(k, t);
+    }
     touches = [...seenT.values()];
     // Preserve any locally-logged touches still waiting to sync (in the retry
     // queue), so a refresh never makes a rep's just-logged touch disappear
