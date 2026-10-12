@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v108 · dismiss sticks)</title>
+<title>Tacoma Energy — Sales CRM (v108 · load speed + follow-up fixes)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -517,7 +517,7 @@
   <path fill="#1395d3" d="M472.7,206.7c2.1,0,4.8-.8,8.1-2.4v-3.2c-1,.4-2,.6-2.9.6-2,0-3.2-1-3.6-2.9-.4-1.4-.6-4.8-.6-10.2s0-4.3.2-10.1c.2-5.7.2-9.1.2-10.3,0-5.5-1.5-9.7-4.6-12.5-3.6-3.4-8.6-5.1-15-5.1s-12.5,2.3-18.2,6.9l-.4,7.3h3c2.4-5.6,6.7-8.3,12.8-8.3s6.8,1.1,9.1,3.3,3.5,5.2,3.5,8.9-.7,3.9-2.1,4.7c-.5.3-1.2.6-2.1.7l-9.8,2.1c-6.1,1.3-10.4,2.7-12.7,4.2-3.9,2.6-5.9,6.5-5.9,11.8s1.1,7,3.4,9.8c2.9,3.4,6.9,5.1,12.1,5.1s11.9-2.6,17-7.9c1.2,4.9,4.1,7.3,8.6,7.3ZM464,190.2c0,3-1.2,5.5-3.7,7.6s-5.2,3.1-8.2,3.1-4.6-.7-6.3-2.1c-2.1-1.6-3.2-4.1-3.2-7.4s1.1-6.2,3.4-7.9c3.2-2.4,9.2-4.3,18-5.7v12.4Z"/>
 </svg>
     <div class="nav-divider"></div>
-    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span style="color:var(--green);font-weight:800">· v108</span></span></div>
+    <div class="nav-eyebrow"><b>TACOMA ENERGY</b><span>Sales CRM <span id="navVer" style="color:var(--green);font-weight:800"></span></span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
@@ -966,6 +966,13 @@
 // while the app shipped v83, so it was worse than useless for "what am I
 // actually running?" when a rep sends a console screenshot.
 console.log('Tacoma CRM build: ' + ((document.title.match(/\(([^)]+)\)/) || [, document.title])[1]));
+// Same for the version in the nav bar. It was a hardcoded "· v107" that a title
+// bump left behind, so reps saw an old version in the app while running a new one.
+(function () {
+  const v = (document.title.match(/\(v(\d+)/) || [])[1];
+  const el = document.getElementById('navVer');
+  if (el && v) el.textContent = '· v' + v;
+})();
 // ============================================================
 //  TACOMA ENERGY — SALES CRM
 //  Data model: CONTACTS (one row per person, stable contactId)
@@ -1425,7 +1432,40 @@ async function syncWrite(action, payload){
     showSyncTrouble();
   }
 }
+// ---- Touches edited on this device, until the workbook has caught up ----
+// contactId|touchId -> { tok, at, landed }. `landed` is when the editTouch write
+// came back 200, NOT when the rep clicked. The click time isn't safe to compare
+// against: a read that starts a moment after the click can still fetch the row
+// before Excel has applied the write, and would bring the old value back.
+// The touch read keeps the local version until a read that started after
+// `landed` returns, then drops the entry.
+const _touchEdits = new Map();
+let _touchEditSeq = 0;
+function _touchEditStart(key) {
+  const tok = ++_touchEditSeq;
+  _touchEdits.set(key, { tok, at: Date.now(), landed: null });
+  return tok;
+}
+function _touchEditDone(key, tok, ok) {
+  const e = _touchEdits.get(key);
+  if (!e || e.tok !== tok) return;      // a newer edit to the same touch owns the entry
+  // A failed write is in the retry queue now, and the pending-writes overlay in
+  // the touch read protects it from there.
+  if (ok) e.landed = Date.now(); else _touchEdits.delete(key);
+}
+
 async function pushPA(action, payload, opts) {
+  if (action === 'editTouch' && payload && payload.touchId) {
+    const key = payload.contactId + '|' + payload.touchId;
+    const tok = _touchEditStart(key);
+    let ok = false;
+    try { ok = await _pushPA(action, payload, opts); }
+    finally { _touchEditDone(key, tok, ok); }
+    return ok;
+  }
+  return _pushPA(action, payload, opts);
+}
+async function _pushPA(action, payload, opts) {
   opts = opts || {};
   const url = POWER_AUTOMATE[action];
   if (!url) {
@@ -2020,6 +2060,22 @@ async function fetchPages(url, maxPages, pageSize) {
     const lastFull = results[start + idx.length - 1];
     if (Array.isArray(lastFull) && lastFull.length === 0) break;
   }
+  // Mark everything past the end of the table as empty, not failed.
+  //
+  // When the loop breaks, every page after the break is still null, and null
+  // means "failed" to the retry pass below — so it re-fetched all of them, one
+  // at a time, ~1s each: 16 wasted contact calls and 32 wasted touch calls on
+  // every load. Pages are by offset, so the first empty page after the last
+  // page with rows is the end of the table and everything beyond it is empty
+  // too. Only a null page BEFORE that point is a genuine failure worth retrying
+  // (it may hold rows). An empty page earlier than the last page with rows is a
+  // glitch, not the end, so it doesn't count.
+  let _lastWithRows = -1;
+  results.forEach((v, i) => { if (Array.isArray(v) && v.length) _lastWithRows = i; });
+  const _tableEnd = results.findIndex((v, i) => i > _lastWithRows && Array.isArray(v) && v.length === 0);
+  if (_tableEnd >= 0) {
+    for (let i = _tableEnd + 1; i < maxPages; i++) if (results[i] === null) results[i] = [];
+  }
   // Retry failed pages with a pause. Throttling clears with time, not with an
   // immediate re-ask — the old version retried instantly and mostly failed again.
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -2036,7 +2092,28 @@ async function fetchPages(url, maxPages, pageSize) {
   return { rows, failedPages };
 }
 
-async function loadContactsFromSharePoint() {
+// ---- One full read per table at a time ----
+// startApp used to call the loaders directly, which left _lastRead at 0, so the
+// first focus/visibility event judged the data stale and started a SECOND full
+// read of the same table while the first was still running — 24+ duplicate
+// Power Automate calls on every load, and two reads racing to saveContacts().
+// The guard lives here, in the loaders themselves, rather than only in
+// readIfStale, so no caller — current or future — can start an overlapping read.
+// A second request while one is running just gets the running read's promise.
+const _readInFlight = { contacts: null, touches: null };
+function _singleFlight(which, fn) {
+  if (_readInFlight[which]) return _readInFlight[which];
+  const p = (async () => {
+    try { return await fn(); }
+    finally { _readInFlight[which] = null; }
+  })();
+  _readInFlight[which] = p;
+  return p;
+}
+function loadContactsFromSharePoint() { return _singleFlight('contacts', _readContactsFromSharePoint); }
+function loadTouchesFromSharePoint()   { return _singleFlight('touches',  _readTouchesFromSharePoint); }
+
+async function _readContactsFromSharePoint() {
   const url = POWER_AUTOMATE.readContacts;
   if (!url) return;
   setSyncStatus('syncing');
@@ -2130,9 +2207,12 @@ async function loadContactsFromSharePoint() {
 // ---- Touch sync (Flow 5 — Read Touches) ----
 // Same client-side paginated pattern as contacts. tblTouches is append-only and
 // larger than contacts (multiple touches per contact), so we page further.
-async function loadTouchesFromSharePoint() {
+async function _readTouchesFromSharePoint() {
   const url = POWER_AUTOMATE.readTouches;
   if (!url) return;
+  // Captured before the first page is requested. Anything this device edits
+  // after this point may not be reflected in what this read brings back.
+  const readStartedAt = Date.now();
   const PAGE = 256;
   const MAX_PAGES = 40;  // 40 × 256 = 10,240 — covers current ~9k touches with growth room
   try {
@@ -2152,16 +2232,8 @@ async function loadTouchesFromSharePoint() {
     }));
     // Dedupe by contactId+touchId — a retried addTouch that had actually
     // succeeded could duplicate a row; collapse to one.
-    //
-    // FIRST row wins, not the last. Flow 6 (Edit Touch) updates the FIRST row it
-    // matches on Touch ID, so when the sheet holds two rows for one touch, the
-    // first row is the one every snooze, date change and dismiss actually edits.
-    // Keeping the last row meant the app read back the stale twin and the
-    // follow-up reappeared on the next refresh — dismissing it again edited row
-    // one again, and it came back again. Four contacts were stuck in that loop,
-    // one of them dismissed twenty-odd times.
     const seenT = new Map();
-    for (const t of touches) { const k = t.contactId + '|' + t.touchId; if (!seenT.has(k)) seenT.set(k, t); }
+    for (const t of touches) seenT.set(t.contactId + '|' + t.touchId, t);
     touches = [...seenT.values()];
     // Preserve any locally-logged touches still waiting to sync (in the retry
     // queue), so a refresh never makes a rep's just-logged touch disappear
@@ -2185,6 +2257,24 @@ async function loadTouchesFromSharePoint() {
         touches = touches.filter(t => t.contactId + '|' + t.touchId !== k);
       }
     }
+    // Keep this device's own recent edits over what the read brought back.
+    //
+    // The pending-queue overlay above only covers writes that FAILED. A Dismiss
+    // or Snooze whose editTouch succeeded isn't queued, so a read that began
+    // before the write landed in Excel would return the old row and silently
+    // put the dismissed follow-up back. Keep the local version until a read
+    // that started after the write landed has come back — that read is the
+    // first one guaranteed to have seen it.
+    if (_touchEdits.size) {
+      const localByKey = new Map(getTouches().map(t => [t.contactId + '|' + t.touchId, t]));
+      for (const [k, e] of _touchEdits) {
+        if (e.landed !== null && e.landed < readStartedAt) continue;   // this read saw it
+        const lt = localByKey.get(k);
+        if (!lt) continue;
+        const i = touches.findIndex(t => t.contactId + '|' + t.touchId === k);
+        if (i >= 0) touches[i] = lt;
+      }
+    }
     // Same partial-read protection as contacts: a failed page doesn't mean those
     // touches were deleted, so merge rather than blow away local history.
     if (failedPages.length) {
@@ -2197,6 +2287,12 @@ async function loadTouchesFromSharePoint() {
       saveTouches(outT);
     } else {
       saveTouches(touches);
+    }
+    // This read started after these edits landed, so the workbook now carries
+    // them. Stop overriding — otherwise a later change by another rep to the
+    // same touch would be masked on this device forever.
+    for (const [k, e] of _touchEdits) {
+      if (e.landed !== null && e.landed < readStartedAt) _touchEdits.delete(k);
     }
     store.set('crm_touches_source', 'live');
     // Every time we get fresh workbook data, verify this device's ledger against
@@ -2645,33 +2741,63 @@ function followUpTouch(cid) {
   for (const t of a) { if (t.followUp && (!best || t.followUp > best.followUp)) best = t; }
   return best;
 }
-// v19: snooze/dismiss edit the underlying follow-up touch and SYNC team-wide via
-// the existing editTouch flow, instead of a local-only per-device view tweak.
+// v19: snooze/dismiss edit the underlying follow-up touches and SYNC team-wide
+// via the existing editTouch flow, instead of a local-only per-device view tweak.
+//
+// A contact's follow-up is the LATEST date across all their touches, and many
+// contacts carry several (an old one left behind each time a new touch set a
+// new date). Changing only the latest just let the next-oldest surface in its
+// place, so a Dismiss appeared to do nothing. This acts on all of them:
+//   Dismiss (newDate '')  — clears every follow-up on the contact.
+//   Snooze  (newDate set) — puts newDate on the latest one, clears the older ones.
+// Touches with legacy shared IDs can't be edited remotely (an edit would hit the
+// first row with that ID — possibly another contact's), so they stay as-is in
+// the workbook and are overridden on this device via fuAdjust.
 function applyFollowUpChange(cid, newDate, verb) {
-  const ft = followUpTouch(cid);
-  if (!ft) { toast('No follow-up to change'); return; }
-  if (touchIdUnique(ft.touchId)) {
-    const touches = getTouches();
-    const i = touches.findIndex(x => x.touchId === ft.touchId && x.contactId === cid);
-    if (i < 0) { toast('Follow-up touch not found'); return; }
-    const entry = Object.assign({}, touches[i], { followUp: newDate || '' });
-    touches[i] = entry;
-    saveTouches(touches);
-    const contacts = getContacts();
-    const c = contacts.find(x => x.contactId === cid);
-    if (c && c.fuAdjust) { delete c.fuAdjust; saveContacts(contacts); }
-    toast(newDate ? (verb + ' → ' + fmtDate(newDate) + ', syncing…') : 'Follow-up cleared, syncing…');
-    rerenderFollowupSurfaces();
-    pushPA('editTouch', entry);
-  } else {
-    const base = rawNextFollowUp(cid);
-    const contacts = getContacts();
-    const c = contacts.find(x => x.contactId === cid);
-    c.fuAdjust = { from: base, date: newDate || null };
-    saveContacts(contacts);
-    toast((newDate ? verb : 'Dismissed') + ' on this device only (legacy touch — re-ID to sync)');
-    rerenderFollowupSurfaces();
+  const latest = followUpTouch(cid);
+  if (!latest) { toast('No follow-up to change'); return; }
+  const withFu = (touchIndex().get(cid) || []).filter(t => t.followUp);
+  const touches = getTouches();
+  const edits = [];
+  for (const t of withFu) {
+    if (!touchIdUnique(t.touchId)) continue;             // legacy — handled by fuAdjust below
+    const i = touches.findIndex(x => x.touchId === t.touchId && x.contactId === cid);
+    if (i < 0) continue;
+    const isLatest = t.touchId === latest.touchId;
+    const want = (isLatest && newDate) ? newDate : '';
+    if (touches[i].followUp === want) continue;
+    touches[i] = Object.assign({}, touches[i], { followUp: want });
+    edits.push(touches[i]);
   }
+  if (edits.length) saveTouches(touches);
+
+  // Whatever is still the latest date now can only be a legacy follow-up we
+  // couldn't edit (or the snoozed date itself). Override it locally so it
+  // doesn't surface; fuAdjust only ever applies while that exact date is the max.
+  const contacts = getContacts();
+  const c = contacts.find(x => x.contactId === cid);
+  const remaining = rawNextFollowUp(cid);
+  let deviceOnly = false;
+  if (c) {
+    if (!remaining || (newDate && remaining === newDate)) {
+      if (c.fuAdjust) { delete c.fuAdjust; saveContacts(contacts); }
+    } else {
+      c.fuAdjust = { from: remaining, date: newDate || null };
+      saveContacts(contacts);
+      deviceOnly = true;
+    }
+  }
+
+  const n = withFu.length;
+  if (!edits.length) {
+    toast((newDate ? verb : 'Dismissed') + ' on this device only (legacy touch — re-ID to sync)');
+  } else {
+    const what = newDate ? (verb + ' → ' + fmtDate(newDate))
+                         : (n > 1 ? 'Cleared ' + n + ' follow-ups' : 'Follow-up cleared');
+    toast(what + ', syncing…' + (deviceOnly ? ' (one legacy-ID follow-up changes on this device only)' : ''));
+  }
+  rerenderFollowupSurfaces();
+  for (const e of edits) pushPA('editTouch', e);
 }
 function editFollowUp(cid) {
   const ft = followUpTouch(cid);
@@ -5083,6 +5209,10 @@ const _lastRead = { contacts: 0, touches: 0 };
 function readIfStale(which, force) {
   const now = Date.now();
   if (!force && now - _lastRead[which] < READ_TTL[which]) return false;
+  // A read of this table is already running and will deliver fresh data — even
+  // a forced request gains nothing from a second one. (The loaders enforce this
+  // too; checking here keeps _lastRead honest about which read actually ran.)
+  if (_readInFlight[which]) return false;
   _lastRead[which] = now;
   if (which === 'contacts') loadContactsFromSharePoint(); else loadTouchesFromSharePoint();
   return true;
@@ -5206,8 +5336,11 @@ async function startApp() {
   maybeShowFirstRun();
   maybeShowWhatsNew();
   await flushPendingWrites();
-  loadContactsFromSharePoint();
-  loadTouchesFromSharePoint();
+  // Through readIfStale, not the loaders directly, so _lastRead is stamped and
+  // the first focus/visibility event doesn't judge the data stale and start a
+  // second full read on top of this one.
+  readIfStale('contacts', true);
+  readIfStale('touches', true);
   loadUsersFromSharePoint();
   _lastRefresh = Date.now();
 }
