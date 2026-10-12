@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v109 · touch dedupe keeps first row)</title>
+<title>Tacoma Energy — Sales CRM (v110 · dedupe-guard add flow + cross-tab flush lock)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -983,7 +983,7 @@ console.log('Tacoma CRM build: ' + ((document.title.match(/\(([^)]+)\)/) || [, d
 
 const POWER_AUTOMATE = {
   readContacts: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e9241447475d4deaa504d8d4bdf89ea5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VFLdkxCkdC3_5k9eDSyajDpxtw9y9YzPTDYtGjrOTlA',  // Flow 1 — reads tblContacts (POST, skip from body, 256/page, returns Hot). Verified working.
-  addTouch:    'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/780e39d608c54f55bccb3f94e228ffe4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2lKXv41gVbHKyUZcDZMU4MrND-J6H_YzNZhHA0in9Cc',   // appends to SalesTouches
+  addTouch:    'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/29/workflows/9258d1c33e474816a34db5ad78a3c887/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=sUWIV91zxkL8mA8I3xbY7aKvfv-B3_OKFFmUG5oTF3A',   // Flow 2b — appends to tblTouches, but skips a Touch ID already there and returns 200 "duplicate - touch already in workbook, not added again". pushPA judges by status only, so that counts as saved — correct, the touch IS in the workbook.
   addContact:  'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c9786ec2549d444cb1400deda840418d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=4EKyJtoxIy2rkKX9Nhf58latShrXHhD364FwqauDx74',   // appends to tblContacts
   editContact: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c4441cd721c34995aeb6fe5d0cb50fc5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pYlDA42Wc6CKKM-YS9Qpetc5k45XQbqCT73cW1C3Z6A',  // Flow 4 — updates tblContacts by contactId (maps all 12 columns; must send full record)
   readTouches: 'https://defaultc615167624d04d2fb49004a6e772e0.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/214a673ba2d2405ab64d3dc6cd38d04b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=STXVdvlW1smv0JiR-FnXNjywxD1add6BlNkW3cJdXGg',    // Flow 5 — reads tblTouches (POST, skip from body, 256/page)
@@ -1497,14 +1497,74 @@ async function _pushPA(action, payload, opts) {
 // Retry everything queued from earlier failed writes.
 // Runs on load, on the background poll, when the tab regains focus, when the
 // browser comes back online, and when the rep taps the sync badge.
-// _flushing guards against two passes overlapping and sending a write twice.
+//
+// Two guards against sending a write twice:
+//  - _flushing stops two passes overlapping within THIS tab.
+//  - A cross-tab lock stops two TABS flushing at once. The queue lives in
+//    localStorage, shared by every open tab, so two tabs could each read the
+//    same queued addTouch and send it at the same instant — that is how
+//    adjacent duplicate rows got into tblTouches. If another tab holds the
+//    lock, this pass is skipped; that tab is already sending everything.
+// The queue is read only AFTER the lock is taken. Reading it first and then
+// waiting for the lock would still let both tabs send what they'd read.
 let _flushing = false;
+const _TAB_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+const FLUSH_LEASE_KEY = 'crm_flush_lease';
+const FLUSH_LEASE_MS = 30000;
+
+// Fallback for browsers without navigator.locks: a lease in localStorage, with a
+// 30s expiry so a tab that closes mid-flush can't block the others for long.
+//
+// localStorage has no atomic compare-and-set, and a write reaches OTHER tabs
+// asynchronously — re-reading straight after your own write only ever sees your
+// own write, so two tabs claiming within a few ms would both "win" (a test
+// caught exactly that). So: claim, wait for any competing claim to land, then
+// re-read. Both tabs then agree on whoever wrote last, and only that tab flushes.
+// That's a strong approximation, not a guarantee; Web Locks, above, is the real
+// thing and is what every current browser uses.
+const FLUSH_LEASE_SETTLE_MS = 120;
+async function _takeFlushLease() {
+  try {
+    const read = () => JSON.parse(localStorage.getItem(FLUSH_LEASE_KEY) || 'null');
+    const cur = read();
+    if (cur && cur.owner !== _TAB_ID && cur.until > Date.now()) return false;
+    localStorage.setItem(FLUSH_LEASE_KEY, JSON.stringify({ owner: _TAB_ID, until: Date.now() + FLUSH_LEASE_MS }));
+    await new Promise(r => setTimeout(r, FLUSH_LEASE_SETTLE_MS));
+    const mine = read();
+    return !!(mine && mine.owner === _TAB_ID);
+  } catch (e) { return true; }   // no usable localStorage: no other tab can see the queue either
+}
+function _renewFlushLease() {
+  try { localStorage.setItem(FLUSH_LEASE_KEY, JSON.stringify({ owner: _TAB_ID, until: Date.now() + FLUSH_LEASE_MS })); } catch (e) {}
+}
+function _releaseFlushLease() {
+  try {
+    const cur = JSON.parse(localStorage.getItem(FLUSH_LEASE_KEY) || 'null');
+    if (cur && cur.owner === _TAB_ID) localStorage.removeItem(FLUSH_LEASE_KEY);
+  } catch (e) {}
+}
+
 async function flushPendingWrites() {
   if (_flushing) return;
-  let q = getPending();
-  if (!q.length) return;
+  if (!getPending().length) return;       // cheap early out; re-read under the lock
   _flushing = true;
   try {
+    if (typeof navigator !== 'undefined' && navigator.locks && navigator.locks.request) {
+      await navigator.locks.request('crm-flush', { ifAvailable: true }, async lock => {
+        if (!lock) return;                // another tab is flushing — skip this pass
+        await _flushUnderLock(null);
+      });
+    } else {
+      if (!(await _takeFlushLease())) return;
+      try { await _flushUnderLock(_renewFlushLease); }
+      finally { _releaseFlushLease(); }
+    }
+  } finally { _flushing = false; }
+}
+
+async function _flushUnderLock(renewLease) {
+  let q = getPending();
+  if (!q.length) return;
   // Safety: edit/delete-touch writes queued under v16 may reference legacy
   // duplicate Touch IDs. Flushing those would hit the FIRST matching row in
   // the sheet — possibly a different contact's touch. Drop them here.
@@ -1515,22 +1575,32 @@ async function flushPendingWrites() {
     console.warn('Dropped ' + unsafe.length + ' queued touch write(s) with non-unique legacy Touch IDs (unsafe to sync):', unsafe);
   }
   if (!q.length) { updateSyncBadge(); return; }
-  const still = [];
+  // Identity of a queued write. Entries are re-parsed from localStorage on every
+  // read, so object identity can't be used; action+ts+payload is stable.
+  const qid = w => JSON.stringify([w.action, w.ts, w.payload]);
+  const sent = new Set();
+  const failed = new Map();
   for (const w of q) {
+    if (renewLease) renewLease();          // keep a long flush from looking abandoned
     const ok = await pushPA(w.action, w.payload, { noQueue:true });
-    if (!ok) {
-      // Count failures so a write that can never succeed (e.g. its row was
-      // deleted straight out of the workbook) stops masquerading as "retrying"
-      // and can be surfaced to the user as needing a decision.
-      w.attempts = (w.attempts || 0) + 1;
-      w.lastError = Date.now();
-      still.push(w);
-    }
+    if (ok) { sent.add(qid(w)); continue; }
+    // Count failures so a write that can never succeed (e.g. its row was
+    // deleted straight out of the workbook) stops masquerading as "retrying"
+    // and can be surfaced to the user as needing a decision.
+    w.attempts = (w.attempts || 0) + 1;
+    w.lastError = Date.now();
+    failed.set(qid(w), w);
   }
-  setPending(still);
-  if (still.length) updateSyncBadge(); else showSyncResting();
-  if (q.length && !still.length) toast('\u2713 Synced ' + q.length + ' pending change' + (q.length>1?'s':''));
-  } finally { _flushing = false; }
+  // Remove only what this pass sent, from the queue AS IT IS NOW. This used to
+  // write back just this pass's leftovers, erasing anything queued while it was
+  // awaiting the network \u2014 a rep's touch that failed to save in this tab, or a
+  // write queued by another tab while this one held the lock.
+  const next = getPending()
+    .filter(w => !sent.has(qid(w)))
+    .map(w => failed.get(qid(w)) || w);
+  setPending(next);
+  if (next.length) updateSyncBadge(); else showSyncResting();
+  if (sent.size && !failed.size) toast('\u2713 Synced ' + sent.size + ' pending change' + (sent.size>1?'s':''));
 }
 
 // ============================================================
