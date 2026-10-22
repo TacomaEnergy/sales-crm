@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v110 · dedupe-guard add flow + cross-tab flush lock)</title>
+<title>Tacoma Energy — Sales CRM (v111 · contact edits stick)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -2222,9 +2222,20 @@ async function _readContactsFromSharePoint() {
       };
     });
     // Dedupe by contactId — a retried add that had actually succeeded could
-    // create a duplicate row in the sheet; collapse to one (last wins).
+    // create a duplicate row in the sheet; collapse to one.
+    //
+    // FIRST row wins, deliberately — same reasoning as the touches dedupe below.
+    // Flow 4 (Edit Contact) updates the FIRST row in tblContacts matching the
+    // contactId, so when a contact has a twin, the first row carries every edit
+    // and the later twin is frozen at the values it was created with. Keeping
+    // the last row showed that stale copy, so an edit saved correctly and then
+    // appeared to revert on the next read — deactivate a duplicate contact and
+    // it comes back active, fix a title and it reverts, every time.
+    // Do not change this to last-wins.
     const seenC = new Map();
-    for (const c of contacts) seenC.set(c.contactId, c);
+    for (const c of contacts) {
+      if (!seenC.has(c.contactId)) seenC.set(c.contactId, c);
+    }
     const deduped = [...seenC.values()];
     // Keep local contacts the workbook hasn't caught up on yet. Without this, a
     // refresh landing between "contact created" and "row readable in Excel"
