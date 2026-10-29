@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v112 · snooze from today, report prints clean, new touches stick)</title>
+<title>Tacoma Energy — Sales CRM (v113 · city & state required on contacts)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -268,6 +268,8 @@
   input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue-2); box-shadow: 0 0 0 3px rgba(19,149,211,.15); }
   textarea { min-height: 84px; resize: vertical; }
   label.fld { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
+  label.fld .req { color: var(--red); margin-left: 2px; }
+  input.fld-missing, select.fld-missing { border-color: var(--red); background: var(--red-light); box-shadow: 0 0 0 3px rgba(216,68,58,.15); }
 
   /* ---- Table ---- */
   table { width: 100%; border-collapse: collapse; }
@@ -931,12 +933,12 @@
     <div class="modal-body">
       <div class="dup-warn" id="cmDupWarn"></div>
       <div class="frow">
-        <div><label class="fld">First Name</label><input type="text" id="cmFirst" oninput="checkDup();maybeGuessEmail()" /></div>
-        <div><label class="fld">Last Name</label><input type="text" id="cmLast" oninput="checkDup();maybeGuessEmail()" /></div>
+        <div><label class="fld" for="cmFirst">First Name<span class="req" aria-hidden="true">*</span></label><input type="text" id="cmFirst" aria-required="true" oninput="checkDup();maybeGuessEmail()" /></div>
+        <div><label class="fld" for="cmLast">Last Name<span class="req" aria-hidden="true">*</span></label><input type="text" id="cmLast" aria-required="true" oninput="checkDup();maybeGuessEmail()" /></div>
       </div>
       <div>
-        <label class="fld">Company / Builder</label>
-        <input type="text" id="cmCompany" list="cmCompanyList" oninput="checkDup();maybeGuessEmail()" placeholder="Search or type a new builder" />
+        <label class="fld" for="cmCompany">Company / Builder<span class="req" aria-hidden="true">*</span></label>
+        <input type="text" id="cmCompany" aria-required="true" list="cmCompanyList" oninput="checkDup();maybeGuessEmail()" placeholder="Search or type a new builder" />
         <datalist id="cmCompanyList"></datalist>
         <div class="new-hint" id="cmNewHint">✓ New builder — will be added to the directory</div>
         <div id="cmCompanyHint" style="display:none;font-size:12px;margin-top:5px;background:var(--amber-light,#fdf6e7);border:1px solid #f0d28a;color:#7a5200;border-radius:7px;padding:8px 10px;line-height:1.5"></div>
@@ -949,8 +951,8 @@
       </div>
       <div><label class="fld">LinkedIn URL <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="url" id="cmLinkedin" placeholder="https://www.linkedin.com/in/..." /></div>
       <div class="frow">
-        <div><label class="fld">State</label><select id="cmState" onchange="onModalStateChange()"></select></div>
-        <div><label class="fld">City</label><select id="cmCity"></select></div>
+        <div><label class="fld" for="cmState">State<span class="req" aria-hidden="true">*</span></label><select id="cmState" aria-required="true" onchange="onModalStateChange()"></select></div>
+        <div><label class="fld" for="cmCity">City<span class="req" aria-hidden="true">*</span></label><select id="cmCity" aria-required="true"></select></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -3957,8 +3959,10 @@ function toggleBuilder(key) {
 function addContactToBuilder(company, city, st) {
   openContactModal();
   document.getElementById('cmCompany').value = company;
+  _keepOption('cmState', st);
   document.getElementById('cmState').value = st;
   rebuildModalCityList();
+  _keepOption('cmCity', city);
   document.getElementById('cmCity').value = city;
   checkDup();
 }
@@ -4657,9 +4661,12 @@ function openContactModal(cid) {
   document.getElementById('cmEmail').value = c?.email || '';
   document.getElementById('cmPhone').value = formatPhone(c?.phone) || '';
   document.getElementById('cmLinkedin').value = c?.linkedin || '';
+  _keepOption('cmState', c?.state);
   document.getElementById('cmState').value = c?.state || '';
   rebuildModalCityList();
+  _keepOption('cmCity', c?.city);
   document.getElementById('cmCity').value = c?.city || '';
+  markMissingContactFields([]);   // no red left over from the last contact
 
   // Evaluate once on open so a record already holding a wrong-domain address
   // surfaces the offer without the rep having to touch anything.
@@ -4677,6 +4684,46 @@ function rebuildModalCityList() {
     : '<option value="">— Select a state first —</option>';
 }
 function onModalStateChange() { document.getElementById('cmCity').value = ''; rebuildModalCityList(); }
+// City and State are dropdowns built from LOCATIONS, so a contact stored with a
+// city (or state) that isn't on that list opened with the box blank — and saving
+// any unrelated edit wiped it. Now that both are required it would refuse the
+// save instead. Add the stored value as an option so it survives untouched.
+function _keepOption(id, val) {
+  const sel = document.getElementById(id);
+  if (!val || [...sel.options].some(o => o.value === val)) return;
+  const o = document.createElement('option');
+  o.value = o.textContent = val;
+  sel.appendChild(o);
+}
+
+// The five fields every contact must have, in the order the toast names them.
+const CONTACT_REQUIRED = [
+  ['cmFirst', 'First name'], ['cmLast', 'Last name'], ['cmCompany', 'Company'],
+  ['cmCity', 'City'], ['cmState', 'State'],
+];
+// Labels of the required fields that are blank once trimmed ("  " is blank).
+function missingContactFields() {
+  return CONTACT_REQUIRED
+    .filter(([id]) => !String(document.getElementById(id).value || '').trim())
+    .map(([, label]) => label);
+}
+// Outline exactly the fields named in `missing`; clear the rest.
+function markMissingContactFields(missing) {
+  CONTACT_REQUIRED.forEach(([id, label]) => {
+    const el = document.getElementById(id);
+    const bad = missing.includes(label);
+    el.classList.toggle('fld-missing', bad);
+    if (bad) el.setAttribute('aria-invalid', 'true'); else el.removeAttribute('aria-invalid');
+  });
+}
+// Filling a highlighted field clears its red straight away, not on the next Save.
+CONTACT_REQUIRED.forEach(([id]) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const clear = () => { if (el.value.trim()) { el.classList.remove('fld-missing'); el.removeAttribute('aria-invalid'); } };
+  el.addEventListener('input', clear);
+  el.addEventListener('change', clear);
+});
 
 function checkDup() {
   const first = document.getElementById('cmFirst').value.trim().toLowerCase();
@@ -4917,13 +4964,23 @@ function capName(s) {
   return _capWord(n.toLowerCase());
 }
 async function saveContact() {
+  // Required: First, Last, Company, City, State — for adds and edits alike.
+  // Checked before anything else (including the double-click guard below) so a
+  // blocked save writes nothing, queues nothing and leaves the button usable.
+  const missing = missingContactFields();
+  markMissingContactFields(missing);
+  if (missing.length) {
+    toast('Missing: ' + missing.join(', '));
+    const firstBad = CONTACT_REQUIRED.find(([, label]) => missing.includes(label));
+    document.getElementById(firstBad[0]).focus();
+    return;
+  }
   { var _b=document.getElementById('cmSaveBtn'); if(_b){ if(_b.disabled) return; _b.disabled=true; _b.textContent='Saving\u2026'; setTimeout(function(){ _b.disabled=false; _b.textContent='Save Contact'; }, 1500); } }
   const first = capName(document.getElementById('cmFirst').value);
   const last = capName(document.getElementById('cmLast').value);
   // Snap to the spelling already in the directory so "lennar" / "Lennar Homes"
   // don't split one builder into several cards and report rows.
   const company = canonCompany(document.getElementById('cmCompany').value);
-  if (!first || !last || !company) { toast('Name and company are required'); return; }
 
   const contacts = getContacts();
   const payload = {
