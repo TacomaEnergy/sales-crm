@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v111 · contact edits stick)</title>
+<title>Tacoma Energy — Sales CRM (v112 · snooze from today, report prints clean, new touches stick)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -476,7 +476,10 @@
     .bd-sub .bd-row { margin: 2px 0; }
   @media print {
     @page { margin: 13mm; size: letter; }
-    .nav, .login-gate, #view-report .page-head { display:none !important; }
+    /* #overdueBanner sits outside every .view, so the rule below never hid it:
+       a rep's "⚠ N follow-ups overdue" warning printed across the top of the
+       weekly report and pushed the team page toward a second sheet. */
+    .nav, .login-gate, #view-report .page-head, #overdueBanner { display:none !important; }
     .view:not(.active) { display:none !important; }
     body { background:#fff !important; }
     #reportBody, #reportBody * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
@@ -1432,18 +1435,20 @@ async function syncWrite(action, payload){
     showSyncTrouble();
   }
 }
-// ---- Touches edited on this device, until the workbook has caught up ----
-// contactId|touchId -> { tok, at, landed }. `landed` is when the editTouch write
+// ---- Touches edited or added on this device, until the workbook has caught up ----
+// contactId|touchId -> { tok, action, at, landed }. `landed` is when the write
 // came back 200, NOT when the rep clicked. The click time isn't safe to compare
 // against: a read that starts a moment after the click can still fetch the row
-// before Excel has applied the write, and would bring the old value back.
+// before Excel has applied the write, and would bring the old value back — or,
+// for a brand-new touch, return a table that doesn't have it yet and make the
+// touch vanish (and trip the "Not in the workbook" alarm).
 // The touch read keeps the local version until a read that started after
 // `landed` returns, then drops the entry.
 const _touchEdits = new Map();
 let _touchEditSeq = 0;
-function _touchEditStart(key) {
+function _touchEditStart(key, action) {
   const tok = ++_touchEditSeq;
-  _touchEdits.set(key, { tok, at: Date.now(), landed: null });
+  _touchEdits.set(key, { tok, action, at: Date.now(), landed: null });
   return tok;
 }
 function _touchEditDone(key, tok, ok) {
@@ -1455,9 +1460,9 @@ function _touchEditDone(key, tok, ok) {
 }
 
 async function pushPA(action, payload, opts) {
-  if (action === 'editTouch' && payload && payload.touchId) {
+  if ((action === 'editTouch' || action === 'addTouch') && payload && payload.touchId) {
     const key = payload.contactId + '|' + payload.touchId;
-    const tok = _touchEditStart(key);
+    const tok = _touchEditStart(key, action);
     let ok = false;
     try { ok = await _pushPA(action, payload, opts); }
     finally { _touchEditDone(key, tok, ok); }
@@ -2356,6 +2361,11 @@ async function _readTouchesFromSharePoint() {
     // put the dismissed follow-up back. Keep the local version until a read
     // that started after the write landed has come back — that read is the
     // first one guaranteed to have seen it.
+    // A just-logged touch is the same race with a worse symptom: the read comes
+    // back without it, the touch vanishes from screen, and the reconcile check
+    // reports it "Not in the workbook". So a recent ADD that the read lacks is
+    // put back. (Only adds — an edited touch missing from the read is a
+    // different situation, left to the partial-read merge below.)
     if (_touchEdits.size) {
       const localByKey = new Map(getTouches().map(t => [t.contactId + '|' + t.touchId, t]));
       for (const [k, e] of _touchEdits) {
@@ -2364,6 +2374,7 @@ async function _readTouchesFromSharePoint() {
         if (!lt) continue;
         const i = touches.findIndex(t => t.contactId + '|' + t.touchId === k);
         if (i >= 0) touches[i] = lt;
+        else if (e.action === 'addTouch') touches.push(lt);
       }
     }
     // Same partial-read protection as contacts: a failed page doesn't mean those
@@ -2901,7 +2912,13 @@ function snoozeFollowUp(cid) {
   const ft = followUpTouch(cid);
   if (!ft) { toast('No follow-up to snooze'); return; }
   const cur = nextFollowUp(cid) || ft.followUp;
-  applyFollowUpChange(cid, addDays(cur, 7), 'Snoozed 1 week');
+  // A week from TODAY when it's already overdue, a week from the due date when
+  // it isn't. Counting from an old due date left anything more than a week
+  // overdue still overdue after "Snooze 1wk" — 12 days late became 5 days late,
+  // and the banner kept asking for it.
+  const today = todayISO();
+  const base = cur && cur > today ? cur : today;
+  applyFollowUpChange(cid, addDays(base, 7), 'Snoozed 1 week');
 }
 function dismissFollowUp(cid) {
   applyFollowUpChange(cid, '', 'Dismissed');
