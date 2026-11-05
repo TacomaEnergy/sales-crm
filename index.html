@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v115 · title typos corrected on save)</title>
+<title>Tacoma Energy — Sales CRM (v117 · fewer false "sounds like a win" prompts)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -916,6 +916,11 @@
       <div><label class="fld">Next Follow-Up Date <span style="font-weight:400;color:var(--muted)">(auto-set: 6 weeks, or 1 year if Not interested — change or clear as needed)</span></label><input type="date" id="tmFollowup" /></div>
       <div><label class="fld">Notes</label><textarea id="tmNotes" placeholder="Response, follow-up details, pricing questions, etc."></textarea>
         <div id="tmNoteChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px"></div>
+      </div>
+      <div id="tmWinPrompt" role="alert" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;background:#effaf3;border:1px solid #9fd9b8;border-left:4px solid #06a951;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;color:#06753a">
+        <span style="flex:1 1 auto">🏆 Sounds like a win — log as Became customer?</span>
+        <button class="btn green sm" id="tmWinYes" onclick="answerWinPrompt(true)">Yes</button>
+        <button class="btn ghost sm" id="tmWinKeep" onclick="answerWinPrompt(false)">Keep as is</button>
       </div>
     </div>
     <div class="modal-foot">
@@ -2427,6 +2432,25 @@ async function _readTouchesFromSharePoint() {
 let state = { view:'dashboard', selectedContact:null, actingRep:'', openBuilders:new Set(), dashRange:30, dashRep:'', dashBreakdown:'builder' };
 
 function _mtdCutoff(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'; }
+// New customers: the builder divisions (company + city + state) with at least
+// one "Became customer" touch among `touches`. Two contacts at the same division,
+// or the same win logged twice, are ONE customer; the same builder in two cities
+// is two. Callers pass touches already cut to the window and, for a rep, already
+// cut to that rep — so the win is credited to whoever logged it. Latest first.
+function _winDivisions(touches, byId){
+  if (!byId) { byId = {}; getContacts().forEach(function(c){ byId[c.contactId] = c; }); }
+  var m = {};
+  touches.forEach(function(t){
+    if (t.result !== WIN_RESULT) return;
+    var c = byId[t.contactId]; if (!c || !c.company) return;
+    var k = c.company + '|' + (c.city || '') + '|' + (c.state || '');
+    if (!m[k] || (t.date || '') > m[k].date) m[k] = { company: c.company, city: c.city || '', state: c.state || '', date: t.date || '' };
+  });
+  return Object.keys(m).map(function(k){ return m[k]; })
+    .sort(function(a, b){ return b.date.localeCompare(a.date) || a.company.localeCompare(b.company); });
+}
+// "Elevate Capital (Columbus, OH)" — escaped, ready for the report HTML.
+function _winLabel(d){ var loc = [d.city, d.state].filter(Boolean).join(', '); return esc(d.company) + (loc ? ' (' + esc(loc) + ')' : ''); }
 function _repStats(touches, cutoff, allTouchesForNewCalc){
   var w = cutoff ? touches.filter(function(t){return t.date>=cutoff;}) : touches;
   // uniq  = distinct people touched at all (any result). Reach-outs divided by
@@ -2461,7 +2485,8 @@ function _repStats(touches, cutoff, allTouchesForNewCalc){
     fresh:   fresh,
     perContact: uniqSet.size ? Math.round((w.length / uniqSet.size) * 10) / 10 : 0,
     meet:    w.filter(function(t){return t.method==='In Person';}).length,
-    price:   w.filter(function(t){return t.result==='Pricing sent';}).length
+    price:   w.filter(function(t){return t.result==='Pricing sent';}).length,
+    wins:    _winDivisions(w, byId).length
   };
 }
 function _overdueFor(rep){ var today=todayISO(), n=0; getContacts().forEach(function(c){ if(!c.active) return; var fu=nextFollowUp(c.contactId); if(fu && fu<today){ var lt=lastTouch(c.contactId); var owner=lt?lt.rep:'Unassigned'; if(rep===null || owner===rep) n++; } }); return n; }
@@ -2470,6 +2495,12 @@ function _deltaBadge(now, prev){ var d=now-prev; if(d>0) return `<span style='co
 function _hotFor(rep){ var today=todayISO(); return getContacts().filter(function(c){ if(!c.active||!c.hot) return false; if(rep===null) return true; var lt=lastTouch(c.contactId); return (lt?lt.rep:'Unassigned')===rep; }).length; }
 function _detailList(rep, kind){
   var cut=cutoffFor(30); var byId={}; getContacts().forEach(function(c){byId[c.contactId]=c;});
+  if(kind==='wins'){
+    // One line per builder division, nothing else on it.
+    var wd=_winDivisions(getTouches().filter(function(t){ return t.rep===rep && t.date>=cut; }), byId);
+    if(!wd.length) return `<div style='color:#a9b7c6;font-size:12px;margin:1px 0 4px 16px'>none in last 30 days</div>`;
+    return `<ul style='font-size:11.5px;line-height:1.32;margin:1px 0 3px 14px;padding-left:14px'>${wd.map(function(d){ return `<li style='margin:0 0 1px'>${_winLabel(d)}</li>`; }).join('')}</ul>`;
+  }
   var rows=getTouches().filter(function(t){ return t.rep===rep && t.date>=cut && (kind==='price'?t.result==='Pricing sent':t.method==='In Person'); }).sort(function(a,b){return b.date.localeCompare(a.date);});
   if(!rows.length) return `<div style='color:#a9b7c6;font-size:12px;margin:1px 0 4px 16px'>none in last 30 days</div>`;
   // Capped at 3 and each entry clamped to a single line. With every rep active
@@ -2514,7 +2545,7 @@ function _tbl(cols, rows){
   var th='padding:6px 12px;background:#0e2f4a;color:#ffffff;font-size:10px;letter-spacing:.6px;text-transform:uppercase;text-align:center;font-weight:700';
   var thL=th+';text-align:left';
   var head='<tr>'+cols.map(function(c,i){return `<th style='${i===0?thL:th}'>${c}</th>`;}).join('')+'</tr>';
-  var b=rows.map(function(r,ri){ var bg=ri%2?'#f4f8fb':'#ffffff'; return '<tr>'+r.map(function(cell,ci){ var st='padding:4px 12px;border-bottom:1px solid #eaf1f7;font-size:13px;background:'+bg+(ci===0?';text-align:left;font-weight:600;color:#12263a':';text-align:center;color:#2c3e50;font-variant-numeric:tabular-nums'); return `<td style='${st}'>${cell}</td>`; }).join('')+'</tr>'; }).join('');
+  var b=rows.map(function(r,ri){ var bg=ri%2?'#f4f8fb':'#ffffff'; return '<tr>'+r.map(function(cell,ci){ var st='padding:3px 12px;border-bottom:1px solid #eaf1f7;font-size:13px;background:'+bg+(ci===0?';text-align:left;font-weight:600;color:#12263a':';text-align:center;color:#2c3e50;font-variant-numeric:tabular-nums'); return `<td style='${st}'>${cell}</td>`; }).join('')+'</tr>'; }).join('');
   return `<table style='border-collapse:collapse;font-family:Arial,sans-serif;width:100%;margin:2px 0 5px;border:1px solid #dbe6f0;border-radius:7px;overflow:hidden'>${head}${b}</table>`;
 }
 // ---- Week-over-week trend ----------------------------------------------
@@ -2537,7 +2568,7 @@ function _trendChart(touches, weeks, accent) {
   weeks = weeks || 8;
   const b = _weeklyBuckets(touches, weeks);
   const max = Math.max(1, ...b.map(x => x.n));
-  const H = 96;
+  const H = 72;   // was 96; trimmed to make room for the New customers row on the one-page team overview
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const avg = Math.round(b.reduce((a,x) => a + x.n, 0) / weeks);
   const cells = b.map((x, i) => {
@@ -2550,7 +2581,7 @@ function _trendChart(touches, weeks, accent) {
       <div style="font-size:9.5px;color:#8a99a9;margin-top:4px;white-space:nowrap">${MON[x.start.getMonth()]} ${x.start.getDate()}</div>
     </td>`;
   }).join('');
-  return `<div style="border:1px solid #dbe6f0;border-radius:10px;padding:12px 14px 10px;background:#fff">
+  return `<div style="border:1px solid #dbe6f0;border-radius:10px;padding:8px 14px 7px;background:#fff">
     <table width="100%" style="border-collapse:collapse;margin-bottom:6px"><tr>
       <td style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#687d92">Reach-outs by week <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#8a99a9">(last ${weeks} weeks)</span></td>
       <td align="right" style="font-size:11px;color:#8a99a9">${weeks}-week average <b style="color:#12263a;font-size:13px">${avg}</b>/wk</td>
@@ -2568,17 +2599,22 @@ function _kpiCards(touches, opts){
     {label:'Builders hit', key:'divisions', ico:'\ud83c\udfd8\ufe0f'},
     {label:'First-time contacts', key:'fresh', ico:'\u2728'},
     {label:'Pricing sent', key:'price', ico:'\ud83d\udcb2'},
-    {label:'Meetings', key:'meet', ico:'\ud83e\udd1d'}
+    {label:'Meetings', key:'meet', ico:'\ud83e\udd1d'},
+    // The outcome, not an activity: year-to-date, and styled apart from the five
+    // weekly cards so "this year" isn't read as "this week".
+    {label:'New customers', key:'wins', ico:'\ud83c\udfc6', outcome:true}
   ];
   // Cards give this week at a glance; the table below carries 30d and YTD.
   // Repeating all three windows in both places was the duplication that made
   // the page feel like it was saying the same thing twice.
   var cells=defs.map(function(d){
-    return `<td valign='top' style='width:20%;padding:0 4px'>
-      <div style='border:1px solid #dbe6f0;border-top:3px solid ${opts.accent||'#1395d3'};border-radius:8px;padding:7px 9px 8px;background:#fff'>
-        <div style='font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#687d92;line-height:1.25;min-height:23px'>${d.label}</div>
-        <div style='font-size:26px;font-weight:800;color:#0e2f4a;line-height:1.0;margin:3px 0 1px'>${s7[d.key]}</div>
-        <div style='font-size:10.5px;color:#8a99a9'>this week</div>
+    var top = d.outcome ? '#06a951' : (opts.accent||'#1395d3');
+    var box = d.outcome ? 'border:1px solid #9fd9b8;background:#effaf3' : 'border:1px solid #dbe6f0;background:#fff';
+    return `<td valign='top' style='width:16.66%;padding:0 4px'>
+      <div ${d.outcome?"data-kpi='wins' ":''}style='${box};border-top:3px solid ${top};border-radius:8px;padding:7px 9px 8px'>
+        <div style='font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:${d.outcome?'#06753a':'#687d92'};line-height:1.25;min-height:23px'>${d.label}</div>
+        <div style='font-size:26px;font-weight:800;color:${d.outcome?'#06753a':'#0e2f4a'};line-height:1.0;margin:3px 0 1px'>${d.outcome ? sytd[d.key] : s7[d.key]}</div>
+        <div style='font-size:10.5px;color:#8a99a9'>${d.outcome ? 'this year' : 'this week'}</div>
       </div></td>`;
   }).join('');
   return `<table width='100%' style='border-collapse:separate;border-spacing:0;margin:6px -5px 4px;table-layout:fixed'><tr>${cells}</tr></table>`;
@@ -2605,14 +2641,14 @@ function buildReportHTML(){
     var perDay=function(){ return ['Reach-outs per workday'].concat(wins.map(function(cut){
       var n=_repStats(touches,cut).reach, d=_bizDays(cut);
       return d ? (Math.round(n/d*10)/10).toFixed(1) : '0.0';
-    })); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Builders hit','divisions'),mk('First-time contacts','fresh'),mk('Pricing sent','price'),mk('Meetings','meet'),perDay()]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
+    })); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Builders hit','divisions'),mk('First-time contacts','fresh'),mk('Pricing sent','price'),mk('New customers','wins'),mk('Meetings','meet'),perDay()]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
   var html=`<div style="font-family:Arial,Helvetica,sans-serif;color:#12263a;max-width:720px">`;
   // ================= PAGE 1 — TEAM =================
   html+=`<div style='page-break-after:always'>`;
   // ---- Masthead ----
   html+=`<table width='100%' style='border-collapse:collapse;margin-bottom:7px'><tr>
-    <td bgcolor='#0e2f4a' style='background:#0e2f4a;padding:13px 22px;border-radius:9px'>
+    <td bgcolor='#0e2f4a' style='background:#0e2f4a;padding:9px 22px;border-radius:9px'>
       <table width='100%'><tr>
         <td valign='middle'><div style='font-size:23px;font-weight:800;color:#ffffff;letter-spacing:.6px'>TACOMA ENERGY</div><div style='font-size:12px;color:#8fb4d6;margin-top:3px;letter-spacing:2px;font-weight:600'>WEEKLY SALES REPORT</div></td>
         <td valign='middle' align='right'><div style='font-size:11px;color:#8fb4d6;letter-spacing:.3px'>Reps active this week</div><div style='font-size:20px;font-weight:800;color:${activeThisWeek<realReps.length?"#ffb454":"#4fd18a"};text-align:right'>${activeThisWeek} <span style='font-size:13px;color:#8fb4d6;font-weight:600'>of ${realReps.length}</span></div></td>
@@ -2622,6 +2658,25 @@ function buildReportHTML(){
 
   // ---- Team section ----
   html+=_sectionHead('1','Team Overview','all reps combined','#06a951');
+  // ---- New customers: the outcome everything else on the page is working toward ----
+  // One row — label | list | YTD — because the team page is a single printed
+  // page with almost no slack: as a header-plus-list box this pushed the real
+  // book's report to 6 pages. So it never takes more than 3 lines: up to 3 wins
+  // are all listed; past that it shows 2 and points at the rep pages, which list
+  // every one. Each line is one division, clipped rather than wrapped.
+  var _wins30=_winDivisions(all.filter(function(t){return t.date>=cutoffFor(30);}));
+  var _winsYtd=_repStats(all,cutoffFor('ytd')).wins;
+  var _winsShown=_wins30.length>3 ? _wins30.slice(0,2) : _wins30;
+  var _winsMore=_wins30.length-_winsShown.length;
+  var _winLi='margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px';
+  var _winList=_wins30.length
+    ? `<ul style='font-size:12.5px;line-height:1.35;margin:0;padding-left:16px'>${_winsShown.map(function(d){ return `<li style='${_winLi}'>${_winLabel(d)}</li>`; }).join('')}${_winsMore?`<li style='margin:0;list-style:none;color:#5d8a6e'>+${_winsMore} more — see the rep pages</li>`:''}</ul>`
+    : `<div style='font-size:12px;color:#5d8a6e;line-height:1.35'>No new customers in the last 30 days.</div>`;
+  html+=`<table id='rptNewCustomers' width='100%' style='border-collapse:separate;border-spacing:0;border:1px solid #9fd9b8;border-left:4px solid #06a951;border-radius:8px;background:#effaf3;margin:2px 0 4px'><tr>
+      <td valign='top' style='padding:5px 10px 5px 12px;white-space:nowrap;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#06753a;line-height:1.55'>🏆 New customers <span style='text-transform:none;letter-spacing:0;font-weight:400;color:#5d8a6e'>(30 days)</span></td>
+      <td valign='top' style='padding:5px 6px;width:100%'>${_winList}</td>
+      <td valign='top' align='right' style='padding:4px 12px 4px 6px;white-space:nowrap;font-size:11px;color:#5d8a6e;line-height:1.55'>Year to date <b data-ytd style='font-size:15px;color:#06753a'>${_winsYtd}</b></td>
+    </tr></table>`;
   html+=_kpiCards(all, {accent:'#06a951'});
   html+=statBlock(all, ['New contacts added', contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(7);}).length,
                                               contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(30);}).length,
@@ -2630,7 +2685,7 @@ function buildReportHTML(){
   // rows in the table above, and the 8-week chart below shows the week-over-week
   // direction better than a "+22 vs last week" badge did. Hot leads gets the
   // full width, so names and builders stop wrapping.
-  html+=`<div style='border:1px solid #f0dcc4;border-radius:8px;padding:8px 14px;background:#fffaf3;margin:6px 0'>
+  html+=`<div style='border:1px solid #f0dcc4;border-radius:8px;padding:6px 14px;background:#fffaf3;margin:5px 0'>
       <div style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#b5711f;margin-bottom:4px'>\ud83d\udd25 Hot leads (${_hotFor(null)})</div>
       ${_hotList()}
     </div>`;
@@ -2669,6 +2724,7 @@ function buildReportHTML(){
         <div style='margin-top:8px'>
           <div style='font-size:11px;font-weight:700;color:#0c2d47;margin-bottom:1px'>Pricing sent <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div>${_detailList(rep,'price')}
           <div style='font-size:11px;font-weight:700;color:#0c2d47;margin:7px 0 1px'>Meetings <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div>${_detailList(rep,'meet')}
+          <div style='font-size:11px;font-weight:700;color:#06753a;margin:7px 0 1px'>New customers <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div><div data-rep-wins>${_detailList(rep,'wins')}</div>
         </div>
         ${statBlock(rt)}
       </div>
@@ -4346,6 +4402,7 @@ function changeTouchContact() {
 let editingTouchKey = null;   // "contactId|touchId" while editing an existing touch
 function openTouchModal(editKey) {
   editingTouchKey = editKey || null;
+  _setWinPrompt(false);
   setTimeout(renderNoteChips, 0);   // chips reflect whichever rep ends up selected
   { var _h=document.getElementById('tmHot'); if(_h) _h.checked=false; }
   document.getElementById('tmContactSearch').value = '';
@@ -4502,7 +4559,31 @@ function touchIdUnique(tid) {
   return getTouches().filter(t => t.touchId === tid).length === 1;
 }
 
+// Notes that read like a win logged under some other result. "Became customer"
+// is what the weekly report counts as a new customer, so a win saved as "Sent
+// info" silently goes missing from it.
+// Whole words and phrases only: the v116 pattern had no boundaries, so "signed"
+// fired on assigned/resigned/designed and "closed" on "office closed".
+const WIN_NOTE_RE = /\b(got the (work|job|business)|signed (on|up|the|a|with)|we won|won the|awarded|new customer|closed the deal)\b/i;
+let _winPromptShown = false;
+function _setWinPrompt(show) {
+  _winPromptShown = show;
+  const p = document.getElementById('tmWinPrompt');
+  if (p) p.style.display = show ? 'flex' : 'none';
+}
+// Never blocks the save: Yes and Keep as is both save, and pressing Save again
+// while the prompt is up saves as is.
+function answerWinPrompt(yes) {
+  if (yes) { document.getElementById('tmResult').value = WIN_RESULT; updateResultHint(); }
+  saveTouch();
+}
 async function saveTouch() {
+  if (!_winPromptShown && WIN_NOTE_RE.test(document.getElementById('tmNotes').value) &&
+      document.getElementById('tmResult').value !== WIN_RESULT) {
+    _setWinPrompt(true);
+    return;
+  }
+  _setWinPrompt(false);
   // Remember this rep's picks so the next touch opens pre-set.
   try {
     rememberTouchPrefs(
