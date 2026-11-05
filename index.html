@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v113 · city & state required on contacts)</title>
+<title>Tacoma Energy — Sales CRM (v115 · title typos corrected on save)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -943,7 +943,7 @@
         <div class="new-hint" id="cmNewHint">✓ New builder — will be added to the directory</div>
         <div id="cmCompanyHint" style="display:none;font-size:12px;margin-top:5px;background:var(--amber-light,#fdf6e7);border:1px solid #f0d28a;color:#7a5200;border-radius:7px;padding:8px 10px;line-height:1.5"></div>
       </div>
-      <div><label class="fld">Title / Position</label><input type="text" id="cmTitleField" list="cmTitleList" autocomplete="off" placeholder="Start typing — e.g. Purchasing Manager" /><datalist id="cmTitleList"></datalist><div id="cmTitleHint" style="display:none;font-size:11px;color:#1c7a2e;margin-top:3px;line-height:1.4"></div></div>
+      <div><label class="fld">Title / Position</label><input type="text" id="cmTitleField" list="cmTitleList" autocomplete="off" placeholder="Start typing — e.g. Purchasing Manager" oninput="onTitleInput()" onblur="onTitleBlur()" /><datalist id="cmTitleList"></datalist><div id="cmTitleHint" role="button" tabindex="0" onclick="undoTitleCorrection()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();undoTitleCorrection()}" style="display:none;font-size:11px;color:#1c7a2e;margin-top:3px;line-height:1.4;cursor:pointer"></div></div>
       <div class="frow">
         <div><label class="fld">Email</label><input type="email" id="cmEmail" oninput="onEmailInput()" placeholder="name@builder.com" />
           <div id="cmEmailHint" style="display:none;font-size:11px;color:#8a6212;margin-top:3px;line-height:1.4"></div></div>
@@ -4658,6 +4658,7 @@ function openContactModal(cid) {
   document.getElementById('cmLast').value = c?.last || '';
   document.getElementById('cmCompany').value = c?.company || '';
   document.getElementById('cmTitleField').value = c?.title || '';
+  resetTitleCorrection();   // an Undo covers one save, not the next contact
   document.getElementById('cmEmail').value = c?.email || '';
   document.getElementById('cmPhone').value = formatPhone(c?.phone) || '';
   document.getElementById('cmLinkedin').value = c?.linkedin || '';
@@ -4940,13 +4941,129 @@ function titleCaseJob(s) {
 //   3. otherwise only re-case it when the rep typed it all-lower or ALL-CAPS;
 //      a title they capitalised deliberately is left exactly as typed, because
 //      builder titles are genuinely varied and we are not the authority on them.
-function normTitle(s) {
-  const t = _squash(s);
+//   4. fix misspellings of the common title words (spellFixTitle, below) —
+//      unless opts.asTyped, which is how "click to undo" saves what was typed.
+function normTitle(s, opts) {
+  let t = _squash(s);
   if (!t) return '';
   const hit = _TITLE_MAP.get(t.toLowerCase());
   if (hit) return hit;
-  if (t === t.toLowerCase() || t === t.toUpperCase()) return titleCaseJob(t);
-  return t;
+  if (t === t.toLowerCase() || t === t.toUpperCase()) t = titleCaseJob(t);
+  if (opts && opts.asTyped) return t;
+  const fixed = spellFixTitle(t);
+  // "Direcor of Purchasing" is a canonical title once it's spelt right.
+  return fixed === t ? t : (_TITLE_MAP.get(fixed.toLowerCase()) || fixed);
+}
+
+// ---- Title spell-correction ------------------------------------------
+// Corrects only TOWARD the title words below — never toward whatever happens to
+// be in the book. An earlier version took its known words from the book itself
+// (any word in 3+ titles) and, run over every title there, it both corrupted
+// real words seen once (Southwest->Southeast, Treasury->Treasurer, Mid
+// Atlantic->Mid Atlanta, Trainee->Trainer) and missed the common typos, because
+// "Divison", "Cordinator" and "Puchasing" are themselves in 3+ titles and so
+// counted as known. The book learns its typos; a fixed target list can't.
+const TITLE_TARGETS = ['purchasing','procurement','construction','coordinator','director',
+  'assistant','division','superintendent','community','acquisition','acquisitions','development',
+  'operations','estimator','manager','president','regional','certified','warranty','production',
+  'specialist','executive','planning','customer','services','marketing','controller','architect',
+  'engineer'];
+// Real words one or two letters from a target. Never corrected.
+const _TITLE_NEVER = new Set(['operating','operational','purchase','purchases','apartment',
+  'apartments','commodities','commodity','treasury','accountant','trainee','southwest','southeast',
+  'northwest','northeast','southern','northern','atlantic','department']);
+const _TITLE_TARGET_SET = new Set(TITLE_TARGETS);
+const _TITLE_SUFFIXES = ['s', 'es', 'al', 'ing', 'ed', 'er', 'ly'];
+// Already right: a target ("Director"), a target plus a suffix ("Directors",
+// "Divisional"), or a target minus one — "Service" is one letter from the target
+// "services" and is just as correct.
+function _titleWordIsTarget(w) {
+  if (_TITLE_TARGET_SET.has(w)) return true;
+  return _TITLE_SUFFIXES.some(suf =>
+    (w.endsWith(suf) && _TITLE_TARGET_SET.has(w.slice(0, -suf.length))) || _TITLE_TARGET_SET.has(w + suf));
+}
+// Damerau-Levenshtein (optimal string alignment: adjacent swaps cost 1, so
+// "Mangaer" is one edit from "Manager"). Bails out once past `max`.
+function _dlev(a, b, max) {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let pp = null, p = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]; let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      let v = Math.min(p[j] + 1, cur[j-1] + 1, p[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i-1] === b[j-2] && a[i-2] === b[j-1]) v = Math.min(v, pp[j-2] + 1);
+      cur[j] = v; if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > max) return max + 1;
+    pp = p; p = cur;
+  }
+  return p[b.length];
+}
+// `targets` is only overridden by tests.
+function _fixTitleWord(word, targets = TITLE_TARGETS) {
+  const w = word.toLowerCase();
+  if (w.length < 5) return word;
+  if (word === word.toUpperCase()) return word;          // an acronym: LEED, HVAC
+  if (_TITLE_NEVER.has(w) || _titleWordIsTarget(w)) return word;
+  const max = w.length >= 8 ? 2 : 1;
+  let best = max + 1, hits = [];
+  targets.forEach(k => {
+    const d = _dlev(w, k, max);
+    if (d < best) { best = d; hits = [k]; }
+    else if (d === best && d <= max) hits.push(k);
+  });
+  if (best > max || hits.length !== 1) return word;
+  const k = hits[0];
+  // Keep the rep's capitalisation style: Purchaing -> Purchasing, purchaing -> purchasing.
+  return word[0] === word[0].toUpperCase() ? k[0].toUpperCase() + k.slice(1) : k;
+}
+function spellFixTitle(s) {
+  const t = String(s == null ? '' : s);
+  return t.replace(/[A-Za-z]+/g, (word, at) =>
+    // letters glued to digits are codes, not words
+    (/\d/.test(t[at - 1] || '') || /\d/.test(t[at + word.length] || '')) ? word : _fixTitleWord(word));
+}
+
+// When leaving the title box corrects it, what the rep typed (for Undo); once
+// they undo, the exact text that then saves as typed. Both reset when the
+// modal opens, so an Undo covers this save only.
+let _titleTyped = null, _titleKeep = null;
+function _showTitleHint(fixed) {
+  const h = document.getElementById('cmTitleHint');
+  if (!h) return;
+  h.textContent = '';
+  if (fixed) {
+    const b = document.createElement('b');
+    b.textContent = fixed;                 // rep-typed text: never via innerHTML
+    h.append('Corrected to: ', b, ' — click to undo');
+  }
+  h.style.display = fixed ? 'block' : 'none';
+}
+function resetTitleCorrection() { _titleTyped = null; _titleKeep = null; _showTitleHint(null); }
+function onTitleInput() { _titleTyped = null; _showTitleHint(null); }   // editing makes the undo stale
+function onTitleBlur() {
+  const el = document.getElementById('cmTitleField');
+  const typed = el.value;
+  if (_titleKeep !== null && typed === _titleKeep) return;            // they already undid this
+  const fixed = normTitle(typed);
+  if (fixed === normTitle(typed, { asTyped: true })) return;          // nothing misspelt
+  el.value = fixed;
+  _titleTyped = typed;
+  _showTitleHint(fixed);
+}
+function undoTitleCorrection() {
+  if (_titleTyped === null) return;
+  document.getElementById('cmTitleField').value = _titleTyped;
+  _titleKeep = _titleTyped;
+  _titleTyped = null;
+  _showTitleHint(null);
+}
+// Save corrects too (a rep who never leaves the box, or an edit that never
+// touches it), except the exact text they chose to keep with Undo.
+function titleForSave() {
+  const v = document.getElementById('cmTitleField').value;
+  return normTitle(v, { asTyped: _titleKeep !== null && v === _titleKeep });
 }
 // Names are NOT job titles. The previous version of this function lowercased the
 // whole string and then capitalised each word boundary, which silently turned
@@ -4985,7 +5102,7 @@ async function saveContact() {
   const contacts = getContacts();
   const payload = {
     first, last, company,
-    title: normTitle(document.getElementById('cmTitleField').value),
+    title: titleForSave(),
     email: document.getElementById('cmEmail').value.trim().toLowerCase(),
     phone: formatPhone(document.getElementById('cmPhone').value),   // store consistently going forward
     linkedin: document.getElementById('cmLinkedin').value.trim(),
