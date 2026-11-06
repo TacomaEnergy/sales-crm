@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v118 · reach-outs this week on rep pages)</title>
+<title>Tacoma Energy — Sales CRM (v120 · week list grouped by contact)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -353,6 +353,12 @@
   .od-banner .od-main { flex: 1 1 340px; min-width: 260px; }
   .od-banner .btn { background: var(--red); }
   .od-banner .btn:hover { background: #b4382f; }
+  /* Shown only when localStorage passes STORAGE_WARN_MB (see checkStorageUsage). */
+  .storage-banner { background: var(--amber-light, #fdf6e7); border: 1px solid #f0d28a; border-left: 6px solid #e0a020;
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px;
+    font-size: 14px; font-weight: 700; color: #7a5200; }
+  .storage-banner span { flex: 1 1 auto; }
+  .storage-x { background: none; border: 0; font-size: 20px; line-height: 1; color: #7a5200; cursor: pointer; padding: 0 4px; }
   /* Builder-led follow-up cards. The builder division is the account; the
      contact is the route in — so the builder leads and the person sits under it. */
   .fub-card { border: 1px solid var(--border); border-radius: 11px; background: #fff; margin-bottom: 9px; overflow: hidden; box-shadow: var(--shadow-sm); }
@@ -481,7 +487,7 @@
     /* #overdueBanner sits outside every .view, so the rule below never hid it:
        a rep's "⚠ N follow-ups overdue" warning printed across the top of the
        weekly report and pushed the team page toward a second sheet. */
-    .nav, .login-gate, #view-report .page-head, #overdueBanner { display:none !important; }
+    .nav, .login-gate, #view-report .page-head, #overdueBanner, #storageBanner { display:none !important; }
     .view:not(.active) { display:none !important; }
     body { background:#fff !important; }
     #reportBody, #reportBody * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
@@ -568,6 +574,7 @@
 <div class="wrap">
 
 <div id="overdueBanner"></div>
+<div id="storageBanner"></div>
 
   <!-- DASHBOARD -->
   <section class="view active" id="view-dashboard">
@@ -1108,6 +1115,50 @@ function storageUsage() {
   catch(e) { return null; }
   return { mb: +(bytes / 1048576).toFixed(2) };
 }
+// Old builds stashed a full copy of the app's own source under keys like
+// "__v18_src" … "__v31a_src". Nothing reads them, and on the owner's browser 18
+// of them held 2.7 MB of the ~5 MB quota, leaving ~200 KB for the real data.
+// Removed on every load; crm_* and tacoma_* keys are never touched.
+const _STALE_SRC_KEY = /^__v\d+[a-z]?_src$/;
+function pruneStaleVersionKeys() {
+  let removed = 0, chars = 0;
+  try {
+    const doomed = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && _STALE_SRC_KEY.test(k) && !/^(crm_|tacoma_)/.test(k)) doomed.push(k);
+    }
+    // Collected first: removing while walking by index skips the next key.
+    doomed.forEach(k => { chars += k.length + (localStorage.getItem(k) || '').length; localStorage.removeItem(k); removed++; });
+  } catch (e) {}
+  if (removed) console.info('[storage] removed ' + removed + ' stale app cop' + (removed === 1 ? 'y' : 'ies') + ' (' + (chars / 1048576).toFixed(2) + ' MB)');
+  return removed;
+}
+// Warn while there is still room to act: past this, the next big read can hit
+// the quota and fall back to memory (see store.set / warnStorageFull).
+const STORAGE_WARN_MB = 4;
+let _storageBannerDismissed = false;   // for this page load
+function checkStorageUsage() {
+  const u = storageUsage();
+  const box = document.getElementById('storageBanner');
+  if (!u) return null;
+  if (u.mb > STORAGE_WARN_MB) {
+    console.warn('[storage] localStorage is using ' + u.mb + ' MB of ~5 MB');
+    if (box && !_storageBannerDismissed) box.innerHTML =
+      '<div class="storage-banner" role="alert"><span>⚠ This browser’s storage is nearly full — tell Arick</span>' +
+      '<button class="storage-x" aria-label="Dismiss" onclick="dismissStorageBanner()">×</button></div>';
+  } else if (box) {
+    box.innerHTML = '';
+  }
+  return u.mb;
+}
+function dismissStorageBanner() {
+  _storageBannerDismissed = true;
+  const box = document.getElementById('storageBanner');
+  if (box) box.innerHTML = '';
+}
+pruneStaleVersionKeys();   // first, so the check below measures what's left
+checkStorageUsage();
 
 // ---- HTML-escaping (applied at render time only — never on stored/synced data,
 // which would push "&amp;" back into SharePoint). esc() for text nodes; escArg()
@@ -1783,12 +1834,12 @@ function openReconcile() {
     if (r.missing.length) html += row('#d8443a', 'Not in the workbook', r.missing.length, 'These need to be re-sent.');
     html += `</div>`;
     if (r.missing.length) {
-      const byId = {}; getContacts().forEach(c => byId[c.contactId] = c);
+      const byId = contactIndex();
       html += `<div style="font-size:13px;font-weight:700;margin-top:4px">Not in the workbook</div>
         <div style="display:grid;gap:6px;max-height:230px;overflow:auto">` +
         r.missing.slice(0, 40).map(e => {
           const p = e.payload || {};
-          const c = byId[e.contactId] || {};
+          const c = byId.get(e.contactId) || {};
           if (e.kind === 'contact') {
             const nm = ((p.first||c.first||'') + ' ' + (p.last||c.last||'')).trim() || e.contactId;
             return `<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12.5px;background:var(--bg-2)">
@@ -2187,7 +2238,7 @@ function _singleFlight(which, fn) {
   if (_readInFlight[which]) return _readInFlight[which];
   const p = (async () => {
     try { return await fn(); }
-    finally { _readInFlight[which] = null; }
+    finally { _readInFlight[which] = null; checkStorageUsage(); }   // a full read is what grows storage
   })();
   _readInFlight[which] = p;
   return p;
@@ -2431,18 +2482,17 @@ async function _readTouchesFromSharePoint() {
 // ============================================================
 let state = { view:'dashboard', selectedContact:null, actingRep:'', openBuilders:new Set(), dashRange:30, dashRep:'', dashBreakdown:'builder' };
 
-function _mtdCutoff(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'; }
 // New customers: the builder divisions (company + city + state) with at least
 // one "Became customer" touch among `touches`. Two contacts at the same division,
 // or the same win logged twice, are ONE customer; the same builder in two cities
 // is two. Callers pass touches already cut to the window and, for a rep, already
 // cut to that rep — so the win is credited to whoever logged it. Latest first.
 function _winDivisions(touches, byId){
-  if (!byId) { byId = {}; getContacts().forEach(function(c){ byId[c.contactId] = c; }); }
+  if (!byId) byId = contactIndex();
   var m = {};
   touches.forEach(function(t){
     if (t.result !== WIN_RESULT) return;
-    var c = byId[t.contactId]; if (!c || !c.company) return;
+    var c = byId.get(t.contactId); if (!c || !c.company) return;
     var k = c.company + '|' + (c.city || '') + '|' + (c.state || '');
     if (!m[k] || (t.date || '') > m[k].date) m[k] = { company: c.company, city: c.city || '', state: c.state || '', date: t.date || '' };
   });
@@ -2451,19 +2501,27 @@ function _winDivisions(touches, byId){
 }
 // "Elevate Capital (Columbus, OH)" — escaped, ready for the report HTML.
 function _winLabel(d){ var loc = [d.city, d.state].filter(Boolean).join(', '); return esc(d.company) + (loc ? ' (' + esc(loc) + ')' : ''); }
-function _repStats(touches, cutoff, allTouchesForNewCalc){
+// Each contact's first-ever touch date, by anyone. _repStats needs it for
+// "fresh"; building it walks every touch, so a report builds it once and passes
+// it to all ~30 _repStats calls instead of each call rebuilding it.
+function _firstEverMap(everything){
+  var firstEver = {};
+  everything.forEach(function(t){
+    var d = t.date || '';
+    if (!firstEver[t.contactId] || d < firstEver[t.contactId]) firstEver[t.contactId] = d;
+  });
+  return firstEver;
+}
+// `ctx` (optional) = { firstEver, byId } built once per report; without it the
+// maps are built here, exactly as before.
+function _repStats(touches, cutoff, allTouchesForNewCalc, ctx){
   var w = cutoff ? touches.filter(function(t){return t.date>=cutoff;}) : touches;
   // uniq  = distinct people touched at all (any result). Reach-outs divided by
   //         this is the tell for logging the same handful of contacts repeatedly.
   // fresh = people whose FIRST EVER touch (by anyone) falls in this window —
   //         i.e. genuinely new ground rather than recycling a list.
   var uniqSet = new Set(w.map(function(t){return t.contactId;}));
-  var everything = allTouchesForNewCalc || getTouches();
-  var firstEver = {};
-  everything.forEach(function(t){
-    var d = t.date || '';
-    if (!firstEver[t.contactId] || d < firstEver[t.contactId]) firstEver[t.contactId] = d;
-  });
+  var firstEver = (ctx && ctx.firstEver) || _firstEverMap(allTouchesForNewCalc || getTouches());
   var fresh = 0;
   uniqSet.forEach(function(cid){
     var f = firstEver[cid];
@@ -2471,10 +2529,10 @@ function _repStats(touches, cutoff, allTouchesForNewCalc){
   });
   // Builder divisions = company + city. Touching three people at Lennar Austin
   // is one division; touching Lennar Austin and Lennar Houston is two.
-  var byId = {}; getContacts().forEach(function(c){ byId[c.contactId] = c; });
+  var byId = (ctx && ctx.byId) || contactIndex();
   var divSet = new Set();
   uniqSet.forEach(function(cid){
-    var c = byId[cid]; if (!c || !c.company) return;
+    var c = byId.get(cid); if (!c || !c.company) return;
     divSet.add(c.company + '|' + (c.city || '') + '|' + (c.state || ''));
   });
   return {
@@ -2494,7 +2552,7 @@ function _priorWeek(touches){ var a=cutoffFor(14), b=cutoffFor(7); return touche
 function _deltaBadge(now, prev){ var d=now-prev; if(d>0) return `<span style='color:#06a951;font-weight:700'>\u25b2 ${d} vs last week</span>`; if(d<0) return `<span style='color:#d64545;font-weight:700'>\u25bc ${Math.abs(d)} vs last week</span>`; return `<span style='color:#687d92'>no change vs last week</span>`; }
 function _hotFor(rep){ var today=todayISO(); return getContacts().filter(function(c){ if(!c.active||!c.hot) return false; if(rep===null) return true; var lt=lastTouch(c.contactId); return (lt?lt.rep:'Unassigned')===rep; }).length; }
 function _detailList(rep, kind){
-  var cut=cutoffFor(30); var byId={}; getContacts().forEach(function(c){byId[c.contactId]=c;});
+  var cut=cutoffFor(30); var byId=contactIndex();
   if(kind==='wins'){
     // One line per builder division, nothing else on it.
     var wd=_winDivisions(getTouches().filter(function(t){ return t.rep===rep && t.date>=cut; }), byId);
@@ -2508,79 +2566,113 @@ function _detailList(rep, kind){
   // report into 4 pages — the detail is a highlight, not a full log.
   var CAP=6;   // a full page per rep means the detail can breathe again
   var one='overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word';
-  var li=rows.slice(0,CAP).map(function(t){ var c=byId[t.contactId]||{}; var nm=((c.first||'')+' '+(c.last||'')).trim()||'(unknown)'; var co=c.company||''; var note=(t.notes||'').trim(); var noteHtml= note? `<span style='color:#12263a'>\u2014 ${esc(note)}</span>` : `<span style='color:#d64545;font-style:italic'>\u2014 (no note)</span>`; return `<li style='margin:0 0 1px;${one}'>${esc(t.date)} \u00b7 <b>${esc(nm)}</b>${co?` (${esc(co)})`:''} ${noteHtml}</li>`; }).join('');
+  var li=rows.slice(0,CAP).map(function(t){ var c=byId.get(t.contactId)||{}; var nm=((c.first||'')+' '+(c.last||'')).trim()||'(unknown)'; var co=c.company||''; var note=(t.notes||'').trim(); var noteHtml= note? `<span style='color:#12263a'>\u2014 ${esc(note)}</span>` : `<span style='color:#d64545;font-style:italic'>\u2014 (no note)</span>`; return `<li style='margin:0 0 1px;${one}'>${esc(t.date)} \u00b7 <b>${esc(nm)}</b>${co?` (${esc(co)})`:''} ${noteHtml}</li>`; }).join('');
   var more=rows.length>CAP?`<li style='color:#687d92;list-style:none'>+${rows.length-CAP} more</li>`:'';
   return `<ul style='font-size:11.5px;line-height:1.32;margin:1px 0 3px 14px;padding-left:14px'>${li}${more}</ul>`;
 }
-// Each touch's position among ALL touches to its contact — every rep, all time —
-// by date, same-day touches in the order they were logged (their position in
-// `all`). Keyed by the touch object, because legacy Touch IDs ("T-1") repeat.
-function _touchOrdinals(all){
-  var byC = {}, pos = new Map();
-  all.forEach(function(t, i){ pos.set(t, i); (byC[t.contactId] = byC[t.contactId] || []).push(t); });
-  var ord = new Map();
-  Object.keys(byC).forEach(function(cid){
-    byC[cid].sort(function(a, b){ return (a.date || '').localeCompare(b.date || '') || pos.get(a) - pos.get(b); })
-      .forEach(function(t, k){ ord.set(t, k + 1); });
-  });
-  return { ord: ord, pos: pos };
+// Touches to each contact, every rep, all time: the week list's "All-time".
+function _touchTotals(all){
+  var n = {};
+  all.forEach(function(t){ n[t.contactId] = (n[t.contactId] || 0) + 1; });
+  return n;
 }
-// How many "Reach-outs this week" lines fit on a rep page. 25 fit below the
+// Which of a contact's results this week the week list shows: the furthest
+// along the pipeline wins, so a week of "Sent info, Pricing sent, Sent info"
+// reads as "Pricing sent".
+const _BEST_RESULT_ORDER = ['Became customer', 'Pricing sent', 'Spoke with contact', 'Not interested',
+  'Left voicemail', 'Sent info', 'Bad contact info'];
+function _bestResult(results){
+  var best = null, bi = Infinity;
+  results.forEach(function(r){
+    var i = _BEST_RESULT_ORDER.indexOf(r);
+    if (i < 0) i = _BEST_RESULT_ORDER.length;           // anything unlisted ranks last
+    if (i < bi) { bi = i; best = r; }
+  });
+  return best || '';
+}
+// How many "Reach-outs this week" rows fit on a rep page. 25 fit below the
 // table when the pricing / meeting / new-customer lists above are at their
 // empty-ish minimum (one line each). Every extra line those lists use costs
 // about 1.2 week-list lines (15px vs 12.6px), so the cap shrinks to keep the rep
 // page on one printed page. A pricing or meeting entry is clamped to 2 lines;
 // one whose text runs past ~95 characters is counted as using both.
 function _weekListCap(rep){
-  var cut = cutoffFor(30), byId = {}; getContacts().forEach(function(c){ byId[c.contactId] = c; });
+  var cut = cutoffFor(30), byId = contactIndex();
   var mine = getTouches().filter(function(t){ return t.rep === rep && t.date >= cut; });
   var used = 0;
   [mine.filter(function(t){ return t.result === 'Pricing sent'; }),
    mine.filter(function(t){ return t.method === 'In Person'; })].forEach(function(rows){
     if (!rows.length) { used += 1; return; }
     rows.slice(0, 6).forEach(function(t){
-      var c = byId[t.contactId] || {};
+      var c = byId.get(t.contactId) || {};
       var len = (t.date + ' . ' + (c.first || '') + ' ' + (c.last || '') + ' (' + (c.company || '') + ') - ' + ((t.notes || '').trim() || '(no note)')).length;
       used += len > 95 ? 2 : 1;
     });
     if (rows.length > 6) used += 1;                       // "+N more"
   });
   used += Math.max(1, _winDivisions(mine, byId).length);
-  // Measured: with those lists at their minimum, 25 lines + "+N more" leave the
-  // rep page ~15px under its 900px budget, so the first 15px of growth is free.
-  var lost = Math.ceil(Math.max(0, (used - 3) * 15.2 - 15) / 12.6);
+  // Measured: with those lists at their minimum, the column header + 25 rows +
+  // "+N more" leave the rep page ~2px under its 900px budget (it was ~15px
+  // before v120 added the header row), so only the first 2px of growth is free.
+  var lost = Math.ceil(Math.max(0, (used - 3) * 15.2 - 2) / 12.6);
   return Math.max(3, 25 - lost);                         // never hide the whole list
 }
-// "Reach-outs this week" on a rep page: every touch by the rep in the same 7-day
-// window as the "this week" cards, newest first, one clipped line each. Capped
-// (see _weekListCap) so the rep page stays one printed page; the rest are
-// counted, never silently dropped. A contact's 4th+ touch is amber, so
-// repeat-hitting stands out.
-function _weekList(rt, ordinals, cap){
-  var cut = cutoffFor(7), CAP = cap || 25;
-  var byId = {}; getContacts().forEach(function(c){ byId[c.contactId] = c; });
-  var rows = rt.filter(function(t){ return t.date >= cut; }).sort(function(a, b){
-    return (b.date || '').localeCompare(a.date || '') || ordinals.pos.get(b) - ordinals.pos.get(a);
+// The rep's touches in the same 7-day window as the "this week" cards, grouped
+// one row per contact (v120 — one line per touch was hard to read when a rep
+// hit the same person several times). Date and method are left to Activity.
+function _weekGroups(rt, totals){
+  var cut = cutoffFor(7), byId = contactIndex(), g = {}, n = 0;
+  rt.forEach(function(t){
+    if (!(t.date >= cut)) return;
+    n++;
+    (g[t.contactId] = g[t.contactId] || []).push(t.result || '');
   });
-  if (!rows.length) return `<div data-week-empty style='color:#a9b7c6;font-size:12px;margin:1px 0 4px 16px'>No reach-outs this week.</div>`;
+  var people = Object.keys(g).map(function(cid){
+    var c = byId.get(cid) || {};
+    var loc = [c.city, c.state].filter(Boolean).join(', ');
+    return {
+      name: ((c.first || '') + ' ' + (c.last || '')).trim() || '(unknown contact)',
+      builder: c.company ? c.company + (loc ? ' (' + loc + ')' : '') : '',
+      week: g[cid].length, all: totals[cid] || g[cid].length, best: _bestResult(g[cid]), cid: cid,
+    };
+  });
+  // Most-hit this week first, then most-hit ever, then by name.
+  people.sort(function(a, b){
+    return b.week - a.week || b.all - a.all || a.name.localeCompare(b.name) || a.cid.localeCompare(b.cid);
+  });
+  return { touches: n, people: people };
+}
+// "Reach-outs this week" on a rep page: one row per contact, aligned columns.
+// Capped (see _weekListCap) so the rep page stays one printed page; the rest
+// are counted, never silently dropped. Amber marks repeat-hitting: 2+ this week
+// or 4+ ever.
+function _weekList(groups, cap){
+  var CAP = cap || 25, people = groups.people;
+  if (!people.length) return `<div data-week-empty style='color:#a9b7c6;font-size:12px;margin:1px 0 4px 16px'>No reach-outs this week.</div>`;
   // Font size, line height and border set on every cell: the app's global
   // `td { font-size:13px; border-bottom:… }` rule beats anything set on <table>.
   var cell = 'font-size:10.5px;line-height:1.2;border:0;';
-  var clip = cell + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-  var lines = rows.slice(0, CAP).map(function(t){
-    var c = byId[t.contactId] || {};
-    var nm = ((c.first || '') + ' ' + (c.last || '')).trim() || '(unknown contact)';
-    var loc = [c.city, c.state].filter(Boolean).join(', ');
-    var co = c.company ? esc(c.company) + (loc ? ' (' + esc(loc) + ')' : '') : '';
-    var n = ordinals.ord.get(t) || 1;
-    var text = [esc(t.date), `<b>${esc(nm)}</b>`, co, esc(t.method || ''), esc(t.result || '')].filter(Boolean).join(' · ');
-    return `<tr data-touch><td style='${clip};padding:0 8px 0 14px;color:#12263a'>${text}</td>` +
-      `<td data-ord='${n}' style='${cell}width:34px;padding:0;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;${n >= 4 ? 'color:#c27c0e;font-weight:800' : 'color:#8a99a9'}'>#${n}</td></tr>`;
+  var clip = cell + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+  var amber = 'color:#c27c0e;font-weight:800;', plain = 'color:#2c3e50;';
+  var th = cell + 'background:none;padding:0 0 1px;font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#8a99a9;border-bottom:1px solid #eaf1f7;white-space:nowrap;';
+  var num = 'text-align:right;padding:0 10px 0 0;font-variant-numeric:tabular-nums;';
+  var head = `<tr data-week-head><th style='${th}text-align:left;padding-left:14px'>Contact</th><th style='${th}text-align:left'>Builder (City, ST)</th>` +
+    `<th style='${th}${num}'>This wk</th><th style='${th}${num}'>All-time</th><th style='${th}text-align:left'>Best result</th></tr>`;
+  var rows = people.slice(0, CAP).map(function(p){
+    var win = p.best === WIN_RESULT;
+    return `<tr data-person>` +
+      `<td style='${clip}padding:0 8px 0 14px;color:#12263a;font-weight:700'>${esc(p.name)}</td>` +
+      `<td style='${clip}padding:0 8px 0 0;color:#2c3e50'>${esc(p.builder)}</td>` +
+      `<td data-week='${p.week}' style='${cell}${num}${p.week >= 2 ? amber : plain}'>${p.week}</td>` +
+      `<td data-all='${p.all}' style='${cell}${num}${p.all >= 4 ? amber : plain}'>${p.all}</td>` +
+      `<td style='${clip}padding:0;${win ? 'color:#06753a;font-weight:800' : 'color:#2c3e50'}'>${esc(p.best)}</td></tr>`;
   }).join('');
-  var more = rows.length > CAP ? `<tr data-week-more><td colspan='2' style='${cell}padding:0 0 0 14px;color:#687d92'>+${rows.length - CAP} more — see Activity</td></tr>` : '';
-  // table-layout:fixed is what lets the text cell clip instead of widening the
-  // table, and keeps "#N" in its own column so the ellipsis can never eat it.
-  return `<table data-week-list width='100%' style='width:100%;table-layout:fixed;border-collapse:collapse;font-size:10.5px;line-height:1.2;margin:1px 0 0'>${lines}${more}</table>`;
+  var more = people.length > CAP ? `<tr data-week-more><td colspan='5' style='${cell}padding:0 0 0 14px;color:#687d92'>+${people.length - CAP} more — see Activity</td></tr>` : '';
+  // table-layout:fixed + <col> widths keep the columns aligned row to row and
+  // let Contact / Builder / Best result clip instead of wrapping or widening.
+  return `<table data-week-list width='100%' style='width:100%;table-layout:fixed;border-collapse:collapse;margin:1px 0 0'>` +
+    `<colgroup><col style='width:27%'><col><col style='width:56px'><col style='width:60px'><col style='width:118px'></colgroup>` +
+    `${head}${rows}${more}</table>`;
 }
 function _bizDays(fromISO){ var from=new Date(fromISO+'T00:00:00'); var to=new Date(); var n=0; var d=new Date(from); while(d<=to){ var wd=d.getDay(); if(wd>=1&&wd<=5) n++; d.setDate(d.getDate()+1); } return n||1; }
 function _hotList(){
@@ -2591,18 +2683,11 @@ function _hotList(){
   var more=hot.length>HOTCAP?`<li style='color:#687d92;list-style:none'>+${hot.length-HOTCAP} more \u2014 see the Hot Leads tab</li>`:'';
   return `<ul style='font-size:12px;margin:2px 0 10px 16px;padding-left:16px;max-width:100%'>${li}${more}</ul>`;
 }
-function _summaryBlock(touches, cutoff, label, showDelta){
-  var reach=touches.filter(function(t){return t.date>=cutoff;}).length;
-  var biz=_bizDays(cutoff); var avg=reach/biz;
-  var col=avg>=2?'#06a951':(avg>0?'#e8a13a':'#d64545');
-  var deltaHtml= showDelta ? ` \u00b7 ${_deltaBadge(reach,_priorWeek(touches))}` : '';
-  return `<div style='margin:4px 0;font-size:13px'>${label}: <b>${reach} reach-outs</b>${deltaHtml} \u00b7 <b style='color:${col};font-size:15px'>${avg.toFixed(1)}</b><span style='color:#687d92'>/workday</span></div>`;
-}
 function _breakdownTable(keyFn, colLabel, topN){
-  var byId={}; getContacts().forEach(function(c){byId[c.contactId]=c;});
+  var byId=contactIndex();
   var cuts=[cutoffFor(7),cutoffFor(30),cutoffFor('ytd')];
   var agg={};
-  getTouches().forEach(function(t){ var c=byId[t.contactId]; if(!c) return; var k=keyFn(c); if(!k||!(''+k).trim()) return; if(!agg[k]) agg[k]=[0,0,0]; for(var i=0;i<3;i++){ if(t.date>=cuts[i]) agg[k][i]++; } });
+  getTouches().forEach(function(t){ var c=byId.get(t.contactId); if(!c) return; var k=keyFn(c); if(!k||!(''+k).trim()) return; if(!agg[k]) agg[k]=[0,0,0]; for(var i=0;i<3;i++){ if(t.date>=cuts[i]) agg[k][i]++; } });
   var rows=Object.keys(agg).map(function(k){return [k,agg[k]];}).sort(function(a,b){return b[1][2]-a[1][2];}).slice(0,topN).map(function(r){return [esc(r[0]), r[1][0], r[1][1], r[1][2]];});
   if(!rows.length) return '';
   return _tbl([colLabel,'7 Days','30 Days','YTD'], rows);
@@ -2661,9 +2746,13 @@ function _trendChart(touches, weeks, accent) {
 }
 
 // ---- Report visual helpers (KPI cards, section headers) ----
+// opts.stats = [7-day, 30-day, YTD] _repStats results already computed for
+// these touches (buildReportHTML passes them so the cards and the table below
+// share one computation). The cards only read 7-day and YTD.
 function _kpiCards(touches, opts){
   opts = opts || {};
-  var s7=_repStats(touches,cutoffFor(7)), s30=_repStats(touches,cutoffFor(30)), sytd=_repStats(touches,cutoffFor('ytd'));
+  var st = opts.stats || [_repStats(touches,cutoffFor(7)), null, _repStats(touches,cutoffFor('ytd'))];
+  var s7=st[0], sytd=st[2];
   var defs=[
     {label:'Reach-outs', key:'reach', ico:'\u2197'},
     {label:'Builders hit', key:'divisions', ico:'\ud83c\udfd8\ufe0f'},
@@ -2705,11 +2794,22 @@ function buildReportHTML(){
   var cov=totC?Math.round(touchedEver/totC*100):0;
   var realReps=REPS.filter(function(r){return r!=='Unassigned';});
   var activeThisWeek=realReps.filter(function(r){return all.filter(function(t){return t.rep===r && t.date>=cutoffFor(7);}).length>0;}).length;
-  function statBlock(touches, extra, onlyReach){ var mk=function(label,key){ return [label].concat(wins.map(function(cut){return _repStats(touches,cut)[key];})); };
+  // One _repStats per (touch list, window) for the whole report: a page's KPI
+  // cards and its table read the same three results. This used to be ~97 calls
+  // per report, each rebuilding the contact map and every contact's first-touch
+  // date; both are now built once here and shared.
+  var _ctx={ firstEver:_firstEverMap(all), byId:contactIndex() };
+  var _statsMemo=new Map();
+  function statsFor(touches){
+    var s=_statsMemo.get(touches);
+    if(!s){ s=wins.map(function(cut){ return _repStats(touches,cut,null,_ctx); }); _statsMemo.set(touches,s); }
+    return s;
+  }
+  function statBlock(touches, extra, onlyReach){ var st=statsFor(touches); var mk=function(label,key){ return [label].concat(st.map(function(s){return s[key];})); };
     // Reach-outs divided by working days in the window. A raw weekly count can't
     // be compared across a holiday week or a partial month; a daily rate can.
-    var perDay=function(){ return ['Reach-outs per workday'].concat(wins.map(function(cut){
-      var n=_repStats(touches,cut).reach, d=_bizDays(cut);
+    var perDay=function(){ return ['Reach-outs per workday'].concat(wins.map(function(cut,i){
+      var n=st[i].reach, d=_bizDays(cut);
       return d ? (Math.round(n/d*10)/10).toFixed(1) : '0.0';
     })); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Builders hit','divisions'),mk('First-time contacts','fresh'),mk('Pricing sent','price'),mk('New customers','wins'),mk('Meetings','meet'),perDay()]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
@@ -2735,7 +2835,7 @@ function buildReportHTML(){
   // are all listed; past that it shows 2 and points at the rep pages, which list
   // every one. Each line is one division, clipped rather than wrapped.
   var _wins30=_winDivisions(all.filter(function(t){return t.date>=cutoffFor(30);}));
-  var _winsYtd=_repStats(all,cutoffFor('ytd')).wins;
+  var _winsYtd=statsFor(all)[2].wins;
   var _winsShown=_wins30.length>3 ? _wins30.slice(0,2) : _wins30;
   var _winsMore=_wins30.length-_winsShown.length;
   var _winLi='margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px';
@@ -2747,7 +2847,7 @@ function buildReportHTML(){
       <td valign='top' style='padding:5px 6px;width:100%'>${_winList}</td>
       <td valign='top' align='right' style='padding:4px 12px 4px 6px;white-space:nowrap;font-size:11px;color:#5d8a6e;line-height:1.55'>Year to date <b data-ytd style='font-size:15px;color:#06753a'>${_winsYtd}</b></td>
     </tr></table>`;
-  html+=_kpiCards(all, {accent:'#06a951'});
+  html+=_kpiCards(all, {accent:'#06a951', stats:statsFor(all)});
   html+=statBlock(all, ['New contacts added', contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(7);}).length,
                                               contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(30);}).length,
                                               contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor('ytd');}).length]);
@@ -2770,7 +2870,7 @@ function buildReportHTML(){
   var _repPageNo = 2;   // team is page 1; each rep takes the next number
   // Include anyone who actually logged a touch, not just the hardcoded reps —
   // otherwise their activity silently vanishes from the report.
-  var _ordinals = _touchOrdinals(all);   // Touch # for every rep's week list, computed once
+  var _totals = _touchTotals(all);   // "All-time" for every rep's week list, computed once
   var _reportReps = REPS.filter(function(r){ return r !== 'Unassigned'; });
   all.forEach(function(t){ if (t.rep && t.rep !== 'Unassigned' && _reportReps.indexOf(t.rep) === -1) _reportReps.push(t.rep); });
   _reportReps.forEach(function(rep){
@@ -2791,15 +2891,16 @@ function buildReportHTML(){
         </tr></table>
       </td></tr></table>
       <div style='padding:6px 14px 6px'>
-        ${_kpiCards(rt, {accent:col})}
+        ${_kpiCards(rt, {accent:col, stats:statsFor(rt)})}
         <div style='margin-top:8px'>
           <div style='font-size:11px;font-weight:700;color:#0c2d47;margin-bottom:1px'>Pricing sent <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div>${_detailList(rep,'price')}
           <div style='font-size:11px;font-weight:700;color:#0c2d47;margin:7px 0 1px'>Meetings <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div>${_detailList(rep,'meet')}
           <div style='font-size:11px;font-weight:700;color:#06753a;margin:7px 0 1px'>New customers <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div><div data-rep-wins>${_detailList(rep,'wins')}</div>
         </div>
         ${statBlock(rt)}
-        <div style='font-size:11px;font-weight:700;color:#0c2d47;margin:6px 0 1px'>Reach-outs this week <span data-week-count style='color:#8a99a9;font-weight:400'>(${r7})</span></div>
-        ${_weekList(rt, _ordinals, _weekListCap(rep))}
+        ${(function(){ var wg=_weekGroups(rt, _totals);
+          return `<div style='font-size:11px;font-weight:700;color:#0c2d47;margin:6px 0 1px'>Reach-outs this week <span data-week-count style='color:#8a99a9;font-weight:400'>— ${wg.touches} touch${wg.touches===1?'':'es'} to ${wg.people.length} ${wg.people.length===1?'person':'people'}</span></div>` +
+            _weekList(wg, _weekListCap(rep)); })()}
       </div>
     </div></div>`;
   });
@@ -4349,8 +4450,8 @@ function renderFollowups() {
 function rebuildBuilderFilter() {
   const sel = document.getElementById('actBuilderFilter'); if (!sel) return;
   const cur = sel.value;
-  const byId = {}; getContacts().forEach(function(x){ byId[x.contactId] = x; });
-  const names = [...new Set(getTouches().map(function(t){ return (byId[t.contactId]||{}).company; }).filter(Boolean))].sort(function(a,b){ return a.localeCompare(b); });
+  const byId = contactIndex();
+  const names = [...new Set(getTouches().map(function(t){ return (byId.get(t.contactId)||{}).company; }).filter(Boolean))].sort(function(a,b){ return a.localeCompare(b); });
   sel.innerHTML = '<option value="">All builders</option>' + names.map(function(n){ return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
   if (cur && names.includes(cur)) sel.value = cur;
 }
@@ -5741,13 +5842,6 @@ function renderWhatsNew(notes) {
   '<div style="border-top:1px solid var(--border);padding-top:10px;font-size:12.5px;color:var(--muted);line-height:1.5">' +
     'Anything look wrong, tell Arick the same day. The <b>?</b> in the top bar reopens the basics any time.' +
   '</div>';
-}
-function openWhatsNew() {
-  const cur = _buildNum();
-  const notes = RELEASE_NOTES.filter(function (n) { return n.v <= cur; });
-  if (!notes.length) return;
-  renderWhatsNew(notes);
-  document.getElementById('whatsNewModal').classList.add('open');
 }
 function closeWhatsNew() {
   document.getElementById('whatsNewModal').classList.remove('open');
