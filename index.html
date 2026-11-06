@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v117 · fewer false "sounds like a win" prompts)</title>
+<title>Tacoma Energy — Sales CRM (v118 · reach-outs this week on rep pages)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -2512,6 +2512,76 @@ function _detailList(rep, kind){
   var more=rows.length>CAP?`<li style='color:#687d92;list-style:none'>+${rows.length-CAP} more</li>`:'';
   return `<ul style='font-size:11.5px;line-height:1.32;margin:1px 0 3px 14px;padding-left:14px'>${li}${more}</ul>`;
 }
+// Each touch's position among ALL touches to its contact — every rep, all time —
+// by date, same-day touches in the order they were logged (their position in
+// `all`). Keyed by the touch object, because legacy Touch IDs ("T-1") repeat.
+function _touchOrdinals(all){
+  var byC = {}, pos = new Map();
+  all.forEach(function(t, i){ pos.set(t, i); (byC[t.contactId] = byC[t.contactId] || []).push(t); });
+  var ord = new Map();
+  Object.keys(byC).forEach(function(cid){
+    byC[cid].sort(function(a, b){ return (a.date || '').localeCompare(b.date || '') || pos.get(a) - pos.get(b); })
+      .forEach(function(t, k){ ord.set(t, k + 1); });
+  });
+  return { ord: ord, pos: pos };
+}
+// How many "Reach-outs this week" lines fit on a rep page. 25 fit below the
+// table when the pricing / meeting / new-customer lists above are at their
+// empty-ish minimum (one line each). Every extra line those lists use costs
+// about 1.2 week-list lines (15px vs 12.6px), so the cap shrinks to keep the rep
+// page on one printed page. A pricing or meeting entry is clamped to 2 lines;
+// one whose text runs past ~95 characters is counted as using both.
+function _weekListCap(rep){
+  var cut = cutoffFor(30), byId = {}; getContacts().forEach(function(c){ byId[c.contactId] = c; });
+  var mine = getTouches().filter(function(t){ return t.rep === rep && t.date >= cut; });
+  var used = 0;
+  [mine.filter(function(t){ return t.result === 'Pricing sent'; }),
+   mine.filter(function(t){ return t.method === 'In Person'; })].forEach(function(rows){
+    if (!rows.length) { used += 1; return; }
+    rows.slice(0, 6).forEach(function(t){
+      var c = byId[t.contactId] || {};
+      var len = (t.date + ' . ' + (c.first || '') + ' ' + (c.last || '') + ' (' + (c.company || '') + ') - ' + ((t.notes || '').trim() || '(no note)')).length;
+      used += len > 95 ? 2 : 1;
+    });
+    if (rows.length > 6) used += 1;                       // "+N more"
+  });
+  used += Math.max(1, _winDivisions(mine, byId).length);
+  // Measured: with those lists at their minimum, 25 lines + "+N more" leave the
+  // rep page ~15px under its 900px budget, so the first 15px of growth is free.
+  var lost = Math.ceil(Math.max(0, (used - 3) * 15.2 - 15) / 12.6);
+  return Math.max(3, 25 - lost);                         // never hide the whole list
+}
+// "Reach-outs this week" on a rep page: every touch by the rep in the same 7-day
+// window as the "this week" cards, newest first, one clipped line each. Capped
+// (see _weekListCap) so the rep page stays one printed page; the rest are
+// counted, never silently dropped. A contact's 4th+ touch is amber, so
+// repeat-hitting stands out.
+function _weekList(rt, ordinals, cap){
+  var cut = cutoffFor(7), CAP = cap || 25;
+  var byId = {}; getContacts().forEach(function(c){ byId[c.contactId] = c; });
+  var rows = rt.filter(function(t){ return t.date >= cut; }).sort(function(a, b){
+    return (b.date || '').localeCompare(a.date || '') || ordinals.pos.get(b) - ordinals.pos.get(a);
+  });
+  if (!rows.length) return `<div data-week-empty style='color:#a9b7c6;font-size:12px;margin:1px 0 4px 16px'>No reach-outs this week.</div>`;
+  // Font size, line height and border set on every cell: the app's global
+  // `td { font-size:13px; border-bottom:… }` rule beats anything set on <table>.
+  var cell = 'font-size:10.5px;line-height:1.2;border:0;';
+  var clip = cell + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  var lines = rows.slice(0, CAP).map(function(t){
+    var c = byId[t.contactId] || {};
+    var nm = ((c.first || '') + ' ' + (c.last || '')).trim() || '(unknown contact)';
+    var loc = [c.city, c.state].filter(Boolean).join(', ');
+    var co = c.company ? esc(c.company) + (loc ? ' (' + esc(loc) + ')' : '') : '';
+    var n = ordinals.ord.get(t) || 1;
+    var text = [esc(t.date), `<b>${esc(nm)}</b>`, co, esc(t.method || ''), esc(t.result || '')].filter(Boolean).join(' · ');
+    return `<tr data-touch><td style='${clip};padding:0 8px 0 14px;color:#12263a'>${text}</td>` +
+      `<td data-ord='${n}' style='${cell}width:34px;padding:0;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;${n >= 4 ? 'color:#c27c0e;font-weight:800' : 'color:#8a99a9'}'>#${n}</td></tr>`;
+  }).join('');
+  var more = rows.length > CAP ? `<tr data-week-more><td colspan='2' style='${cell}padding:0 0 0 14px;color:#687d92'>+${rows.length - CAP} more — see Activity</td></tr>` : '';
+  // table-layout:fixed is what lets the text cell clip instead of widening the
+  // table, and keeps "#N" in its own column so the ellipsis can never eat it.
+  return `<table data-week-list width='100%' style='width:100%;table-layout:fixed;border-collapse:collapse;font-size:10.5px;line-height:1.2;margin:1px 0 0'>${lines}${more}</table>`;
+}
 function _bizDays(fromISO){ var from=new Date(fromISO+'T00:00:00'); var to=new Date(); var n=0; var d=new Date(from); while(d<=to){ var wd=d.getDay(); if(wd>=1&&wd<=5) n++; d.setDate(d.getDate()+1); } return n||1; }
 function _hotList(){
   var hot=getContacts().filter(function(c){return c.active && c.hot;});
@@ -2700,6 +2770,7 @@ function buildReportHTML(){
   var _repPageNo = 2;   // team is page 1; each rep takes the next number
   // Include anyone who actually logged a touch, not just the hardcoded reps —
   // otherwise their activity silently vanishes from the report.
+  var _ordinals = _touchOrdinals(all);   // Touch # for every rep's week list, computed once
   var _reportReps = REPS.filter(function(r){ return r !== 'Unassigned'; });
   all.forEach(function(t){ if (t.rep && t.rep !== 'Unassigned' && _reportReps.indexOf(t.rep) === -1) _reportReps.push(t.rep); });
   _reportReps.forEach(function(rep){
@@ -2727,6 +2798,8 @@ function buildReportHTML(){
           <div style='font-size:11px;font-weight:700;color:#06753a;margin:7px 0 1px'>New customers <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div><div data-rep-wins>${_detailList(rep,'wins')}</div>
         </div>
         ${statBlock(rt)}
+        <div style='font-size:11px;font-weight:700;color:#0c2d47;margin:6px 0 1px'>Reach-outs this week <span data-week-count style='color:#8a99a9;font-weight:400'>(${r7})</span></div>
+        ${_weekList(rt, _ordinals, _weekListCap(rep))}
       </div>
     </div></div>`;
   });
