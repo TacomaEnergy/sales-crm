@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v120 · week list grouped by contact)</title>
+<title>Tacoma Energy — Sales CRM (v122 · Tacoma client markers)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -290,6 +290,8 @@
   .chip.hot { background: var(--hot-light); color: var(--hot); }
   .rep-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; }
   .rep-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .ai-tag { display: inline-block; margin-left: 3px; padding: 1px 4px; border-radius: 4px; background: #6e5a9c; color: #fff;
+            font-size: 9px; font-weight: 800; letter-spacing: .4px; line-height: 1.3; vertical-align: 1px; }
 
   /* ---- Flame toggle ---- */
   .flame-btn { background: none; border: none; cursor: pointer; font-size: 15px; line-height: 1; padding: 3px; border-radius: 7px; filter: grayscale(1) opacity(.32); transition: .15s; }
@@ -439,6 +441,13 @@
   .builder-head { display: grid; grid-template-columns: 1fr 120px 90px 28px; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; transition: background .12s; }
   .builder-head:hover { background: var(--bg-2); }
   .builder-name { font-weight: 800; color: var(--navy); font-size: 14.5px; display: flex; align-items: center; gap: 7px; }
+  /* Tacoma client divisions (CLIENT_DIVISIONS): a small brand-blue "T" by the
+     builder name and a subtle blue left edge on the card. Notifier only. */
+  .client-mark { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px;
+                 margin-left: 5px; border-radius: 5px; background: #1395d3; color: #fff; font-size: 10.5px; font-weight: 800;
+                 line-height: 1; vertical-align: 1px; flex-shrink: 0; cursor: help; }
+  .builder-card.is-client, .fub-card.is-client, .hot-card.is-client { border-left: 3px solid #1395d3; }
+  .contact-detail.is-client { border-left: 3px solid #1395d3; padding-left: 12px; }
   .builder-loc { font-size: 12px; color: var(--muted); margin-top: 2px; font-weight: 600; }
   .builder-stat { text-align: center; }
   .builder-stat .n { font-size: 15px; font-weight: 800; color: var(--navy); }
@@ -724,6 +733,7 @@
         <option value="new">New & untouched (90 days)</option>
         <option value="active">Recently touched (30 days)</option>
         <option value="inactive">Inactive (former contacts)</option>
+        <option value="client">Clients</option>
       </select>
     </div>
     <div id="activeFilterBar" style="display:none;align-items:center;flex-wrap:wrap;gap:7px;margin:-4px 0 12px"></div>
@@ -1045,13 +1055,19 @@ const LOCATIONS = {
 };
 const STATE_LIST = Object.keys(LOCATIONS).sort();
 const REPS = ['N. Reynolds', 'C. Gaston', 'A. Palumbo', 'Unassigned'];
+// The AI outreach agent's touches carry this rep. It is a system rep, not a
+// person: its touches count in every team total and it can be filtered on (the
+// dashboard and Activity), but it is never in REPS. So it isn't in "Logging as"
+// or the touch modal's rep list, gets no weekly-report rep page, and doesn't
+// count toward "Reps active this week". It logs through logAgentTouch().
+const AGENT_REP = 'Outreach Agent';
 // High-intent touch outcomes that auto-promote a contact to Hot (the lightweight
 // pipeline). Reps just pick the result; logging one of these flags the lead.
 const HOT_RESULTS = ['Pricing sent'];
 // Funnel definitions (all derived from the Result reps already pick — no extra data entry):
 const WIN_RESULT = 'Became customer';
 const CONNECT_RESULTS = ['Spoke with contact', 'Pricing sent', 'Meeting booked', 'Became customer', 'Not interested'];  // touches that reached a human
-const REP_COLOR = { 'N. Reynolds': '#06a951', 'C. Gaston': '#1395d3', 'A. Palumbo': '#f2622a', 'Unassigned': '#687d92' };
+const REP_COLOR = { 'N. Reynolds': '#06a951', 'C. Gaston': '#1395d3', 'A. Palumbo': '#f2622a', 'Unassigned': '#687d92', [AGENT_REP]: '#6e5a9c' };
 function repColor(r) { return REP_COLOR[r] || '#687d92'; }
 
 const mem = {};
@@ -1383,8 +1399,12 @@ function contactCell(c, opts) {
 // value would split one method into two and break historical counts.
 const METHOD_LABELS = { 'In Person': 'In Person / Virtual' };
 function methodLabel(m) { return METHOD_LABELS[m] || m || ''; }
+// The small "AI" tag that follows the agent's name wherever a rep is shown.
+function repTag(rep) {
+  return rep === AGENT_REP ? '<span class="ai-tag" title="Logged by the AI outreach agent">AI</span>' : '';
+}
 function repChip(rep) {
-  return `<span class="rep-chip" style="color:${repColor(rep)}"><span class="rep-dot" style="background:${repColor(rep)}"></span>${esc(rep||'—')}</span>`;
+  return `<span class="rep-chip" style="color:${repColor(rep)}"><span class="rep-dot" style="background:${repColor(rep)}"></span>${esc(rep||'—')}${repTag(rep)}</span>`;
 }
 function flameIcon(c, size) {
   return `<button class="flame-btn ${c.hot?'on':''}" title="${c.hot?'Hot lead — click to unflag':'Flag as Hot Lead'}" style="${size?`font-size:${size}px`:''}" onclick="event.stopPropagation();toggleHot('${c.contactId}')">🔥</button>`;
@@ -2872,7 +2892,9 @@ function buildReportHTML(){
   // otherwise their activity silently vanishes from the report.
   var _totals = _touchTotals(all);   // "All-time" for every rep's week list, computed once
   var _reportReps = REPS.filter(function(r){ return r !== 'Unassigned'; });
-  all.forEach(function(t){ if (t.rep && t.rep !== 'Unassigned' && _reportReps.indexOf(t.rep) === -1) _reportReps.push(t.rep); });
+  // ...except the AI agent (AGENT_REP): its touches are in the team totals, but it
+  // gets no rep page of its own.
+  all.forEach(function(t){ if (t.rep && t.rep !== 'Unassigned' && t.rep !== AGENT_REP && _reportReps.indexOf(t.rep) === -1) _reportReps.push(t.rep); });
   _reportReps.forEach(function(rep){
     if(rep==='Unassigned') return;
     var rt=all.filter(function(t){return t.rep===rep;});
@@ -3191,9 +3213,10 @@ function renderHotLeads() {
     const d = fu ? daysBetween(fu) : null;
     const why = hotReasonFor(c.contactId);
     const fuChip = fu ? (d > 0 ? `<span class="chip red">${d}d overdue</span>` : d === 0 ? '<span class="chip amber">Due today</span>' : `<span class="chip blue">${fmtDate(fu)}</span>`) : '<span class="chip gray">No follow-up set</span>';
-    return `<div class="hot-card" onclick="openContactFromDash('${c.contactId}')">
+    // Hot Leads is one card per person, so the client mark sits on the card, next to its builder.
+    return `<div class="hot-card${isClientDivision(c.company, c.city, c.state) ? ' is-client' : ''}" onclick="openContactFromDash('${c.contactId}')">
       <div class="hot-card-top">
-        <div><div class="hot-card-name">${esc(c.first)} ${esc(c.last)}</div><div class="hot-card-co">${esc([c.title, c.company].filter(Boolean).join(' · ')) || '—'}</div><div style="margin-top:4px">${lt?repChip(lt.rep):'<span class="chip gray">Unassigned</span>'}</div>${why?`<div style="font-size:11.5px;font-weight:800;color:var(--red);margin-top:3px">🔥 ${esc(why.result)} · ${fmtDate(why.date)}</div>`:''}</div>
+        <div><div class="hot-card-name">${esc(c.first)} ${esc(c.last)}</div><div class="hot-card-co">${esc([c.title, c.company].filter(Boolean).join(' · ')) || '—'}${c.company ? clientMark(c.company, c.city, c.state) : ''}</div><div style="margin-top:4px">${lt?repChip(lt.rep):'<span class="chip gray">Unassigned</span>'}</div>${why?`<div style="font-size:11.5px;font-weight:800;color:var(--red);margin-top:3px">🔥 ${esc(why.result)} · ${fmtDate(why.date)}</div>`:''}</div>
         ${flameIcon(c, 17)}
       </div>
       <div class="hot-card-meta">
@@ -3757,6 +3780,63 @@ function clearContactFilters() {
   try { if (typeof onContactStateChange === 'function') onContactStateChange(); } catch(e){}
   renderContacts();
 }
+// ---- Tacoma client divisions ----------------------------------------
+// Update when accounting adds/removes a client.
+// Source: accounting's Client Setup Master, 2026-11-09 — [company, city, state].
+// A notifier only: client contacts stay fully visible and contactable. Matched
+// per DIVISION (company + city + state), never builder-wide — Fischer Columbus
+// is a client; a Fischer division not on this list is not.
+const CLIENT_DIVISIONS = [["Adams Homes","San Antonio","TX"],["Adams Homes","South Houston","TX"],["Alogla Homes","Dayton","OH"],["Arlington Construction","Columbus","OH"],["Avodah Contractors / Plum Creek","Columbus","OH"],["Bethel Homes","Houston","TX"],["Bob DeAndrea","Columbus","OH"],["BOLD Company","Florence","KY"],["Brynwood Homes","Columbus","OH"],["Build with JW","Columbus","OH"],["Camden Homes","Dallas","TX"],["CCBI","Columbus","OH"],["Chesmar","Houston","TX"],["Coastal Ridge","Columbus","OH"],["Complete Comfort","Columbus","OH"],["Cristo Homes","Cincinnati","OH"],["Custom Home Building Consultants","Columbus","OH"],["Custom Homes by Chris","Indianapolis","IN"],["D.R. Horton","Birmingham","AL"],["D.R. Horton","Huntsville","AL"],["D.R. Horton","Fort Wayne","IN"],["D.R. Horton","Indianapolis","IN"],["D.R. Horton","Louisville","KY"],["D.R. Horton","Mid Atlantic","NJ"],["D.R. Horton","Mount Laurel","NJ"],["D.R. Horton","Cincinnati","OH"],["D.R. Horton","Cleveland","OH"],["D.R. Horton","Columbus","OH"],["D.R. Horton","Eastern","PA"],["D.R. Horton","Nashville","TN"],["Daimler Group","Columbus","OH"],["DC Builders","Columbus","OH"],["DRB Group (Formerly Brightland)","Nashville","TN"],["Fischer Homes","Gulf Coast","FL"],["Fischer Homes","Atlanta","GA"],["Fischer Homes","Indianapolis","IN"],["Fischer Homes","Louisville","KY"],["Fischer Homes","Northern Kentucky","KY"],["Fischer Homes","St. Louis","MO"],["Fischer Homes","Raleigh","NC"],["Fischer Homes","Cincinnati","OH"],["Fischer Homes","Columbus","OH"],["Fischer Homes","Dayton","OH"],["Fort Cherokee Investments","Columbus","OH"],["Fox Builders","Columbus","OH"],["Front Porch Homes","Columbus","OH"],["GDM Builders","Indianapolis","IN"],["Guzzo and Garner","Columbus","OH"],["Homes by Nest","Indianapolis","IN"],["J Greg Alan Builders","Indianapolis","IN"],["JA Yancey Builders","Indianapolis","IN"],["JBS","Boston","MA"],["JB's Home Energy","Boston","MA"],["Jeff West Custom Homes","Indianapolis","IN"],["JiAngelo Builders","Columbus","OH"],["Jon Troyer","Columbus","OH"],["JP Homestead","Houston","TX"],["JYS Homes","Columbus","OH"],["Kevin Knight & Co.","Columbus","OH"],["Kitchen Bath CO. LLC","Beavercreek","OH"],["Legacy South","Nashville","TN"],["Lennar","Hamilton","NJ"],["Level Construction","Dayton","OH"],["Longitude Construction","Columbus","OH"],["Lowry Builders","Springfield","OH"],["Maletz Architecture","Columbus","OH"],["Marblewood","Columbus","OH"],["Maronda","Pensacola","FL"],["Maronda","Cincinnati","OH"],["Maronda","Columbus","OH"],["Martin HVAC Services","Houston","TX"],["MasterCraft","St. Augustine","FL"],["MasterCraft Custom Homes","Cleveland","OH"],["Matthew Provenzano","Jacksonville","FL"],["Memmer","Columbus","OH"],["Midwest Service Group","Columbus","OH"],["Miller Group","Plain City","OH"],["Montgomery Custom Homes","Dallas","TX"],["Monticello Homes","Columbus","OH"],["Mulberry","Columbus","OH"],["P&D","Columbus","OH"],["Palazzo Builders","Columbus","OH"],["Patriot Air","Columbus","OH"],["PCI Design Group","Columbus","OH"],["Perry Homes","Houston","TX"],["Pivotal","Atlanta","GA"],["Plum Creek Builders / Avodah","Columbus","OH"],["Pride One Construction","Cleveland","OH"],["Pulte","Indianapolis","IN"],["Pulte","Louisville","KY"],["Pulte","Boston","MA"],["Pulte","Detroit","MI"],["Pulte","Cleveland","OH"],["Pulte","Columbus","OH"],["RHM3","Spring","TX"],["Richmond American Homes","Huntsville","AL"],["Richmond American Homes","Nashville","TN"],["Robert Sorsby","Dallas","TX"],["Robinwood Development","Dayton","OH"],["Romanelli","Columbus","OH"],["Schottenstein Homes","Columbus","OH"],["Schumacher Homes","Louisville","KY"],["Schumacher Homes","Nashville","TN"],["Scott Bates Builders (AR of Indianapolis)","Indianapolis","IN"],["Scott Bates Custom Homes","Indianapolis","IN"],["Simms Creek Builders","Sunbury","OH"],["Smith Douglas","Atlanta","GA"],["South Atlas Construction","Manvel","TX"],["Studebaker Construction","Springfield","OH"],["Stylecraft","Houston","TX"],["T&R Properties","Columbus","OH"],["Today Homes","Columbus","OH"],["Townsend Construction","Columbus","OH"],["Vastlands","Nashville","TN"],["Virginia Homes","Columbus","OH"],["Vision Development","Columbus","OH"],["Vision ll","Indianapolis","IN"],["West Jefferson Plumbing","Columbus","OH"],["Wing Builders","Marysville","OH"],["Elevate Capital","Columbus","OH"],["Quarles Construction","Salado","TX"]];
+// Accounting's company name → the CRM's, applied after normalising (_clientCo).
+const CLIENT_COMPANY_ALIAS = { 'pulte': 'pultegroup', 'drb group formerly brightland': 'drb group' };
+// Divisions accounting names by region where the CRM files them under a city.
+const CLIENT_CITY_ALIAS = {
+  'D.R. Horton|Mid Atlantic|NJ': 'Newark|NJ',
+  'D.R. Horton|Mount Laurel|NJ': 'Newark|NJ',
+  'D.R. Horton|Eastern|PA': 'Philadelphia|PA',
+  'Lennar|Hamilton|NJ': 'Newark|NJ',
+  'Fischer Homes|Northern Kentucky|KY': 'Cincinnati|OH',
+  'Adams Homes|South Houston|TX': 'Houston|TX',
+};
+const _CLIENT_TRAILING = new Set(['homes', 'home', 'builders', 'builder', 'construction', 'inc', 'llc', 'co']);
+// "D.R. Horton" → "dr horton", "Pulte Homes" → "pulte" → "pultegroup",
+// "DRB Group (Formerly Brightland)" → "drb group", "Kitchen Bath CO. LLC" → "kitchen bath".
+function _clientCo(name) {
+  const words = String(name || '').toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')          // parentheticals
+    .replace(/[^a-z0-9\s]/g, '')         // punctuation
+    .replace(/\s+/g, ' ').trim().split(' ');
+  while (words.length > 1 && _CLIENT_TRAILING.has(words[words.length - 1])) words.pop();
+  const s = words.join(' ');
+  return CLIENT_COMPANY_ALIAS[s] || s;
+}
+const _clientKey = (company, city, state) =>
+  _clientCo(company) + '|' + String(city || '').trim().toLowerCase() + '|' + String(state || '').trim().toLowerCase();
+function _clientEntryKey(e) {
+  const [co, city, st] = e;
+  const alias = CLIENT_CITY_ALIAS[co + '|' + city + '|' + st];
+  return alias ? _clientKey(co, ...alias.split('|')) : _clientKey(co, city, st);
+}
+const _CLIENT_KEYS = new Set(CLIENT_DIVISIONS.map(_clientEntryKey));
+function isClientDivision(company, city, state) { return _CLIENT_KEYS.has(_clientKey(company, city, state)); }
+// The small brand-blue "T" shown next to a client division's builder name.
+function clientMark(company, city, state) {
+  return isClientDivision(company, city, state) ? '<span class="client-mark" title="Tacoma client" aria-label="Tacoma client">T</span>' : '';
+}
+// CLIENT_DIVISIONS entries that match no contact in the CRM (active or not) —
+// logged on load so a naming mismatch between accounting and the CRM is findable.
+function unmatchedClientDivisions() {
+  const have = new Set(getContacts().map(c => _clientKey(c.company, c.city, c.state)));
+  return CLIENT_DIVISIONS.filter(e => !have.has(_clientEntryKey(e)));
+}
+function logUnmatchedClients() {
+  const u = unmatchedClientDivisions();
+  if (u.length) console.info('[clients] ' + u.length + ' of ' + CLIENT_DIVISIONS.length +
+    ' client divisions match no CRM contact (check the name or city in CLIENT_DIVISIONS / CLIENT_CITY_ALIAS):\n' +
+    u.map(e => '  ' + e.join(' | ')).join('\n'));
+  return u;
+}
+
 // Known email formats, supplied by Arick. These take priority over pattern
 // detection: he knows formats the data can't reveal, and inference will always
 // be wrong somewhere. A null entry means "this builder has no derivable
@@ -4102,6 +4182,7 @@ function renderContacts() {
       else if (statusF === 'hot') { if (!c.hot) return false; }
       else if (statusF === 'new') { if (lastTouch(c.contactId)) return false; const _ad = contactEdited(c); if (!_ad || daysBetween(_ad) > 90) return false; }
       else if (statusF === 'active') { const _lt = lastTouch(c.contactId); if (!_lt || daysBetween(_lt.date) > 30) return false; }
+      else if (statusF === 'client') { if (!isClientDivision(c.company, c.city, c.state)) return false; }
       else if (contactStatus(c.contactId).key !== statusF) return false;
     }
     if (q) {
@@ -4141,7 +4222,7 @@ function renderContacts() {
       const lt = lastTouch(c.contactId);
       const st = contactStatus(c.contactId);
       const cls = c.hot ? 'hot' : (!lt ? 'never' : 'touched');
-      const ltText = lt ? `${fmtDate(lt.date)} · ${lt.rep}` : 'Not yet contacted';
+      const ltText = lt ? `${fmtDate(lt.date)} · ${esc(lt.rep)}${repTag(lt.rep)}` : 'Not yet contacted';
       const fresh = contactFreshness(c);
       const staleFlag = fresh.stale ? ` <span title="Not updated in ${Math.round(fresh.days/30)} months — verify employer/title" style="color:var(--amber);font-size:11px;font-weight:800">⚠</span>` : '';
       return `<div class="crow ${cls} ${state.selectedContact===c.contactId?'selected':''}" onclick="selectContact('${c.contactId}')">
@@ -4158,10 +4239,11 @@ function renderContacts() {
       </div>`;
     }).join('');
 
-    return `<div class="builder-card ${open?'open':''}">
+    const isClient = isClientDivision(b.company, b.city, b.state);
+    return `<div class="builder-card ${open?'open':''}${isClient?' is-client':''}">
       <div class="builder-head" onclick="toggleBuilder('${escArg(b.company+'|'+b.city+'|'+b.state)}')">
         <div>
-          <div class="builder-name">${esc(b.company)}${hotN?` <span class="chip hot">🔥 ${hotN}</span>`:''}</div>
+          <div class="builder-name">${esc(b.company)}${clientMark(b.company, b.city, b.state)}${hotN?` <span class="chip hot">🔥 ${hotN}</span>`:''}</div>
           <div class="builder-loc">${esc(b.city)}, ${esc(b.state)}</div>
         </div>
         <div class="builder-stat"><div class="n tnum">${b.contacts.length}</div><div class="l">Contacts</div></div>
@@ -4212,9 +4294,9 @@ function renderContactDetail(cid) {
 
   const history = touchesFor(cid);
   box.innerHTML = `
-    <div class="contact-detail">
+    <div class="contact-detail${isClientDivision(c.company, c.city, c.state) ? ' is-client' : ''}">
       <h3>${flameIcon(c, 18)} ${esc(c.first)} ${esc(c.last)} ${c.hot?'<span class="chip hot">🔥 Hot Lead</span>':''}</h3>
-      <div class="role">${esc(c.company)} · ${esc(c.title||'—')}<br>${esc(c.city)}, ${esc(c.state)}</div>
+      <div class="role">${esc(c.company)}${clientMark(c.company, c.city, c.state)} · ${esc(c.title||'—')}<br>${esc(c.city)}, ${esc(c.state)}</div>
       <div class="info-grid">
         <div class="info-box"><label>Email</label><strong><a href="mailto:${esc(c.email)}">${esc(c.email||'—')}</a></strong></div>
         <div class="info-box"><label>Phone</label><strong><a href="tel:${esc(phoneHref(c.phone))}">${esc(formatPhone(c.phone) || '—')}</a></strong></div>
@@ -4321,7 +4403,7 @@ function fuOtherRowHTML(o) {
         <span class="sub"> · ${esc(o.title || '—')}</span></div>
       <div style="font-size:12px;margin-top:2px">${mail}${tel}</div>
     </div>
-    <div class="sub">${olt ? `Last: ${fmtDate(olt.date)} · ${esc(olt.rep)}` : 'Never contacted'}</div>
+    <div class="sub">${olt ? `Last: ${fmtDate(olt.date)} · ${esc(olt.rep)}${repTag(olt.rep)}` : 'Never contacted'}</div>
     <div style="text-align:right"><button class="btn sm" onclick="event.stopPropagation();quickTouch('${escArg(o.contactId)}')">Log</button></div>
   </div>`;
 }
@@ -4382,9 +4464,9 @@ function fuBuilderCardsHTML(rows, surface, openFuIds) {
         <div class="fub-others-body"></div>
       </div>` : '';
 
-    return `<div class="fub-card">
+    return `<div class="fub-card${isClientDivision(c0.company, c0.city, c0.state) ? ' is-client' : ''}">
         <div class="fub-head">
-          <span class="fub-builder">${esc(c0.company || '(no builder)')}</span>
+          <span class="fub-builder">${esc(c0.company || '(no builder)')}${clientMark(c0.company, c0.city, c0.state)}</span>
           <span class="fub-city">${esc([c0.city, c0.state].filter(Boolean).join(', ') || '—')}</span>
           <span class="spacer"></span>
           <span class="chip gray">${grp.length} follow-up${grp.length===1?'':'s'}</span>
@@ -4574,9 +4656,29 @@ function changeTouchContact() {
   const s = document.getElementById('tmContactSearch'); s.value = ''; s.focus();
 }
 let editingTouchKey = null;   // "contactId|touchId" while editing an existing touch
+// The touch modal's Rep list is people only. Editing a touch the AI agent
+// logged shows its rep read-only (a temporary option, select disabled) and
+// saveTouch keeps it — otherwise the edit would quietly reassign it to whoever
+// is logged in, since the agent isn't in the list.
+let _tmRepAgentLocked = false;
+function _lockTouchRepToAgent(on) {
+  const sel = document.getElementById('tmRep');
+  if (!sel) return;
+  _tmRepAgentLocked = on;
+  const opt = sel.querySelector('option[data-agent]');
+  if (on) {
+    if (!opt) { const o = document.createElement('option'); o.value = o.textContent = AGENT_REP; o.dataset.agent = '1'; sel.appendChild(o); }
+    sel.value = AGENT_REP;
+  } else if (opt) {
+    opt.remove();
+  }
+  sel.disabled = on;
+  sel.title = on ? 'Logged by the AI outreach agent — the rep can’t be changed' : '';
+}
 function openTouchModal(editKey) {
   editingTouchKey = editKey || null;
   _setWinPrompt(false);
+  _lockTouchRepToAgent(false);
   setTimeout(renderNoteChips, 0);   // chips reflect whichever rep ends up selected
   { var _h=document.getElementById('tmHot'); if(_h) _h.checked=false; }
   document.getElementById('tmContactSearch').value = '';
@@ -4585,7 +4687,8 @@ function openTouchModal(editKey) {
   if (t) {
     state.selectedContact = t.contactId;
     document.getElementById('tmDate').value = t.date || todayISO();
-    document.getElementById('tmRep').value = REPS.includes(t.rep) ? t.rep : (state.actingRep || REPS[0]);
+    if (t.rep === AGENT_REP) _lockTouchRepToAgent(true);
+    else document.getElementById('tmRep').value = REPS.includes(t.rep) ? t.rep : (state.actingRep || REPS[0]);
     document.getElementById('tmMethod').value = t.method || 'Call';
     document.getElementById('tmResult').value = t.result || 'Left voicemail';
     document.getElementById('tmFollowup').value = t.followUp || '';
@@ -4608,7 +4711,7 @@ function openTouchModal(editKey) {
   document.querySelector('#touchModal .modal-head h3').textContent = t ? 'Edit Touch' : 'Add Sales Touch';
   document.getElementById('touchModal').classList.add('open');
 }
-function closeTouchModal() { document.getElementById('touchModal').classList.remove('open'); var _b=document.getElementById('tmSaveBtn'); if(_b){ _b.disabled=false; _b.textContent='Save Touch'; } }
+function closeTouchModal() { document.getElementById('touchModal').classList.remove('open'); _lockTouchRepToAgent(false); var _b=document.getElementById('tmSaveBtn'); if(_b){ _b.disabled=false; _b.textContent='Save Touch'; } }
 // A short explanation under the Result dropdown. Results drive the report —
 // "Pricing sent" in particular has its own metric — so the cost of everyone
 // choosing differently is a set of numbers that don't mean anything.
@@ -4758,9 +4861,9 @@ async function saveTouch() {
     return;
   }
   _setWinPrompt(false);
-  // Remember this rep's picks so the next touch opens pre-set.
+  // Remember this rep's picks so the next touch opens pre-set (a person's, never the agent's).
   try {
-    rememberTouchPrefs(
+    if (!_tmRepAgentLocked) rememberTouchPrefs(
       document.getElementById('tmRep').value,
       document.getElementById('tmMethod').value,
       document.getElementById('tmResult').value);
@@ -4777,7 +4880,8 @@ async function saveTouch() {
     if (!touchIdUnique(touches[i].touchId)) { toast('This legacy touch can\'t be edited — its ID is shared with other touches'); editingTouchKey = null; closeTouchModal(); return; }
     entry = { ...touches[i],
       date: document.getElementById('tmDate').value || touches[i].date,
-      rep: document.getElementById('tmRep').value,
+      // An agent touch stays the agent's, whatever the (disabled) dropdown says.
+      rep: touches[i].rep === AGENT_REP ? AGENT_REP : document.getElementById('tmRep').value,
       method: document.getElementById('tmMethod').value,
       result: document.getElementById('tmResult').value,
       notes: document.getElementById('tmNotes').value.trim(),
@@ -4836,6 +4940,70 @@ async function saveTouch() {
   syncWrite(isEdit ? 'editTouch' : 'addTouch', entry);
   try { var _hb=document.getElementById('tmHot'); if(_hb && _hb.checked){ var _cs=getContacts(); var _c=_cs.find(function(x){return x.contactId===cid;}); if(_c && !_c.hot){ _c.hot=true; _c.hotSince=todayISO(); saveContacts(_cs); pushPA('editContact', editPayload(_c)); if(typeof refreshHotCount==='function') refreshHotCount(); } } } catch(e){}
   editingTouchKey = null;
+}
+
+// The AI outreach agent logs a touch here — no modal, no toasts, no dialogs.
+// Built exactly as saveTouch builds a new touch: same Touch ID generator, write
+// ledger (logWrite), follow-up and Hot handling, and the same sync path (pushPA
+// → Flow 2b, queued for retry on failure; the cross-tab flush lock covers the
+// retry). The rep is always AGENT_REP. Returns a copy of the saved touch.
+//   logAgentTouch({ contactId, date, method, result, notes, followUp })
+// date defaults to today; followUp, if left out, gets the same default the
+// modal would pre-fill for that result (pass '' for none).
+function logAgentTouch(t) {
+  t = t || {};
+  const cid = String(t.contactId == null ? '' : t.contactId);
+  if (!cid || !contactById(cid)) throw new Error('logAgentTouch: unknown contactId "' + cid + '"');
+  const allowed = id => [...document.getElementById(id).options].map(o => o.value);
+  if (!allowed('tmMethod').includes(t.method)) throw new Error('logAgentTouch: method must be one of ' + allowed('tmMethod').join(', '));
+  if (!allowed('tmResult').includes(t.result)) throw new Error('logAgentTouch: result must be one of ' + allowed('tmResult').join(', '));
+  const date = t.date ? normDate(t.date) : todayISO();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('logAgentTouch: bad date "' + t.date + '"');
+  const followUp = t.followUp === undefined ? followUpDefault(t.result) : (t.followUp ? normDate(t.followUp) : '');
+
+  const entry = {
+    touchId: nextTouchId(cid),
+    contactId: cid,
+    date,
+    rep: AGENT_REP,
+    method: t.method,
+    result: t.result,
+    notes: String(t.notes || '').trim(),
+    followUp
+  };
+  const touches = getTouches();
+  touches.push(entry);
+  saveTouches(touches);
+  logWrite('addTouch', entry);
+
+  // As in saveTouch: a fresh follow-up supersedes any snooze/dismiss, and a
+  // high-intent result promotes the contact to Hot.
+  if (entry.followUp) {
+    const contacts = getContacts();
+    const c = contacts.find(x => x.contactId === cid);
+    if (c && c.fuAdjust) { delete c.fuAdjust; saveContacts(contacts); }
+  }
+  if (HOT_RESULTS.includes(entry.result)) {
+    const contacts = getContacts();
+    const c = contacts.find(x => x.contactId === cid);
+    if (c && !c.hot) {
+      c.hot = true;
+      c.hotSince = entry.date || todayISO();
+      saveContacts(contacts);
+      refreshHotCount();
+      pushPA('editContact', editPayload(c));
+    }
+  }
+
+  // Refresh whatever is on screen, without moving anyone off what they're viewing.
+  if (state.view==='contacts') { renderContacts(); if (state.selectedContact === cid) renderContactDetail(cid); }
+  if (state.view==='dashboard') renderDashboard();
+  if (state.view==='followups') renderFollowups();
+  if (state.view==='hotleads') renderHotLeads();
+  if (state.view==='activity') renderActivity();
+
+  pushPA('addTouch', entry).then(updateSyncBadge, updateSyncBadge);
+  return { ...entry };
 }
 
 // Delete a touch: removed locally right away; queued for SharePoint delete
@@ -5478,16 +5646,18 @@ function populateRepDropdowns() {
   }
   if (!people.includes(state.actingRep)) state.actingRep = people[0];
   document.getElementById('repSwitch').value = state.actingRep;
-  _setOptionsPreserving('tmRep', opts);   // same people as "Logging as"
+  _setOptionsPreserving('tmRep', opts);   // same people as "Logging as" (never the AI agent)
+  if (_tmRepAgentLocked) _lockTouchRepToAgent(true);   // a rebuild mustn't drop the agent from an open edit
   _setOptionsPreserving('contactRepFilter', '<option value="">Any rep activity</option>' + opts);
-  _setOptionsPreserving('actRepFilter', '<option value="">All reps</option>' + opts);
+  // The agent can be filtered on in Activity, after Unassigned (which ends `opts`).
+  _setOptionsPreserving('actRepFilter', '<option value="">All reps</option>' + opts + `<option value="${esc(AGENT_REP)}">${esc(AGENT_REP)}</option>`);
   _setOptionsPreserving('fuRepFilter', '<option value="">All reps</option>' + opts);
 
   // Keep whichever rep is selected on the dashboard highlighted after a rebuild.
   const curDashRep = state.dashRep || '';
   document.getElementById('dashRepSeg').innerHTML =
     `<span class="seg-label" style="padding:8px 6px 8px 8px">Rep</span><button class="seg-btn${curDashRep === '' ? ' active' : ''}" data-rep="" onclick="setDashRep('')">All</button>` +
-    REPS.map(r => `<button class="seg-btn${curDashRep === r ? ' active' : ''}" data-rep="${esc(r)}" onclick="setDashRep('${escArg(r)}')">${esc(r)}</button>`).join('');
+    REPS.concat([AGENT_REP]).map(r => `<button class="seg-btn${curDashRep === r ? ' active' : ''}" data-rep="${esc(r)}" onclick="setDashRep('${escArg(r)}')">${esc(r)}${repTag(r)}</button>`).join('');
 
   rebuildLocationFilters();
   const builders = [...new Set(getContacts().map(c => c.company).filter(Boolean))].sort();
@@ -5520,6 +5690,7 @@ function rebuildCityFilter() {
 function onContactStateChange() { rebuildCityFilter(); renderContacts(); }
 
 seed();
+logUnmatchedClients();   // console.info: client divisions with no CRM contact
 populateRepDropdowns();
 refreshHotCount();
 renderDashboard();
