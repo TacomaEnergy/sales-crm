@@ -2778,10 +2778,7 @@ function _kpiCards(touches, opts){
     {label:'Builders hit', key:'divisions', ico:'\ud83c\udfd8\ufe0f'},
     {label:'First-time contacts', key:'fresh', ico:'\u2728'},
     {label:'Pricing sent', key:'price', ico:'\ud83d\udcb2'},
-    {label:'Meetings', key:'meet', ico:'\ud83e\udd1d'},
-    // The outcome, not an activity: year-to-date, and styled apart from the five
-    // weekly cards so "this year" isn't read as "this week".
-    {label:'New customers', key:'wins', ico:'\ud83c\udfc6', outcome:true}
+    {label:'Meetings', key:'meet', ico:'\ud83e\udd1d'}
   ];
   // Cards give this week at a glance; the table below carries 30d and YTD.
   // Repeating all three windows in both places was the duplication that made
@@ -2789,7 +2786,7 @@ function _kpiCards(touches, opts){
   var cells=defs.map(function(d){
     var top = d.outcome ? '#06a951' : (opts.accent||'#1395d3');
     var box = d.outcome ? 'border:1px solid #9fd9b8;background:#effaf3' : 'border:1px solid #dbe6f0;background:#fff';
-    return `<td valign='top' style='width:16.66%;padding:0 4px'>
+    return `<td valign='top' style='width:20%;padding:0 4px'>
       <div ${d.outcome?"data-kpi='wins' ":''}style='${box};border-top:3px solid ${top};border-radius:8px;padding:7px 9px 8px'>
         <div style='font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:${d.outcome?'#06753a':'#687d92'};line-height:1.25;min-height:23px'>${d.label}</div>
         <div style='font-size:26px;font-weight:800;color:${d.outcome?'#06753a':'#0e2f4a'};line-height:1.0;margin:3px 0 1px'>${d.outcome ? sytd[d.key] : s7[d.key]}</div>
@@ -2831,7 +2828,7 @@ function buildReportHTML(){
     var perDay=function(){ return ['Reach-outs per workday'].concat(wins.map(function(cut,i){
       var n=st[i].reach, d=_bizDays(cut);
       return d ? (Math.round(n/d*10)/10).toFixed(1) : '0.0';
-    })); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Builders hit','divisions'),mk('First-time contacts','fresh'),mk('Pricing sent','price'),mk('New customers','wins'),mk('Meetings','meet'),perDay()]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
+    })); }; var rows = onlyReach ? [mk('Reach-outs','reach')] : [mk('Reach-outs','reach'),mk('Builders hit','divisions'),mk('First-time contacts','fresh'),mk('Pricing sent','price'),mk('Meetings','meet'),perDay()]; if(extra) rows.push(extra); return _tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows); }
   var _stamp=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
   var html=`<div style="font-family:Arial,Helvetica,sans-serif;color:#12263a;max-width:720px">`;
   // ================= PAGE 1 — TEAM =================
@@ -2848,25 +2845,6 @@ function buildReportHTML(){
 
   // ---- Team section ----
   html+=_sectionHead('1','Team Overview','all reps combined','#06a951');
-  // ---- New customers: the outcome everything else on the page is working toward ----
-  // One row — label | list | YTD — because the team page is a single printed
-  // page with almost no slack: as a header-plus-list box this pushed the real
-  // book's report to 6 pages. So it never takes more than 3 lines: up to 3 wins
-  // are all listed; past that it shows 2 and points at the rep pages, which list
-  // every one. Each line is one division, clipped rather than wrapped.
-  var _wins30=_winDivisions(all.filter(function(t){return t.date>=cutoffFor(30);}));
-  var _winsYtd=statsFor(all)[2].wins;
-  var _winsShown=_wins30.length>3 ? _wins30.slice(0,2) : _wins30;
-  var _winsMore=_wins30.length-_winsShown.length;
-  var _winLi='margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px';
-  var _winList=_wins30.length
-    ? `<ul style='font-size:12.5px;line-height:1.35;margin:0;padding-left:16px'>${_winsShown.map(function(d){ return `<li style='${_winLi}'>${_winLabel(d)}</li>`; }).join('')}${_winsMore?`<li style='margin:0;list-style:none;color:#5d8a6e'>+${_winsMore} more — see the rep pages</li>`:''}</ul>`
-    : `<div style='font-size:12px;color:#5d8a6e;line-height:1.35'>No new customers in the last 30 days.</div>`;
-  html+=`<table id='rptNewCustomers' width='100%' style='border-collapse:separate;border-spacing:0;border:1px solid #9fd9b8;border-left:4px solid #06a951;border-radius:8px;background:#effaf3;margin:2px 0 4px'><tr>
-      <td valign='top' style='padding:5px 10px 5px 12px;white-space:nowrap;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#06753a;line-height:1.55'>🏆 New customers <span style='text-transform:none;letter-spacing:0;font-weight:400;color:#5d8a6e'>(30 days)</span></td>
-      <td valign='top' style='padding:5px 6px;width:100%'>${_winList}</td>
-      <td valign='top' align='right' style='padding:4px 12px 4px 6px;white-space:nowrap;font-size:11px;color:#5d8a6e;line-height:1.55'>Year to date <b data-ytd style='font-size:15px;color:#06753a'>${_winsYtd}</b></td>
-    </tr></table>`;
   html+=_kpiCards(all, {accent:'#06a951', stats:statsFor(all)});
   html+=statBlock(all, ['New contacts added', contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(7);}).length,
                                               contacts.filter(function(x){return (x.dateAdded||'')>=cutoffFor(30);}).length,
@@ -2917,7 +2895,6 @@ function buildReportHTML(){
         <div style='margin-top:8px'>
           <div style='font-size:11px;font-weight:700;color:#0c2d47;margin-bottom:1px'>Pricing sent <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div>${_detailList(rep,'price')}
           <div style='font-size:11px;font-weight:700;color:#0c2d47;margin:7px 0 1px'>Meetings <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div>${_detailList(rep,'meet')}
-          <div style='font-size:11px;font-weight:700;color:#06753a;margin:7px 0 1px'>New customers <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div><div data-rep-wins>${_detailList(rep,'wins')}</div>
         </div>
         ${statBlock(rt)}
         ${(function(){ var wg=_weekGroups(rt, _totals);
