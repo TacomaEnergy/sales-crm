@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v122 · Tacoma client markers)</title>
+<title>Tacoma Energy — Sales CRM (v123 · Midland/Odessa market)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1038,7 +1038,7 @@ function clearAppKey() { try { localStorage.removeItem(APP_KEY_STORE); } catch(e
 // in this file and could be read (or skipped entirely). The access key replaces it.
 const SESSION_HOURS = 12;   // how long a login lasts before re-prompting
 
-const LOCATIONS = {
+const LOCATIONS = { // City list rule: "what airport do you fly into" — one anchor city per metro; suburbs and small surrounding towns roll up to the nearest anchor (Frisco → Dallas, Big Spring → Midland/Odessa). Add a city only when it is its own fly-in market AND we have or are actively pursuing builders there. (Nov 2026: Abilene held for now.)
   'AL': ['Birmingham','Huntsville','Mobile','Montgomery'],'AK': ['Anchorage'],'AZ': ['Phoenix','Tucson'],
   'AR': ['Fayetteville','Little Rock'],'CA': ['Los Angeles','Sacramento'],'CO': ['Denver'],'CT': ['Bridgeport'],
   'DE': ['Dover'],'DC': ['DC'],'FL': ['Fort Myers','Jacksonville','Miami','Orlando','Pensacola','Tampa','West Palm Beach'],
@@ -1049,7 +1049,7 @@ const LOCATIONS = {
   'NY': ['Buffalo','New York','Rochester'],'NC': ['Charlotte','Raleigh','Wilmington'],'ND': ['Fargo'],
   'OH': ['Cincinnati','Cleveland','Columbus'],'OK': ['Oklahoma City'],'OR': ['Portland'],'PA': ['Philadelphia','Pittsburgh'],
   'RI': ['Providence'],'SC': ['Charleston','Columbia','Greenville','Myrtle Beach'],'SD': ['Sioux Falls'],
-  'TN': ['Chattanooga','Knoxville','Memphis','Nashville'],'TX': ['Austin','Dallas','El Paso','Houston','Lubbock','San Antonio'],
+  'TN': ['Chattanooga','Knoxville','Memphis','Nashville'],'TX': ['Austin','Dallas','El Paso','Houston','Lubbock','Midland/Odessa','San Antonio'],
   'UT': ['Salt Lake City'],'VT': ['Burlington'],'VA': ['Richmond','Virginia Beach'],'WA': ['Seattle'],'WV': ['Beckley'],
   'WI': ['Milwaukee'],'WY': ['Cheyenne'],'CAN': ['Toronto']
 };
