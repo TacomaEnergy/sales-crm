@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v123 · Midland/Odessa market)</title>
+<title>Tacoma Energy — Sales CRM (v124 · client pills)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -441,13 +441,19 @@
   .builder-head { display: grid; grid-template-columns: 1fr 120px 90px 28px; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; transition: background .12s; }
   .builder-head:hover { background: var(--bg-2); }
   .builder-name { font-weight: 800; color: var(--navy); font-size: 14.5px; display: flex; align-items: center; gap: 7px; }
-  /* Tacoma client divisions (CLIENT_DIVISIONS): a small brand-blue "T" by the
-     builder name and a subtle blue left edge on the card. Notifier only. */
-  .client-mark { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px;
-                 margin-left: 5px; border-radius: 5px; background: #1395d3; color: #fff; font-size: 10.5px; font-weight: 800;
-                 line-height: 1; vertical-align: 1px; flex-shrink: 0; cursor: help; }
-  .builder-card.is-client, .fub-card.is-client, .hot-card.is-client { border-left: 3px solid #1395d3; }
-  .contact-detail.is-client { border-left: 3px solid #1395d3; padding-left: 12px; }
+  /* Tacoma client divisions (CLIENT_DIVISIONS): a green "CLIENT"
+     pill by the builder name, a green left edge and a faint green tint on the
+     card. Notifier only — client contacts stay fully usable. */
+  .client-pill { display: inline-flex; align-items: center; gap: 3px; margin-left: 7px; padding: 2px 8px; border-radius: 999px;
+                 background: var(--green); color: #fff; font-size: 10.5px; font-weight: 800; letter-spacing: .05em;
+                 text-transform: uppercase; line-height: 1.4; white-space: nowrap; flex-shrink: 0; cursor: help; vertical-align: 2px; }
+  .client-elsewhere { display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border);
+                      background: var(--bg-2); color: var(--muted); font-size: 10.5px; font-weight: 700; white-space: nowrap;
+                      line-height: 1.5; vertical-align: 2px; cursor: help; }
+  .builder-card.is-client, .fub-card.is-client, .hot-card.is-client { border-left: 4px solid var(--green); }
+  .builder-card.is-client { background: #f3faf5; }
+  .builder-card.is-client .builder-head:hover { background: #e9f6ed; }
+  .contact-detail.is-client { border-left: 4px solid var(--green); padding-left: 12px; }
   .builder-loc { font-size: 12px; color: var(--muted); margin-top: 2px; font-weight: 600; }
   .builder-stat { text-align: center; }
   .builder-stat .n { font-size: 15px; font-weight: 800; color: var(--navy); }
@@ -733,7 +739,8 @@
         <option value="new">New & untouched (90 days)</option>
         <option value="active">Recently touched (30 days)</option>
         <option value="inactive">Inactive (former contacts)</option>
-        <option value="client">Clients</option>
+        <option value="client">✓ Clients (this division)</option>
+        <option value="nonclient">Non-clients</option>
       </select>
     </div>
     <div id="activeFilterBar" style="display:none;align-items:center;flex-wrap:wrap;gap:7px;margin:-4px 0 12px"></div>
@@ -3759,7 +3766,7 @@ function clearContactFilters() {
 }
 // ---- Tacoma client divisions ----------------------------------------
 // Update when accounting adds/removes a client.
-// Source: accounting's Client Setup Master, 2026-11-09 — [company, city, state].
+// Source: accounting's Client Setup Master, 2026-11-16 — [company, city, state].
 // A notifier only: client contacts stay fully visible and contactable. Matched
 // per DIVISION (company + city + state), never builder-wide — Fischer Columbus
 // is a client; a Fischer division not on this list is not.
@@ -3795,10 +3802,40 @@ function _clientEntryKey(e) {
   return alias ? _clientKey(co, ...alias.split('|')) : _clientKey(co, city, st);
 }
 const _CLIENT_KEYS = new Set(CLIENT_DIVISIONS.map(_clientEntryKey));
+// normalised company → the cities where that builder IS a client (for the
+// "Client in Houston" note on a builder's non-client divisions).
+const _CLIENT_CITIES = (() => {
+  const m = new Map();
+  CLIENT_DIVISIONS.forEach(e => {
+    const k = _clientEntryKey(e); const co = k.split('|')[0];
+    const alias = CLIENT_CITY_ALIAS[e[0] + '|' + e[1] + '|' + e[2]];
+    const city = alias ? alias.split('|')[0] : e[1];
+    if (!m.has(co)) m.set(co, []);
+    if (!m.get(co).includes(city)) m.get(co).push(city);
+  });
+  return m;
+})();
 function isClientDivision(company, city, state) { return _CLIENT_KEYS.has(_clientKey(company, city, state)); }
-// The small brand-blue "T" shown next to a client division's builder name.
+// Cities where this builder is a client, other than the given one (sorted).
+function clientCitiesElsewhere(company, city, state) {
+  const all = _CLIENT_CITIES.get(_clientCo(company)) || [];
+  const here = String(city || '').trim().toLowerCase();
+  return all.filter(c => c.toLowerCase() !== here).sort();
+}
+// The green "CLIENT" pill shown next to a client division's builder name.
 function clientMark(company, city, state) {
-  return isClientDivision(company, city, state) ? '<span class="client-mark" title="Tacoma client" aria-label="Tacoma client">T</span>' : '';
+  if (!isClientDivision(company, city, state)) return '';
+  const title = 'Tacoma Energy client (this division)';
+  return `<span class="client-pill" title="${title}" aria-label="${title}">Client</span>`;
+}
+// Muted "Client in Houston" note for a NON-client division of a builder that is
+// a client elsewhere — the national-account angle, surfaced for reps too.
+function clientElsewhereNote(company, city, state) {
+  if (isClientDivision(company, city, state)) return '';
+  const cities = clientCitiesElsewhere(company, city, state);
+  if (!cities.length) return '';
+  const label = cities.length <= 2 ? cities.join(', ') : cities.slice(0, 2).join(', ') + ' +' + (cities.length - 2);
+  return `<span class="client-elsewhere" title="${esc('Tacoma client in ' + cities.join(', ') + ' — not this division')}">Client in ${esc(label)}</span>`;
 }
 // CLIENT_DIVISIONS entries that match no contact in the CRM (active or not) —
 // logged on load so a naming mismatch between accounting and the CRM is findable.
@@ -4160,6 +4197,7 @@ function renderContacts() {
       else if (statusF === 'new') { if (lastTouch(c.contactId)) return false; const _ad = contactEdited(c); if (!_ad || daysBetween(_ad) > 90) return false; }
       else if (statusF === 'active') { const _lt = lastTouch(c.contactId); if (!_lt || daysBetween(_lt.date) > 30) return false; }
       else if (statusF === 'client') { if (!isClientDivision(c.company, c.city, c.state)) return false; }
+      else if (statusF === 'nonclient') { if (isClientDivision(c.company, c.city, c.state)) return false; }
       else if (contactStatus(c.contactId).key !== statusF) return false;
     }
     if (q) {
@@ -4220,7 +4258,7 @@ function renderContacts() {
     return `<div class="builder-card ${open?'open':''}${isClient?' is-client':''}">
       <div class="builder-head" onclick="toggleBuilder('${escArg(b.company+'|'+b.city+'|'+b.state)}')">
         <div>
-          <div class="builder-name">${esc(b.company)}${clientMark(b.company, b.city, b.state)}${hotN?` <span class="chip hot">🔥 ${hotN}</span>`:''}</div>
+          <div class="builder-name">${esc(b.company)}${clientMark(b.company, b.city, b.state)}${clientElsewhereNote(b.company, b.city, b.state)}${hotN?` <span class="chip hot">🔥 ${hotN}</span>`:''}</div>
           <div class="builder-loc">${esc(b.city)}, ${esc(b.state)}</div>
         </div>
         <div class="builder-stat"><div class="n tnum">${b.contacts.length}</div><div class="l">Contacts</div></div>
@@ -4273,7 +4311,7 @@ function renderContactDetail(cid) {
   box.innerHTML = `
     <div class="contact-detail${isClientDivision(c.company, c.city, c.state) ? ' is-client' : ''}">
       <h3>${flameIcon(c, 18)} ${esc(c.first)} ${esc(c.last)} ${c.hot?'<span class="chip hot">🔥 Hot Lead</span>':''}</h3>
-      <div class="role">${esc(c.company)}${clientMark(c.company, c.city, c.state)} · ${esc(c.title||'—')}<br>${esc(c.city)}, ${esc(c.state)}</div>
+      <div class="role">${esc(c.company)} · ${esc(c.title||'—')}<br>${esc(c.city)}, ${esc(c.state)}${clientMark(c.company, c.city, c.state)}${clientElsewhereNote(c.company, c.city, c.state)}</div>
       <div class="info-grid">
         <div class="info-box"><label>Email</label><strong><a href="mailto:${esc(c.email)}">${esc(c.email||'—')}</a></strong></div>
         <div class="info-box"><label>Phone</label><strong><a href="tel:${esc(phoneHref(c.phone))}">${esc(formatPhone(c.phone) || '—')}</a></strong></div>
