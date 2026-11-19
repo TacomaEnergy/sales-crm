@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v128 · agent emails per workday)</title>
+<title>Tacoma Energy — Sales CRM (v129 · agent per-workday through yesterday)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -2887,8 +2887,12 @@ function _agentPage(everything, pageNo){
   var perDay=cuts.map(function(cut){
     if(!firstSend) return '0.0';
     var from=(!cut || cut<firstSend) ? firstSend : cut;
-    var n=sends.filter(function(t){ return t.date>=from; }).length;
-    return (Math.round(n/_bizDays(from)*10)/10).toFixed(1);
+    var today=todayISO(), n=sends.filter(function(t){ return t.date>=from && t.date<today; }).length;
+    // v129: workdays through YESTERDAY. The morning batch logs a day's sends the
+    // next morning, so counting today always read low (4.3 vs 5.2 on 11/19).
+    var d=new Date(from+'T00:00:00'), end=new Date(today+'T00:00:00'), wd=0;
+    for(; d<end; d.setDate(d.getDate()+1)){ var g=d.getDay(); if(g>=1 && g<=5) wd++; }
+    return wd ? (Math.round(n/wd*10)/10).toFixed(1) : '\u2014';
   });
   var rows=[['Emails sent'].concat(cuts.map(function(cut){ return sends.filter(function(t){ return !cut || t.date>=cut; }).length; })),
             ['Emails per workday'].concat(perDay),
