@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tacoma Energy — Sales CRM (v126 · agent out of team totals · hot lead age)</title>
+<title>Tacoma Energy — Sales CRM (v127 · agent page: emails + builders)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -2872,40 +2872,28 @@ function _agentStats(everything, cutoff, replyMap){
            wins:  out.filter(function(t){ return t.result===WIN_RESULT; }).length };
 }
 function _agentPage(everything, pageNo){
-  var col=REP_COLOR[AGENT_REP]||'#6e5a9c';
-  var rm=_agentReplyMap(everything);
-  var st=[cutoffFor(7),cutoffFor(30),cutoffFor('ytd')].map(function(cut){ return _agentStats(everything, cut, rm); });
-  var mk=function(label,key){ return [label].concat(st.map(function(s){ return s[key]; })); };
-  var rows=[mk('Emails sent','sent'), mk('Bounces','bounces'), mk('Replies','replies'), mk('Reply rate (of delivered)','rate'),
-            mk('Replies handed to reps','handed'), mk('Pricing sent (sourced, credited to rep)','price'),
-            mk('Meetings (sourced, credited to rep)','meet'), mk('New customers (sourced, credited to rep)','wins')];
-  var sent7=st[0].sent;
-  var badge = sent7>0 ? `<span style='background:#06a951;color:#fff;font-size:9px;padding:2px 8px;border-radius:9px;font-weight:800;letter-spacing:.4px'>ACTIVE</span>` : `<span style='background:#687d92;color:#fff;font-size:9px;padding:2px 8px;border-radius:9px;font-weight:800;letter-spacing:.4px'>NO SENDS</span>`;
-  // Replies in the last 30 days: who, where, and who has it now.
-  var cut30=cutoffFor(30), byId=contactIndex();
-  var rep30=everything.filter(function(t){ return t.rep===AGENT_REP && AGENT_REPLY_RESULTS.indexOf(t.result)>=0 && t.date>=cut30; })
-    .sort(function(a,b){ return b.date.localeCompare(a.date); });
-  var seen={};
-  var li=rep30.filter(function(t){ if(seen[t.contactId]) return false; seen[t.contactId]=1; return true; }).slice(0,12).map(function(t){
-    var c=byId.get(t.contactId)||{}; var nm=((c.first||'')+' '+(c.last||'')).trim()||'(unknown)';
-    var later=everything.filter(function(x){ return x.contactId===t.contactId && NOT_A_HANDOFF_REP.indexOf(x.rep)<0 && x.date>=t.date; })
-      .sort(function(a,b){ return a.date.localeCompare(b.date); });
-    var who = later.length ? `handed to <b>${esc(later[0].rep)}</b>` : `<span style='color:#687d92'>not handed to a rep yet</span>`;
-    return `<li style='margin:0 0 1px'>${esc(t.date)} \u00b7 <b>${esc(nm)}</b>${c.company?` (${esc(c.company)})`:''} \u2014 ${esc(t.result)} \u2014 ${who}</li>`;
-  }).join('');
-  var list = li ? `<ul style='font-size:11.5px;line-height:1.32;margin:1px 0 3px 14px;padding-left:14px'>${li}</ul>` : `<div style='color:#a9b7c6;font-size:12px;margin:1px 0 4px 16px'>none in last 30 days</div>`;
-  return _sectionHead(pageNo, 'Outreach Agent (AI)', 'separate from team totals \u00b7 drafts emails that Arick reviews and sends', col) +
+  // v127 (Arick 2026-11-19: "just the builders / divisions we hit and number of
+  // emails sent"). Emails sent = agent 'Sent info' touches; builders hit =
+  // distinct builder divisions (company + city) the agent emailed. Bounces,
+  // replies and sourced deals are left off the report (_agentStats still has them).
+  var col=REP_COLOR[AGENT_REP]||'#6e5a9c', byId=contactIndex();
+  var sends=everything.filter(function(t){ return t.rep===AGENT_REP && t.result==='Sent info'; });
+  function divs(cut){ var m={}; sends.forEach(function(t){ if(cut && t.date<cut) return; var c=byId.get(t.contactId); if(!c||!c.company) return; var k=c.company+'|'+(c.city||'')+'|'+(c.state||''); if(!m[k]) m[k]={company:c.company, loc:[c.city,c.state].filter(Boolean).join(', '), n:0}; m[k].n++; }); return m; }
+  var cuts=[cutoffFor(7),cutoffFor(30),cutoffFor('ytd')];
+  var rows=[['Emails sent'].concat(cuts.map(function(cut){ return sends.filter(function(t){ return !cut || t.date>=cut; }).length; })),
+            ['Builders hit'].concat(cuts.map(function(cut){ return Object.keys(divs(cut)).length; }))];
+  var wk=divs(cuts[0]);
+  var names=Object.keys(wk).map(function(k){ return wk[k]; }).sort(function(a,b){ return a.company.localeCompare(b.company) || a.loc.localeCompare(b.loc); })
+    .map(function(d){ return esc(d.company) + (d.loc ? ' (' + esc(d.loc) + ')' : ''); });
+  var list = names.length ? `<div style='font-size:11px;font-weight:700;color:#0c2d47;margin:7px 0 1px'>Builders hit this week</div><div data-agent-builders style='font-size:11.5px;line-height:1.4;color:#2c3e50'>${names.join(' · ')}</div>` : '';
+  var badge = rows[0][1]>0 ? `<span style='background:#06a951;color:#fff;font-size:9px;padding:2px 8px;border-radius:9px;font-weight:800;letter-spacing:.4px'>ACTIVE</span>` : `<span style='background:#687d92;color:#fff;font-size:9px;padding:2px 8px;border-radius:9px;font-weight:800;letter-spacing:.4px'>NO SENDS</span>`;
+  return _sectionHead(pageNo, 'Outreach Agent (AI)', 'not counted in team totals', col) +
     `<div data-agent-block style='margin-top:6px;border:1px solid #dbe6f0;border-radius:9px;overflow:hidden'>
       <table width='100%' style='border-collapse:collapse'><tr><td style='background:${col};padding:5px 14px'>
-        <table width='100%'><tr>
-          <td valign='middle'><span style='display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;margin-right:8px;opacity:.85'></span><b style='color:#fff;font-size:15px'>Outreach Agent (AI)</b> &nbsp;${badge}</td>
-          <td align='right' valign='middle'><span style='color:#ffffff;font-size:11px;opacity:.9'>not counted in Team Overview</span></td>
-        </tr></table>
+        <span style='display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;margin-right:8px;opacity:.85'></span><b style='color:#fff;font-size:15px'>Outreach Agent (AI)</b> &nbsp;${badge}
       </td></tr></table>
       <div style='padding:6px 14px 6px'>
-        ${_tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows)}
-        <div style='font-size:11px;font-weight:700;color:#0c2d47;margin:7px 0 1px'>Replies <span style='color:#8a99a9;font-weight:400'>(last 30 days)</span></div>${list}
-        <div style='font-size:10.5px;color:#8a99a9;margin-top:4px'>Reply rate = replies \u00f7 (emails sent \u2212 bounces). Sourced outcomes count on the rep's page too; here they show what the agent started.</div>
+        ${_tbl(['Metric','Last 7 Days','Last 30 Days','Year to Date'], rows)}${list}
       </div>
     </div>`;
 }
